@@ -1,24 +1,11 @@
 # omarchy-setup
 
-Setup instructions and fixes for my Omarchy machines, written to be executed
-by a coding agent — English as the setup script. Much of it is hard-won fixes
-for hardware quirks (speaker pops, scroll judder, white video) with the
-investigations and dead ends documented, so a fresh install doesn't mean
-re-deriving anything.
-
-## For the agent running this
-
-You are setting up (or re-checking) one of the machines below. Start by
-identifying which one you're on: `cat /sys/class/dmi/id/product_name`
-("XPS 13 DX13260" = the XPS; Beelink product name = the SER8).
-
-- **Fresh install** → follow [new-machine-checklist.md](new-machine-checklist.md)
-  top to bottom, skipping sections marked for the other machine.
-- **After `omarchy update`** → follow [post-update-checklist.md](post-update-checklist.md).
-- Each step links a detail doc with the why, the verification command, and the
-  revert path — verify after each change rather than assuming success. The
-  "dead ends" sections are load-bearing: do not re-investigate them.
-- Machine-specific assets (speaker tuning profiles) live in `assets/`.
+Nuanced fixes and hard-won config for my Omarchy machines, so a fresh install
+doesn't mean re-deriving everything. Written for myself — and maybe useful to
+other Dell XPS 13 owners running Omarchy. Steps carry exact commands,
+verification, and revert paths, so the checklists also work handed to a coding
+agent ("set up this machine"; identify the machine via
+`cat /sys/class/dmi/id/product_name`).
 
 ## Machines
 
