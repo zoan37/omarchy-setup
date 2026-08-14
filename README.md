@@ -8,7 +8,7 @@ doesn't mean re-deriving everything.
 | Machine | GPU | Notes |
 |---|---|---|
 | Dell XPS 13 (DX13260) | Intel Wildcat Lake | 2560x1600@120Hz eDP, fractional scale 1.6 |
-| Other box | AMD HawkPoint1 iGPU | |
+| Beelink SER8 | AMD Hawk Point iGPU (Radeon 780M) | 32GB RAM, mini-PC |
 
 ## Checklists
 
