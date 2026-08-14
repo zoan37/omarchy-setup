@@ -1,8 +1,10 @@
 # omarchy-setup
 
-Setup instructions and hard-won config for my Omarchy machines, written to be
-executed by a coding agent — English as the setup script. A fresh install
-shouldn't mean re-deriving anything.
+Setup instructions and fixes for my Omarchy machines, written to be executed
+by a coding agent — English as the setup script. Much of it is hard-won fixes
+for hardware quirks (speaker pops, scroll judder, white video) with the
+investigations and dead ends documented, so a fresh install doesn't mean
+re-deriving anything.
 
 ## For the agent running this
 
