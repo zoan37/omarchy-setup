@@ -85,3 +85,17 @@ display cadence system-wide, which is the remaining reason a Mac feels
 slightly more fluid. Firefox on Wayland has the same class of complaint
 (mozilla bugs 1545927, 1554408). A Chromium feature request to extend
 resampling to wheel-source input would be legitimate — none exists yet.
+
+## Upstream trail (for retiring this workaround later)
+
+- Kernel report: https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/8930
+- Omarchy issue/PR: basecamp/omarchy#6853 / basecamp/omarchy#6849
+- Key identifiers: GPU subsystem `1028:0e53`, DPCD sink OUI `00:22:b9` (LGD,
+  device string "Bamboo") — same sink family as the upstream quirks for
+  XPS 14 DA14260 (`45c77d4bf8d4`, v7.1) and XPS 16 DA16260 (`cb8d155b0806`,
+  7.2-rc1). Expected fix: matching `intel_dpcd_quirks[]` entry for DX13260.
+- When a kernel ships that quirk: delete
+  `/etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf`, run
+  `sudo limine-mkinitcpio`, reboot, and verify scrolling stays smooth
+  (the quirk only disables Panel Replay, so PSR2 comes back — if it judders,
+  the sink OUI read was `sudo dd if=/dev/drm_dp_aux0 bs=1 skip=1024 count=16`).
