@@ -14,5 +14,6 @@ doesn't mean re-deriving everything.
 
 - [Chrome: Vulkan + white-video fix](chrome-vulkan-white-video.md) — enable Vulkan without x.com/YouTube videos rendering as white rectangles, plus the flags-file gotcha that makes it look like nothing works.
 - [Ghostty: 10pt terminal with 12px global text size](ghostty-font-size.md) — decouple terminal font size from Omarchy's global text-size knob.
+- [hyprpm: install gotchas](hyprpm-notes.md) — plugins in use (kinetic-scroll, my hypr-tab-drag), and why hyprpm dies with "failed to create cache dir" outside a terminal.
 - [Touchpad: momentum scrolling + cursor feel](touchpad-kinetic-scroll.md) — compositor-level kinetic scroll via hyprpm plugin, and why the XPS 13 pad itself is fine.
 - [New machine checklist](new-machine-checklist.md) — condensed order of operations for a fresh Omarchy install.
