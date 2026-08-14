@@ -87,8 +87,11 @@ playback.props = {
 ```
 
 Verified: speaker PCM (`/proc/asound/card0/pcm2p/sub0/status`) stays RUNNING
-with nothing playing. The residual tiny pop on stop is the content cut itself —
-present on macOS too, so this is parity.
+with nothing playing. Outcome by ear: stop-snap clearly better, though still
+slightly behind the Mac — the remaining edge is likely Apple's firmware-level
+mute-and-ramp around every gain/mute transition, which isn't reachable from
+userspace here. The residual tiny pop on stop is partly the content cut itself,
+which macOS exhibits too.
 
 **Dead end (don't re-chase):** the CS35L56s' runtime-PM state
 (`/sys/bus/spi/devices/spi-cs35l56-*/power/runtime_status`, 100 ms autosuspend)
