@@ -1,7 +1,17 @@
 # XPS 13 (DX13260): speaker pops on play/stop + piercing female speech
 
-Three stacked fixes on top of Omarchy's packaged speaker tuning
-(`dell-xps-13-2026-deharsh`, the "soft" profile, marked experimental upstream).
+Three stacked fixes on top of the `dell-xps-13-2026-deharsh` speaker tuning.
+
+**Provenance warning:** that tuning profile is NOT shipped by Omarchy — it's
+our own creation, written into the package-owned path
+`/usr/share/omarchy/default/audio/tunings/dell-xps-13-2026-deharsh/` so that
+`omarchy audio tuning` picks it up. An Omarchy update deletes the whole
+directory (symptom: `omarchy audio tuning status` → "nothing ships for this
+laptop"). Restore kit: `~/.local/share/omarchy-xps13-tuning/` (also mirrored in
+this repo at `assets/xps13-speaker-tuning/`) — run
+`sudo bash ~/.local/share/omarchy-xps13-tuning/restore.sh`, then
+`omarchy audio tuning on --force`. Variant-swap helper: `~/.local/bin/xps13-tuning`.
+Dependency: `lsp-plugins-lv2` (pacman) provides the LV2 limiter the chain uses.
 
 **Hardware:** CS42L43 codec on SoundWire, driving two CS35L56 smart amps as
 sidecars (audio from the codec, control over an SPI bridge —
@@ -111,11 +121,16 @@ nothing for the pops.
 
 ## Overwrite caveat
 
-`omarchy audio tuning on --force` or an omarchy-update reinstall of the tuning
-**silently overwrites `90-tuning.conf`**, reverting fixes 1 and 3 (fix 2
-survives). If speech turns sharp again or the stop-snap returns after an
-update, re-apply the fragment edits. Backups sit next to the file as
-`90-tuning.conf.bak.*`.
+Two layers of clobber, now both handled:
+
+- An **omarchy update deletes the profile** from `/usr/share/omarchy/...` (see
+  provenance warning at top) → restore with the restore kit.
+- `omarchy audio tuning on --force` reinstalls `90-tuning.conf` from that
+  profile. As of 2026-08-14 the profile and the restore kit's `soft.conf` are
+  **synced with fixes 1 and 3 baked in**, so a reinstall no longer reverts
+  them. If future fragment edits are made, re-sync all three copies (installed
+  fragment, `/usr/share` profile, restore-kit variant — and this repo's
+  `assets/`). Backups sit next to the fragment as `90-tuning.conf.bak.*`.
 
 Worth upstreaming eventually: the EQ revision to the `dell-xps-13-2026-deharsh`
 profile (it's marked experimental), and possibly `always-process` as a tuning
