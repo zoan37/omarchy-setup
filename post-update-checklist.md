@@ -4,10 +4,15 @@ Run through this after every `omarchy update` (or any `omarchy refresh ...`).
 Ordered by likelihood of breakage. Compiled 2026-08-14 from a full audit of
 session history + live system state.
 
-## 1. Speaker tuning — WILL break on update
+## 1. Speaker tuning — check every time, but it survived 4.0.0
 
-The tuning profile is our own file inside package-owned
-`/usr/share/omarchy/default/audio/tunings/`; updates delete it.
+The tuning profile is our own directory inside package-owned
+`/usr/share/omarchy/default/audio/tunings/`, so it is always the most exposed
+thing here. **Observed 2026-08-14 on `4.0.0rc4-1 → 4.0.0-1`: it survived
+untouched** — pacman only removes files the package owns, and this update ran
+no rsync that pruned foreign directories. Treat it as "verify", not "will
+break", but keep verifying: an install script that syncs with `--delete` would
+still take it out.
 
 ```sh
 omarchy audio tuning status
@@ -25,6 +30,15 @@ omarchy audio tuning status
   [xps13-speaker-pops-and-eq.md](xps13-speaker-pops-and-eq.md).
 - `~/.config/wireplumber/wireplumber.conf.d/90-speaker-no-suspend.conf`
   survives updates on its own.
+
+**New neighbour as of 4.0.0:** upstream now ships
+`tunings/dell-xps-2026/`, matched on `match_sku=("0DB9" "0DBA")` — the XPS 14
+and XPS 16. This laptop is SKU **0E53**, so it does not match and there is no
+conflict; `omarchy audio tuning status` still resolves to our
+`dell-xps-13-2026-deharsh`. Two things follow: upstream is clearly willing to
+carry per-SKU XPS tunings, so our XPS 13 profile is a plausible upstream
+contribution; and if a future release adds `0E53` to a shipped profile, ours
+should be retired rather than left to shadow it.
 
 ## 2. Hyprland plugins — WILL break if the update bumps Hyprland
 
@@ -50,6 +64,12 @@ persists. After a **kernel** update, check whether the upstream quirk landed
 ```sh
 cat /proc/cmdline | grep -o "xe.enable_psr=0 xe.enable_panel_replay=0"
 ```
+
+A miss here does **not** mean the drop-in was clobbered — `/proc/cmdline` only
+reflects the args as of the last boot. Compare `uptime -s` against the
+drop-in's mtime first; if the boot is older, the fix is merely staged and a
+reboot is all that's owed. Confirm the regeneration actually ran with
+`journalctl | grep limine-mkinitcpio` rather than re-running it blind.
 
 Retirement steps in [xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scroll-judder.md).
 
