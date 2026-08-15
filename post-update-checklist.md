@@ -1,8 +1,28 @@
-# Post-`omarchy update` checklist (XPS 13)
+# Post-`omarchy update` checklist
 
 Run through this after every `omarchy update` (or any `omarchy refresh ...`).
 Ordered by likelihood of breakage. Compiled 2026-08-14 from a full audit of
-session history + live system state.
+session history + live system state. Sections 1 and 3 are XPS 13-only; the
+rest applies to any machine.
+
+## 0. Major-version upgrades: check the config provider first
+
+**A major upgrade can migrate the config format and orphan every file your
+tweaks live in.** Quattro (4.0) rewrites `~/.config/hypr/*.conf` as stock
+`*.lua`, leaves the `.conf` files on disk unread, and warns about nothing —
+so the rest of this checklist's "survives updates" assumption does not hold
+across that boundary.
+
+```sh
+hyprctl systeminfo | grep configProvider
+```
+
+If that changed, stop and work through
+[quattro-lua-migration.md](quattro-lua-migration.md) before anything else.
+Confirmed lost on the SER8: border-resize, the group tab-reorder binds, and
+the hyprpm plugin. Verify against live state (`hyprctl getoption` /
+`hyprctl binds` / `hyprctl plugin list`), not against the files — a stock
+config and a dropped setting read identically.
 
 ## 1. Speaker tuning — check every time, but it survived 4.0.0
 
@@ -121,6 +141,13 @@ edits, and everything is documented here:
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
 | `~/.config/mise/config.toml` | claude/codex/gh/node | — |
 | syncthing user service | enabled | — |
+
+## 7. Bar weather icon missing after a reboot
+
+Cosmetic, and not caused by the update itself — the shell can start before
+Wi-Fi associates, and the weather widget hides itself when it has no data.
+`omarchy restart shell` fixes it.
+[weather-widget-boot-race.md](weather-widget-boot-race.md)
 
 ## Known open gap
 
