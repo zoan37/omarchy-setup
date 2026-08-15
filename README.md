@@ -27,7 +27,7 @@ agent ("set up this machine"; identify the machine via
 - [Ghostty: 10pt terminal with 12px global text size](ghostty-font-size.md) — decouple terminal font size from Omarchy's global text-size knob.
 - [hyprpm: install gotchas](hyprpm-notes.md) — plugins in use (kinetic-scroll, my hypr-tab-drag), and why hyprpm dies with "failed to create cache dir" outside a terminal.
 - [Touchpad: momentum scrolling + cursor feel](touchpad-kinetic-scroll.md) — compositor-level kinetic scroll via hyprpm plugin, and why the XPS 13 pad itself is fine.
-- [Hyprland + shell tweaks](hyprland-shell-tweaks.md) — the small stuff: Alt/Super swap, natural scroll, hair-trigger 3-finger swipe, border-resize, group tab-reorder binds, monitor scale, clock/tray, syncthing, mise tools.
+- [Hyprland + shell tweaks](hyprland-shell-tweaks.md) — the small stuff: Alt/Super swap, natural scroll, hair-trigger 3-finger swipe, border-resize, group tab-reorder + SUPER+A select-all binds, monitor scale, clock/tray, syncthing, mise tools.
 
 `assets/xps13-speaker-tuning/` holds the actual speaker-tuning files (restore
 kit mirror), since the live profile sits in a package-owned path that omarchy

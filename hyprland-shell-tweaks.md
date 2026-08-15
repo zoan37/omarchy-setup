@@ -44,6 +44,39 @@ SUPER+CTRL+SHIFT+LEFT  -> hl.dsp.group.move_window({ forward = false })
 SUPER+CTRL+SHIFT+RIGHT -> hl.dsp.group.move_window({ forward = true })
 ```
 
+**SUPER+A = select all**, to complete Omarchy's macOS-ish `SUPER+C/V/X`
+clipboard set (which stock leaves without a select-all). Copy the
+`send_shortcut_once` helper verbatim from
+`/usr/share/omarchy/default/hypr/bindings/clipboard.lua` — the explicit-mods
+send with no window target is what reaches layer-shell surfaces (Omarchy
+panels) too, and the down/up split works around Hyprland leaving the synthetic
+key stuck ([hyprwm/Hyprland#14099](https://github.com/hyprwm/Hyprland/discussions/14099)).
+A virtual keyboard (`wtype`) does **not** work here: the physically held SUPER
+merges into the injected chord at the seat.
+
+```lua
+local function send_shortcut_once(mods, key)
+  return function()
+    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
+
+    hl.timer(function()
+      hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up" }))
+    end, { timeout = 50, type = "oneshot" })
+  end
+end
+
+o.bind("SUPER + A", "Universal select all", send_shortcut_once("CTRL", "A"))
+```
+
+SUPER+A is unbound in stock Omarchy, so no `hl.unbind` is needed. Deliberately
+**not** terminal-special-cased the way copy/paste is (stock swaps to
+`CTRL+Insert` / `SHIFT+Insert` there): terminals have no universal select-all,
+so in a terminal SUPER+A just sends CTRL+A = beginning-of-line. Fine as-is;
+revisit only if a tmux prefix ever lands on CTRL+A.
+
+Verify: `hyprctl reload && hyprctl configerrors`, then
+`omarchy menu keybindings --print | grep -i "select all"`.
+
 ## `~/.config/hypr/monitors.lua`
 
 - `omarchy_monitor_scale = 1.6` (stock "auto" picked 2 — too zoomed on the
