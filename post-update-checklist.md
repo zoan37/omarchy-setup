@@ -19,10 +19,11 @@ hyprctl systeminfo | grep configProvider
 
 If that changed, stop and work through
 [quattro-lua-migration.md](quattro-lua-migration.md) before anything else.
-Confirmed lost on the SER8: border-resize, the group tab-reorder binds, and
-the hyprpm plugin. Verify against live state (`hyprctl getoption` /
-`hyprctl binds` / `hyprctl plugin list`), not against the files — a stock
-config and a dropped setting read identically.
+Confirmed lost on the SER8, which upgraded from Omarchy 3: border-resize, the
+group tab-reorder binds, and the hyprpm plugin. The XPS 13 was a fresh Quattro
+install and never migrated, so this cost nothing there. Verify against live
+state (`hyprctl getoption` / `hyprctl binds` / `hyprctl plugin list`), not
+against the files — a stock config and a dropped setting read identically.
 
 ## 1. Speaker tuning — check every time, but it survived 4.0.0
 

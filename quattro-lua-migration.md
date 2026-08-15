@@ -11,8 +11,16 @@ backed up under a `.bak` name, and every customization that lived in the
 
 This is the one case that breaks the "user config in `~/.config/` survives
 `omarchy update`" assumption in
-[post-update-checklist.md](post-update-checklist.md). It is a **one-time**
-migration, but it hits every machine you upgrade.
+[post-update-checklist.md](post-update-checklist.md).
+
+**Scope: upgrade-path machines only.** It is a one-time migration on the way
+from Omarchy 3 to 4, so it hits exactly the machines that carried `.conf`
+files across. The XPS 13 was a fresh Quattro install and was never affected —
+its tweaks were authored in Lua from the start, which is why
+[hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) is already in Lua syntax
+while the SER8's were still `.conf`. With both machines now on Quattro this
+should not recur, but the section-0 `configProvider` check is cheap insurance
+for the next major version.
 
 ## Confirm which provider is live
 
