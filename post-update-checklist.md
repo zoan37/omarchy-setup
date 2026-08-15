@@ -71,6 +71,20 @@ drop-in's mtime first; if the boot is older, the fix is merely staged and a
 reboot is all that's owed. Confirm the regeneration actually ran with
 `journalctl | grep limine-mkinitcpio` rather than re-running it blind.
 
+**Two independent paths disable PSR, and they mask each other.** On the boot
+where this was first set up, the debugfs toggle was already applied by hand, so
+scrolling was smooth *despite* the cmdline args being absent — the symptom and
+the mechanism had come apart. Read the actual state before concluding anything:
+
+```sh
+sudo cat /sys/kernel/debug/dri/0000:00:02.0/eDP-1/i915_psr_status   # want: PSR disabled
+journalctl | grep i915_edp_psr_debug                                # was the toggle run this boot?
+```
+
+The toggle dies at reboot and the cmdline takes over, so coverage is continuous
+across a restart — but that handoff is the moment to re-check. Smooth scrolling
+before a reboot proves only that *one* of the two paths works.
+
 Retirement steps in [xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scroll-judder.md).
 
 ## 4. Ghostty font — breaks only on `omarchy refresh`, not update
