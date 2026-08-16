@@ -2,8 +2,11 @@
 
 ## Plugins installed on my machines
 
-- [hypr-kinetic-scroll](https://github.com/savonovv/hypr-kinetic-scroll) — see [touchpad-kinetic-scroll.md](touchpad-kinetic-scroll.md)
+- [hypr-momentum](https://github.com/zoan37/hypr-momentum) — my plugin; macOS-style momentum scrolling — see [touchpad-momentum-scroll.md](touchpad-momentum-scroll.md)
 - [hypr-tab-drag](https://github.com/zoan37/hypr-tab-drag) — my plugin; drag groupbar tabs to reorder, like browser tabs
+
+(hypr-kinetic-scroll, savonovv — replaced by hypr-momentum Aug 2026; disable
+it with `hyprpm disable hypr-kinetic-scroll` if it's still enabled.)
 
 Install pattern:
 

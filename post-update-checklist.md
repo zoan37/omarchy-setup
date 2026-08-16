@@ -63,18 +63,19 @@ should be retired rather than left to shadow it.
 
 ## 2. Hyprland plugins — WILL break if the update bumps Hyprland
 
-kinetic-scroll's ABI check is disabled; a Hyprland bump can crash the
-compositor at plugin load instead of refusing.
+Both plugins check the ABI and refuse to load on a mismatched Hyprland, so a
+bump means no momentum/tab-drag until rebuilt — annoying, not fatal.
 
 ```sh
 hyprpm update   # rebuild both plugins against the new headers (needs a real terminal)
 ```
 
-If the compositor won't start / crashes on login: from a TTY,
-`hyprpm disable hypr-kinetic-scroll` (and `tab-drag` if needed), log in, then
-rebuild. Plugins installed: `hypr-kinetic-scroll` (savonovv), `tab-drag`
-(zoan37). The `o.exec_on_start("hyprpm reload -n")` line in `autostart.lua` is
-what loads them at all — see [hyprpm-notes.md](hyprpm-notes.md).
+If the compositor still won't start / crashes on login: from a TTY,
+`hyprpm disable momentum` (and `tab-drag` if needed), log in, then rebuild.
+Plugins installed: `momentum` ([hypr-momentum](https://github.com/zoan37/hypr-momentum),
+zoan37), `tab-drag` (zoan37). The `o.exec_on_start("hyprpm reload -n")` line
+in `autostart.lua` is what loads them at all — see
+[hyprpm-notes.md](hyprpm-notes.md).
 
 ## 3. Panel Replay / PSR boot fix — survives updates, retire when kernel fixed
 

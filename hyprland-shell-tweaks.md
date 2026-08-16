@@ -20,9 +20,10 @@ hyprland` / `omarchy refresh shell` resets them (with a `.bak` backup).
   workspace_swipe_cancel_ratio = 0.1
   workspace_swipe_min_speed_to_force = 2
   ```
-- Leftover TODO comment about kinetic-scroll `interval_ms=8`: not settable
-  under the Lua config parser — see
-  [touchpad-kinetic-scroll.md](touchpad-kinetic-scroll.md). Runs at defaults.
+- Leftover TODO comment about kinetic-scroll `interval_ms=8`: obsolete — the
+  replacement plugin emits at panel refresh natively and is runtime-tunable;
+  see [touchpad-momentum-scroll.md](touchpad-momentum-scroll.md). The comment
+  in `input.lua` can be deleted next time the file is touched.
 
 ## `~/.config/hypr/looknfeel.lua`
 

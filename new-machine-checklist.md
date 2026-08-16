@@ -32,10 +32,11 @@ git config --global user.email "104385984+zoan37@users.noreply.github.com"
 
 ## Touchpad / scrolling
 
-- Install `hypr-kinetic-scroll` via hyprpm.
+- Install [hypr-momentum](https://github.com/zoan37/hypr-momentum) via hyprpm
+  (`hyprpm add https://github.com/zoan37/hypr-momentum && hyprpm enable momentum`).
 - Add `o.exec_on_start("hyprpm reload -n")` to `~/.config/hypr/autostart.lua`.
-- Before any `omarchy update` that bumps Hyprland, remember the plugin's ABI
-  check is disabled — see [touchpad-kinetic-scroll.md](touchpad-kinetic-scroll.md) for the escape hatch.
+- After any `omarchy update` that bumps Hyprland: `hyprpm update` to rebuild —
+  see [touchpad-momentum-scroll.md](touchpad-momentum-scroll.md).
 
 ## Hyprland config tweaks
 
