@@ -21,7 +21,7 @@ omarchy theme set cyberspace
 # Default wallpaper (0- prefix sorts it first in the theme, but the combined
 # background list sorts the user-backgrounds folder ahead of the theme's, so
 # pin it explicitly):
-omarchy theme bg set ~/.config/omarchy/themes/cyberspace/backgrounds/0-crab-composite.jpg
+omarchy theme bg set ~/.config/omarchy/themes/cyberspace/backgrounds/0-crab-prince.jpg
 omarchy theme bg cache   # thumbnails for the switcher (Super+Ctrl+Space)
 ```
 
@@ -58,12 +58,13 @@ Theme backgrounds (`theme/backgrounds/`):
 
 | File | Object | Credit | Source |
 |---|---|---|---|
-| 0-crab-composite (default) | Crab Nebula, Chandra/Hubble/Spitzer composite | NASA/CXC/SAO, NASA/STScI, NASA-JPL-Caltech | [chandra.harvard.edu](https://chandra.harvard.edu/photo/2018/crab/) |
+| 0-crab-prince (default) | Crab Nebula, Herschel/Hubble composite — the image NASA tweeted in tribute to Prince (2016) | ESA/Herschel/PACS/MESS; NASA, ESA, Allison Loll/Jeff Hester (ASU) | [images.nasa.gov](https://images.nasa.gov/details/PIA17563) |
 | 1-cosmic-cliffs | Cosmic Cliffs, Carina Nebula (Webb NIRCam) | NASA, ESA, CSA, STScI | [webbtelescope.org](https://webbtelescope.org/contents/media/images/2022/031/01G77PKB8NKR7S8Z6HBXMYATGJ) |
 | 2-pillars-of-creation | Pillars of Creation (Webb) | NASA, ESA, CSA, STScI | [images.nasa.gov](https://images.nasa.gov/details/PIA25433) |
 | 3-neon-grid | Generated synthwave art | this repo (CC0) | [synthwave.py](assets/cyberspace-theme/synthwave.py) |
 | 4-crab-nebula | Crab Nebula, five-observatory composite | NASA/CXC/SAO et al. | [chandra.harvard.edu](https://chandra.harvard.edu/photo/2017/crab/) |
 | 5-veil-nebula | Veil Nebula (Hubble) | NASA, ESA, Hubble Heritage Team | [esahubble.org](https://esahubble.org/images/heic1520a/), also on [science.nasa.gov](https://science.nasa.gov/image-detail/veil-nebula/) |
+| 6-crab-composite | Crab Nebula, Chandra/Hubble/Spitzer composite | NASA/CXC/SAO, NASA/STScI, NASA-JPL-Caltech | [chandra.harvard.edu](https://chandra.harvard.edu/photo/2018/crab/) |
 
 Extra backgrounds (`user-backgrounds/`):
 
