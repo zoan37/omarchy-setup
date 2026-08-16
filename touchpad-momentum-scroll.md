@@ -59,6 +59,16 @@ notes that matter here:
   still required** — without it all hyprpm plugins silently vanish after
   reboot ([hyprpm-notes.md](hyprpm-notes.md)).
 
+### Migration crash (Aug 15 2026, diagnosed from core dump)
+
+Switching from the manually loaded dev copy to the hyprpm copy with **both
+loaded at once**, then unloading the dev copy, SIGABRT'd the compositor: the
+two copies share the `plugin:momentum:*` config keys, unloading one deletes
+the keys, and the survivor's next glide tick asserts looking them up. Not a
+bug in the plugin's physics or teardown — a Hyprland plugin-system hazard.
+Rule and safe migration order in
+[hyprpm-notes.md](hyprpm-notes.md#gotcha-never-have-two-copies-of-one-plugin-loaded--unloading-one-aborts-the-compositor).
+
 ## History: hypr-kinetic-scroll (replaced Aug 2026)
 
 First fix was [hypr-kinetic-scroll](https://github.com/savonovv/hypr-kinetic-scroll)

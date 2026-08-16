@@ -43,3 +43,31 @@ ownership is intentional (the dirs are written via `sudo install`). If you did:
 ```sh
 sudo chown -R root:root /var/cache/hyprpm/$USER
 ```
+
+## Gotcha: never have two copies of one plugin loaded — unloading one aborts the compositor
+
+Learned the hard way migrating hypr-momentum from a manually loaded `.so`
+(`hyprctl plugin load ~/hypr-momentum/momentum.so`, used during development)
+to the hyprpm-managed copy (Aug 15 2026). With both copies loaded, running
+
+```sh
+hyprctl plugin unload ~/hypr-momentum/momentum.so
+```
+
+killed Hyprland with SIGABRT. Symbolized core dump shows the mechanism, and
+it's the **surviving** copy that dies, not the one being unloaded:
+
+- Both copies register the same `plugin:momentum:*` config keys.
+- Unloading either copy makes Hyprland remove those keys.
+- The survivor's next tick constructs `CConfigValue("plugin:momentum:enabled")`,
+  whose `bind()` asserts because the key is gone (`ConfigValue.hpp:47`) → abort.
+
+This is generic to any Hyprland plugin that reads its config values by name at
+runtime (most do), so treat it as a hard rule: **one loaded copy per plugin,
+ever.** Safe migration from a dev copy to hyprpm:
+
+1. `hyprctl plugin unload <dev .so>` **first**, while it's the only copy.
+2. Then `hyprpm add` / `hyprpm enable` / `hyprpm reload`.
+
+Or skip the ordering problem entirely: enable in hyprpm, then log out/in —
+only the hyprpm copy comes back (autostart runs `hyprpm reload -n`).
