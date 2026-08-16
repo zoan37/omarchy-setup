@@ -19,6 +19,14 @@ agent ("set up this machine"; identify the machine via
 - [**Post-update checklist**](post-update-checklist.md) — run after every `omarchy update`: what breaks (speaker tuning, hyprpm plugins), what to spot-check, what survives.
 - [New machine checklist](new-machine-checklist.md) — condensed order of operations for a fresh Omarchy install.
 
+## Themes
+
+- [**Cyberspace**](cyberspace-theme.md) — custom space/cyberpunk theme: neon
+  cyan/magenta on near-black, 16 NASA/ESA/ESO wallpapers (credits + source
+  links in the doc), a generated synthwave wallpaper, and a muted
+  `hyprland_active_border` override. Full theme + images in
+  `assets/cyberspace-theme/`.
+
 ## Fixes
 
 - [**Quattro (4.0): the `.conf` → `.lua` migration drops your tweaks**](quattro-lua-migration.md) — a major upgrade orphans `~/.config/hypr/*.conf` without warning or backup. What was lost, how to tell, and the Lua equivalents.
