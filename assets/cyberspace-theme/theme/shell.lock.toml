@@ -4,3 +4,4 @@ text-error       = "#ff5577"
 border           = "#00e5ff"
 border-active    = "#ff4fd8"
 border-error     = "#ff5577"
+border-alpha     = 0.4
