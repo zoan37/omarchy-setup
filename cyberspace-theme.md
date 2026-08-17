@@ -1,8 +1,11 @@
 # Cyberspace: custom space/cyberpunk theme
 
-A custom Omarchy theme — deep space-navy backgrounds, neon cyan accent
-(`#00e5ff`), hot magenta (`#ff4fd8`), with NASA/ESA/ESO space photography plus
-one procedurally generated synthwave wallpaper. Built August 2026 on the XPS 13.
+A custom Omarchy theme — neutral near-black/gray backgrounds and gray text,
+neon cyan accent (`#00e5ff`), hot magenta (`#ff4fd8`), with NASA/ESA/ESO space
+photography plus one procedurally generated synthwave wallpaper. Built August
+2026 on the XPS 13. (Originally used space-navy backgrounds and lavender text;
+retuned to neutral grays Tokyo-Night-style because the blue tint was
+overpowering in the terminal — the neon ANSI palette carries the identity.)
 
 Theme files and all 28 wallpapers live in [`assets/cyberspace-theme/`](assets/cyberspace-theme/).
 
