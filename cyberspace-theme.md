@@ -9,6 +9,9 @@ overpowering in the terminal — the neon ANSI palette carries the identity.)
 
 Theme files and all 28 wallpapers live in [`assets/cyberspace-theme/`](assets/cyberspace-theme/).
 
+Not the daily driver: the default theme is stock Tokyo Night, with Cyberspace
+as the occasional switch-back.
+
 ## Install
 
 ```bash

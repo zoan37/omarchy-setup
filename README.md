@@ -21,8 +21,11 @@ agent ("set up this machine"; identify the machine via
 
 ## Themes
 
+Daily default is stock **Tokyo Night**; Cyberspace is the custom theme I
+switch back to once in a while.
+
 - [**Cyberspace**](cyberspace-theme.md) — custom space/cyberpunk theme: neon
-  cyan/magenta on near-black, 16 NASA/ESA/ESO wallpapers (credits + source
+  cyan/magenta on near-black, 27 NASA/ESA/ESO wallpapers (credits + source
   links in the doc), a generated synthwave wallpaper, and a muted
   `hyprland_active_border` override. Full theme + images in
   `assets/cyberspace-theme/`.
@@ -34,7 +37,7 @@ agent ("set up this machine"; identify the machine via
 - [Bar weather icon missing after boot](weather-widget-boot-race.md) — the shell starts before Wi-Fi associates and the widget hides itself with no error; why a working `omarchy weather status` doesn't rule it out.
 - [XPS 13: choppy scrolling = Panel Replay](xps13-panel-replay-scroll-judder.md) — the eDP panel's Panel Replay Selective Update stalls frames during scrolling; fixed with `xe.enable_psr=0 xe.enable_panel_replay=0`. Includes the dead ends (Hyprland VFR, Chrome resampling flags) so they don't get re-chased.
 - [XPS 13: speaker pops + piercing speech](xps13-speaker-pops-and-eq.md) — EQ revision on the packaged soft tuning, WirePlumber no-suspend for the start pop, and `node.always-process` on the tuning chain for the stop snap. Includes the CS35L56 runtime-PM red herring.
-- [Ghostty: 10pt terminal with 12px global text size](ghostty-font-size.md) — decouple terminal font size from Omarchy's global text-size knob.
+- [Ghostty: 11pt terminal with 12px global text size](ghostty-font-size.md) — decouple terminal font size from Omarchy's global text-size knob.
 - [hyprpm: install gotchas](hyprpm-notes.md) — plugins in use (my hypr-momentum and hypr-tab-drag), and why hyprpm dies with "failed to create cache dir" outside a terminal.
 - [Touchpad: momentum scrolling + cursor feel](touchpad-momentum-scroll.md) — macOS-style momentum via my hypr-momentum plugin, and why the XPS 13 pad itself is fine.
 - [Hyprland + shell tweaks](hyprland-shell-tweaks.md) — the small stuff: Alt/Super swap, natural scroll, hair-trigger 3-finger swipe, border-resize, group tab-reorder + SUPER+A select-all binds, monitor scale, clock/tray, syncthing, mise tools.
