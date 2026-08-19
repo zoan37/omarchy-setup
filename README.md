@@ -32,7 +32,7 @@ switch back to once in a while.
 
 ## Fixes
 
-- [**Quattro (4.0): the `.conf` → `.lua` migration drops your tweaks**](quattro-lua-migration.md) — a major upgrade orphans `~/.config/hypr/*.conf` without warning or backup. What was lost, how to tell, and the Lua equivalents.
+- [**Quattro (4.0): the `.conf` → `.lua` migration drops your tweaks**](quattro-lua-migration.md) — a major upgrade orphans `~/.config/hypr/*.conf` without warning or backup. What was lost, how to tell, and the Lua equivalents. Also covers the two quieter halves of the same upgrade: keys silently reclaimed by new stock bindings (screenshot → Google Maps), and the default terminal switching to foot, whose lack of tabs reads as Ghostty breaking.
 - [Chrome: Vulkan + white-video fix](chrome-vulkan-white-video.md) — enable Vulkan without x.com/YouTube videos rendering as white rectangles, plus the flags-file gotcha that makes it look like nothing works.
 - [Bar weather icon missing after boot](weather-widget-boot-race.md) — the shell starts before Wi-Fi associates and the widget hides itself with no error; why a working `omarchy weather status` doesn't rule it out.
 - [XPS 13: choppy scrolling = Panel Replay](xps13-panel-replay-scroll-judder.md) — the eDP panel's Panel Replay Selective Update stalls frames during scrolling; fixed with `xe.enable_psr=0 xe.enable_panel_replay=0`. Includes the dead ends (Hyprland VFR, Chrome resampling flags) so they don't get re-chased.

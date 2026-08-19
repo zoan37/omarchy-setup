@@ -20,10 +20,28 @@ hyprctl systeminfo | grep configProvider
 If that changed, stop and work through
 [quattro-lua-migration.md](quattro-lua-migration.md) before anything else.
 Confirmed lost on the SER8, which upgraded from Omarchy 3: border-resize, the
-group tab-reorder binds, and the hyprpm plugin. The XPS 13 was a fresh Quattro
-install and never migrated, so this cost nothing there. Verify against live
-state (`hyprctl getoption` / `hyprctl binds` / `hyprctl plugin list`), not
-against the files — a stock config and a dropped setting read identically.
+group tab-reorder binds, the hyprpm plugin, and — found four days later — the
+`SUPER + SHIFT + S` screenshot bind and the `SUPER + SHIFT + W` editor bind.
+The XPS 13 was a fresh Quattro install and never migrated, so this cost nothing
+there. Verify against live state (`hyprctl getoption` / `hyprctl binds` /
+`hyprctl plugin list`), not against the files — a stock config and a dropped
+setting read identically.
+
+**A missing bind is the easy case.** A major upgrade ships *more* defaults than
+the last one, so keys you had customized can be quietly reclaimed by a new stock
+binding — they still fire, just wrong, and no presence check catches it. Read
+the whole keymap by description rather than grepping for what you remember:
+
+```sh
+omarchy menu keybindings --print
+```
+
+**Also check the default terminal**, which the same upgrade can change without
+touching any config file you own:
+
+```sh
+omarchy-default-terminal    # Quattro switched this to foot, which has no tabs
+```
 
 ## 1. Speaker tuning — check every time, but it survived 4.0.0
 
@@ -134,11 +152,12 @@ edits, and everything is documented here:
 |---|---|---|
 | `~/.config/hypr/input.lua` | Alt/Super swap, natural scroll, 3-finger swipe tuning | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/hypr/looknfeel.lua` | resize-on-border trio | same |
-| `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+A select-all | same |
+| `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+A select-all, SUPER+SHIFT+S screenshot (needs `hl.unbind` first) | same |
 | `~/.config/hypr/monitors.lua` | monitor scale 1.6 | same |
 | `~/.config/hypr/autostart.lua` | `hyprpm reload -n` | [hyprpm-notes.md](hyprpm-notes.md) |
 | `~/.config/omarchy/shell.json` | clock format, Slack tray pin | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/omarchy/shell.toml` | base-size 12 | same |
+| `~/.config/xdg-terminals.list` | ghostty as default terminal | [quattro-lua-migration.md](quattro-lua-migration.md) |
 | `~/.config/chrome-flags.conf` | Vulkan/VA-API flags | [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md) |
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
 | `~/.config/mise/config.toml` | claude/codex/gh/node | — |

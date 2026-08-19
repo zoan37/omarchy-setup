@@ -23,9 +23,23 @@ git config --global user.email "104385984+zoan37@users.noreply.github.com"
    to pick up conf changes — see [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md)).
 4. Verify: `chrome://gpu` → Vulkan Enabled, ANGLE on Vulkan.
 
-## Terminal font (ghostty only)
+## Terminal
 
-- `~/.config/ghostty/local.conf` → `font-size = 10`
+Quattro installs foot and makes it the default, so set this *before* touching
+any terminal config — otherwise you tune a terminal you are not running, and
+foot's lack of tabs gets mistaken for a broken Ghostty
+([quattro-lua-migration.md](quattro-lua-migration.md)).
+
+```sh
+omarchy-default-terminal            # what is actually launching
+omarchy-default-terminal ghostty    # writes ~/.config/xdg-terminals.list
+```
+
+Existing windows keep their old terminal; open a new one to verify.
+
+Font (ghostty only):
+
+- `~/.config/ghostty/local.conf` → `font-size = 10` (SER8; the XPS 13 uses 11)
 - append to `~/.config/ghostty/config`:
   `config-file = ?"~/.config/ghostty/local.conf"`
 - Set global: `omarchy display text size 12`
@@ -43,6 +57,11 @@ git config --global user.email "104385984+zoan37@users.noreply.github.com"
 Apply the input/looknfeel/bindings/monitors edits from
 [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) (Alt/Super swap, natural
 scroll, 3-finger swipe tuning, border resize, group tab-reorder binds).
+
+Any binding that collides with an Omarchy default needs `hl.unbind` before the
+`o.bind`, or the default wins. `SUPER + SHIFT + S` (screenshot vs. the stock
+Google Maps webapp) is the one that bites — verify with
+`omarchy menu keybindings --print`.
 
 ## Speakers (XPS 13 only)
 

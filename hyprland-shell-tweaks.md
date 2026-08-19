@@ -78,6 +78,29 @@ revisit only if a tmux prefix ever lands on CTRL+A.
 Verify: `hyprctl reload && hyprctl configerrors`, then
 `omarchy menu keybindings --print | grep -i "select all"`.
 
+**SUPER+SHIFT+S = screenshot**, a Print-Screen stand-in for keyboards without
+the key (the SER8's Logitech board). Unlike SUPER+A this collides — Quattro's
+stock `applications.lua` binds it to the Google Maps webapp — so the `hl.unbind`
+is mandatory, not decoration:
+
+```lua
+hl.unbind("SUPER + SHIFT + S")
+o.bind("SUPER + SHIFT + S", "Screenshot", "omarchy-capture-screenshot")
+```
+
+Restored 2026-08-19; the Omarchy 3 `.conf` version of this bind was a casualty
+of the Quattro migration, and because the key kept doing *something* it went
+unnoticed for four days ([quattro-lua-migration.md](quattro-lua-migration.md)).
+The stock `PRINT` / `ALT+PRINT` / `SUPER+CTRL+PRINT` capture binds are
+untouched and still work.
+
+Verify: `omarchy menu keybindings --print | grep -i screenshot` — the
+SUPER+SHIFT+S line must say Screenshot, not Google Maps.
+
+`SUPER+SHIFT+W` was Typora under Omarchy 3 and is now Quattro's Omawrite.
+Left on the default deliberately; Typora is still installed at `/usr/bin/typora`
+if the bind is ever wanted back.
+
 ## `~/.config/hypr/monitors.lua`
 
 - `omarchy_monitor_scale = 1.6` (stock "auto" picked 2 — too zoomed on the
