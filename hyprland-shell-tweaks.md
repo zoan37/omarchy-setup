@@ -117,7 +117,49 @@ if the bind is ever wanted back.
 - `shell.toml` (user-added file): `[font] base-size = 12` — the global text
   size. Pairs with the ghostty decouple in
   [ghostty-font-size.md](ghostty-font-size.md); other terminals follow the
-  global knob at 9pt **on purpose** (only ghostty is pinned to 10).
+  global knob at 9pt **on purpose** (only ghostty is pinned, to 11).
+
+### Tray: pinning is the only "always visible"
+
+The tray widget has **no always-expanded setting**. `Tray.qml` reads exactly
+two keys off its `shell.json` entry — `pinned` and `hidden` — and sorts every
+item into pinned / hidden / drawer. The drawer is hover-reveal only
+(`onHoveredChanged: root.expanded = hovered`), so an unpinned item is always
+one hover away. Pinning it is the whole mechanism:
+
+```json
+{ "id": "omarchy.tray", "pinned": ["Slack_status_icon_1"] }
+```
+
+Right-click → Pin in the bar does the same thing and writes the same key.
+
+**Getting the item ID is the annoying part**, because it is the SNI `Id`, not
+the app name or the DBus path:
+
+```sh
+busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher \
+  org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems
+# -> ":1.79/org/chromium/StatusNotifierItem/1"
+busctl --user get-property :1.79 /org/chromium/StatusNotifierItem/1 \
+  org.kde.StatusNotifierItem Id
+# -> s "Slack_status_icon_1"
+```
+
+Note the path says **chromium**: Slack runs as a Chrome webapp here, so the
+DBus path names the host process and only `Id` names the app. Do not try to
+guess the ID from the path.
+
+Pinning is per item, so a newly installed tray app lands back in the drawer and
+needs its own pin. Making the drawer unconditional would mean cloning the
+widget (`omarchy plugin clone omarchy.tray`) and forcing `expanded: true` —
+846 lines of forked QML to re-sync on every update, deliberately not done.
+
+Restored 2026-08-19: the pin was documented here but absent from the live
+`shell.json`, so it had been dropped at some point without being noticed. Edit
+`shell.json` with a targeted replace and re-parse it before saving — the file
+is machine-written with sorted keys, and a naive `json.dump` reformats the
+whole thing into a useless diff. Verify: the icon sits in the bar with no
+hover, and `journalctl --user` shows no quickshell errors.
 
 ## Default apps
 
