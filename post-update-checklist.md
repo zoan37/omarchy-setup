@@ -131,7 +131,7 @@ Retirement steps in [xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scr
 
 The `config-file = ?"~/.config/ghostty/local.conf"` include is the **last line
 of `~/.config/ghostty/config`**, which `omarchy refresh terminal` regenerates
-without it. Check: `ghostty +show-config | grep font-size` → must say 10. If
+without it. Check: `ghostty +show-config | grep font-size` → must say 11. If
 9, re-append the include line ([ghostty-font-size.md](ghostty-font-size.md)).
 The text-size slider rewriting font-size to 9 inside `config` is harmless —
 `local.conf` wins.

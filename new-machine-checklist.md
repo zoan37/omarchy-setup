@@ -39,7 +39,7 @@ Existing windows keep their old terminal; open a new one to verify.
 
 Font (ghostty only):
 
-- `~/.config/ghostty/local.conf` → `font-size = 10` (SER8; the XPS 13 uses 11)
+- `~/.config/ghostty/local.conf` → `font-size = 11` (both machines)
 - append to `~/.config/ghostty/config`:
   `config-file = ?"~/.config/ghostty/local.conf"`
 - Set global: `omarchy display text size 12`
