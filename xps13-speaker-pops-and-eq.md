@@ -1,5 +1,9 @@
 # XPS 13 (DX13260): speaker pops on play/stop + piercing female speech
 
+> **OBSOLETE (2026-08-26).** All of this was compensating for a dead second
+> amp. The real fix is upstream: see [xps13-sidecar-amps.md](xps13-sidecar-amps.md).
+> Do not re-apply the EQ profile on working amps. Kept for history.
+
 Three stacked fixes on top of the `dell-xps-13-2026-deharsh` speaker tuning.
 
 **Provenance warning:** that tuning profile is NOT shipped by Omarchy — it's

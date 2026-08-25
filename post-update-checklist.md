@@ -43,7 +43,13 @@ touching any config file you own:
 omarchy-default-terminal    # Quattro switched this to foot, which has no tabs
 ```
 
-## 1. Speaker tuning — check every time, but it survived 4.0.0
+## 1. Speaker tuning — RETIRED 2026-08-26
+
+**Skip the restore steps below.** The second CS35L56 amp is now enabled by the
+`dell-xps13-sidecar-amps` package ([xps13-sidecar-amps.md](xps13-sidecar-amps.md));
+the custom EQ was tuning around that and must stay off. After an update just
+check `pacman -Q dell-xps13-sidecar-amps` and that
+`/sys/module/snd_soc_sof_sdw/parameters/quirk` is `65536`. Historical text follows.
 
 The tuning profile is our own directory inside package-owned
 `/usr/share/omarchy/default/audio/tunings/`, so it is always the most exposed
