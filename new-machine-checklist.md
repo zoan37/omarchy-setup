@@ -109,7 +109,18 @@ unnecessary).
 
 ## Services
 
-- `sudo pacman -S syncthing && systemctl --user enable --now syncthing` (not installed by default)
+- `sudo pacman -S syncthing && systemctl --user enable --now syncthing` (not
+  installed by default; starts at login, not boot)
+- **Open the firewall, or nothing is reachable.** `ufw` is active out of the box
+  and there is no `omarchy firewall` helper, so a fresh machine drops all
+  inbound — syncthing and sshd included:
+  ```sh
+  sudo ufw allow syncthing
+  sudo systemctl enable --now sshd                                # off by default
+  sudo ufw allow from 192.168.0.0/24 to any port 22 proto tcp     # LAN-scoped
+  ```
+  Full writeup, including why two machines each report the other as having no
+  services: [syncthing-and-ufw.md](syncthing-and-ufw.md).
 
 ## Useful references
 

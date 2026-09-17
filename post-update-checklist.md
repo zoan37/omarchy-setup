@@ -186,7 +186,8 @@ edits, and everything is documented here:
 | `~/.config/chrome-flags.conf` | Vulkan/VA-API flags | [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md) |
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
 | `~/.config/mise/config.toml` | claude/codex/gh/node | — |
-| syncthing user service | enabled | — |
+| syncthing user service | enabled (starts at login, not boot) | [syncthing-and-ufw.md](syncthing-and-ufw.md) |
+| ufw rules | `allow syncthing`, LAN-scoped ssh | same |
 
 ## 7. Bar weather icon missing after a reboot
 

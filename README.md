@@ -43,6 +43,7 @@ switch back to once in a while.
 - [11pt terminal with 12px global text size](terminal-font-size.md) — decouple terminal font size from Omarchy's global text-size knob, for ghostty and kitty. Kitty needs an extra step or the fix silently dies.
 - [hyprpm: install gotchas](hyprpm-notes.md) — plugins in use (my hypr-momentum and hypr-tab-drag), and why hyprpm dies with "failed to create cache dir" outside a terminal.
 - [Touchpad: momentum scrolling + cursor feel](touchpad-momentum-scroll.md) — macOS-style momentum via my hypr-momentum plugin, and why the XPS 13 pad itself is fine.
+- [**Syncthing + the ufw wall**](syncthing-and-ufw.md) — Omarchy enables `ufw` by default and ships no helper, so nothing on a fresh machine is reachable: two laptops ping each other fine while every TCP port times out, and each concludes the *other* isn't running syncthing. Also v2's moved config path, the vanished default `~/Sync`, and the folder-ID direction trap.
 - [Claude Code: local session retention](claude-code-notes.md) — sessions expire after 30 days by default; there is no "never" value and `0` is invalid, so it takes a large number. Also what the sweep deletes beyond transcripts.
 - [Hyprland + shell tweaks](hyprland-shell-tweaks.md) — the small stuff: Alt/Super swap, natural scroll, hair-trigger 3-finger swipe, border-resize, group tab-reorder + SUPER+A select-all binds, monitor scale, clock/tray, syncthing, mise tools.
 
