@@ -11,6 +11,10 @@ hyprland` / `omarchy refresh shell` resets them (with a `.bak` backup).
   — the first two options are Omarchy's defaults, repeated because `kb_options`
   replaces the whole string.
 - **Natural scroll**: `touchpad.natural_scroll = true`.
+- **`touchpad.disable_while_typing = false`** — libinput otherwise mutes the
+  pad after every keystroke, which kills the camera in WASD browser games.
+  Full story and the four dead ends:
+  [browser-game-pointer-lock.md](browser-game-pointer-lock.md).
 - **Three-finger horizontal workspace swipe**, tuned hair-trigger over three
   iterations (macOS-loose is the preference — don't re-tune conservative):
   ```lua
