@@ -8,7 +8,8 @@
 (hypr-kinetic-scroll, savonovv — replaced by hypr-momentum Aug 2026; disable
 it with `hyprpm disable hypr-kinetic-scroll` if it's still enabled.)
 
-Install pattern:
+Install pattern (on a fresh machine, `hyprpm update` first — see the cmake
+gotcha below):
 
 ```sh
 hyprpm add https://github.com/zoan37/hypr-tab-drag
@@ -22,6 +23,34 @@ after reboot:
 ```lua
 o.exec_on_start("hyprpm reload -n")
 ```
+
+## Gotcha: a fresh Omarchy install is missing `cmake`, and the error names the wrong step
+
+On a fresh Quattro install (observed on the XPS 16, 2026-09-17), the very first
+`hyprpm add` fails with something that looks like a version problem:
+
+```
+$ hyprpm add https://github.com/zoan37/hypr-momentum
+✖ Headers outdated, please run hyprpm update.
+
+$ hyprpm update
+✖ Missing dependency: cmake
+✖ Could not update. Dependencies not satisfied. Hyprpm requires: cmake, cpio, pkg-config, git, g++, gcc
+```
+
+Nothing is outdated — hyprpm has **no** Hyprland headers yet and has to build
+them, which it can't do. Of the six dependencies only `cmake` is actually
+absent; `base-devel` ships the rest:
+
+```sh
+for p in cmake cpio pkg-config git g++ gcc; do
+  printf '%-12s ' "$p"; command -v $p >/dev/null && echo present || echo MISSING
+done
+sudo pacman -S cmake
+```
+
+Then `hyprpm update` **before** `hyprpm add` — the header fetch is a
+prerequisite for compiling any plugin, not a repair step.
 
 ## Gotcha: hyprpm must run in an interactive terminal
 

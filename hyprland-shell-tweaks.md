@@ -116,7 +116,7 @@ if the bind is ever wanted back.
   visible.
 - `shell.toml` (user-added file): `[font] base-size = 12` — the global text
   size. Pairs with the ghostty decouple in
-  [ghostty-font-size.md](ghostty-font-size.md); other terminals follow the
+  [terminal-font-size.md](terminal-font-size.md); other terminals follow the
   global knob at 9pt **on purpose** (only ghostty is pinned, to 11).
 
 ### Tray: pinning is the only "always visible"

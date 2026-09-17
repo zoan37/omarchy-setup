@@ -2,6 +2,20 @@
 
 Condensed order of operations. Details in the per-topic files.
 
+Machine-specific pages: [Dell XPS 16](xps16-notes.md). Identify the machine with
+`cat /sys/class/dmi/id/product_name` and its speaker/display variant with
+`cat /sys/class/dmi/id/product_sku`.
+
+## First: sync the pacman databases
+
+A fresh install has **no** package databases, so `pacman -Si <pkg>` reports
+"package not found" for packages that exist — easy to misread as a missing
+package. Sync before installing anything:
+
+```sh
+sudo pacman -Sy
+```
+
 ## GitHub / git
 
 ```sh
@@ -13,9 +27,11 @@ git config --global user.email "104385984+zoan37@users.noreply.github.com"
 
 ## Chrome
 
-1. Install Chrome, then write `~/.config/chrome-flags.conf`:
+1. Install Chrome (Quattro may already ship it), then edit
+   `~/.config/chrome-flags.conf`. A fresh install already has an
+   `--enable-features=` line, so **merge** rather than adding a second one:
    ```
-   --enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE,VaapiVideoDecoder,VaapiIgnoreDriverChecks
+   --enable-features=TouchpadOverscrollHistoryNavigation,Vulkan,DefaultANGLEVulkan,VulkanFromANGLE,VaapiVideoDecoder,VaapiIgnoreDriverChecks
    ```
 2. On Intel machines: `sudo pacman -S intel-media-driver` (VA-API decode).
    AMD needs nothing extra.
@@ -46,6 +62,9 @@ Font (ghostty only):
 
 ## Touchpad / scrolling
 
+- `sudo pacman -S cmake` and then `hyprpm update` **first** — a fresh install
+  has no Hyprland headers and no cmake, and the failure misreports itself as
+  "Headers outdated" ([hyprpm-notes.md](hyprpm-notes.md)).
 - Install [hypr-momentum](https://github.com/zoan37/hypr-momentum) via hyprpm
   (`hyprpm add https://github.com/zoan37/hypr-momentum && hyprpm enable momentum`).
 - Add `o.exec_on_start("hyprpm reload -n")` to `~/.config/hypr/autostart.lua`.
@@ -63,7 +82,13 @@ Any binding that collides with an Omarchy default needs `hl.unbind` before the
 Google Maps webapp) is the one that bites — verify with
 `omarchy menu keybindings --print`.
 
-## Speakers (XPS 13 only)
+## Speakers
+
+**XPS 14/16 (SKU `0DB9`/`0DBA`): nothing to do** — Omarchy's shipped
+`dell-xps-2026` tuning auto-matches and is already on. Confirm with
+`omarchy audio tuning status`, then skip to the next section.
+
+### XPS 13 only (SKU `0E53`)
 
 1. `sudo pacman -S lsp-plugins-lv2`
 2. Copy `assets/xps13-speaker-tuning/` from this repo to
@@ -84,7 +109,7 @@ unnecessary).
 
 ## Services
 
-- `sudo pacman -S syncthing && systemctl --user enable --now syncthing`
+- `sudo pacman -S syncthing && systemctl --user enable --now syncthing` (not installed by default)
 
 ## Useful references
 

@@ -43,7 +43,7 @@ touching any config file you own:
 omarchy-default-terminal    # Quattro switched this to foot, which has no tabs
 ```
 
-## 1. Speaker tuning — RETIRED 2026-08-26
+## 1. Speaker tuning — RETIRED 2026-08-26 (XPS 13 only; N/A on XPS 16)
 
 **Skip the restore steps below.** The second CS35L56 amp is now enabled by the
 `dell-xps13-sidecar-amps` package ([xps13-sidecar-amps.md](xps13-sidecar-amps.md));
@@ -85,6 +85,13 @@ carry per-SKU XPS tunings, so our XPS 13 profile is a plausible upstream
 contribution; and if a future release adds `0E53` to a shipped profile, ours
 should be retired rather than left to shadow it.
 
+**Follow-up 2026-09-17:** the XPS 16 (`0DBA`) landed and *does* match
+`dell-xps-2026`, which arrives on and needs no setup at all. Note upstream's
+own comment says `0DBA` was "included on report that this profile suits it, not
+measured" — the curve was measured on the XPS 14. Worth an A/B
+(`omarchy audio tuning off`) before trusting it, and a measured XPS 16
+correction would be a real upstream contribution.
+
 ## 2. Hyprland plugins — WILL break if the update bumps Hyprland
 
 Both plugins check the ABI and refuse to load on a mismatched Hyprland, so a
@@ -101,7 +108,7 @@ zoan37), `tab-drag` (zoan37). The `o.exec_on_start("hyprpm reload -n")` line
 in `autostart.lua` is what loads them at all — see
 [hyprpm-notes.md](hyprpm-notes.md).
 
-## 3. Panel Replay / PSR boot fix — survives updates, retire when kernel fixed
+## 3. Panel Replay / PSR boot fix — XPS 13 only; N/A on XPS 16 (kernel 7.2 carries its quirk)
 
 `/etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf` is ours and
 persists. After a **kernel** update, check whether the upstream quirk landed
@@ -133,14 +140,24 @@ before a reboot proves only that *one* of the two paths works.
 
 Retirement steps in [xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scroll-judder.md).
 
-## 4. Ghostty font — breaks only on `omarchy refresh`, not update
+## 4. Terminal font — breaks only on `omarchy refresh`, not update
 
-The `config-file = ?"~/.config/ghostty/local.conf"` include is the **last line
-of `~/.config/ghostty/config`**, which `omarchy refresh terminal` regenerates
-without it. Check: `ghostty +show-config | grep font-size` → must say 11. If
-9, re-append the include line ([ghostty-font-size.md](ghostty-font-size.md)).
-The text-size slider rewriting font-size to 9 inside `config` is harmless —
-`local.conf` wins.
+The include that decouples the terminal font size is the **last line** of the
+file `omarchy refresh terminal` regenerates, so that one command drops it.
+The text-size slider rewriting the size to 9 in the regenerated file is
+harmless — `local.conf` wins. See
+[terminal-font-size.md](terminal-font-size.md).
+
+- **ghostty:** `ghostty +show-config | grep font-size` → must say 11. If 9,
+  re-append `config-file = ?"~/.config/ghostty/local.conf"`.
+- **kitty:** check **both** that `include local.conf` is the last line of
+  `kitty.conf` *and* that an active `font_size` line still exists above it. If
+  the active line is gone, Omarchy's next text-size write appends its stomp
+  after the include and quietly wins:
+  ```sh
+  tail -1 ~/.config/kitty/kitty.conf              # -> include local.conf
+  grep -cE '^[[:space:]]*font_size[[:space:]]+' ~/.config/kitty/kitty.conf   # -> 1
+  ```
 
 ## 5. Claude Code wrapper — cosmetic
 
@@ -163,7 +180,9 @@ edits, and everything is documented here:
 | `~/.config/hypr/autostart.lua` | `hyprpm reload -n` | [hyprpm-notes.md](hyprpm-notes.md) |
 | `~/.config/omarchy/shell.json` | clock format, Slack tray pin | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/omarchy/shell.toml` | base-size 12 | same |
-| `~/.config/xdg-terminals.list` | ghostty as default terminal | [quattro-lua-migration.md](quattro-lua-migration.md) |
+| `~/.claude/settings.json` | `cleanupPeriodDays` (session retention) | [claude-code-notes.md](claude-code-notes.md) |
+| `~/.config/xdg-terminals.list` | default terminal (kitty on the XPS 16, ghostty on the XPS 13) | [quattro-lua-migration.md](quattro-lua-migration.md) |
+| `~/.config/kitty/{kitty,local}.conf` | `font_size 11.0` + the seeded line and trailing include | [terminal-font-size.md](terminal-font-size.md) |
 | `~/.config/chrome-flags.conf` | Vulkan/VA-API flags | [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md) |
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
 | `~/.config/mise/config.toml` | claude/codex/gh/node | — |
@@ -176,8 +195,9 @@ Wi-Fi associates, and the weather widget hides itself when it has no data.
 `omarchy restart shell` fixes it.
 [weather-widget-boot-race.md](weather-widget-boot-race.md)
 
-## Known open gap
+## Known open gap (XPS 13 / SER8)
 
 `chrome-flags.conf` enables `VaapiVideoDecoder`, but `intel-media-driver`
-(iHD) is **not installed** on this box, so hardware video decode is silently
+(iHD) is **not installed** on the XPS 13, so hardware video decode is silently
 off. `sudo pacman -S intel-media-driver`, then verify at `chrome://gpu`.
+Not a gap on the XPS 16 — Quattro installed it there already.
