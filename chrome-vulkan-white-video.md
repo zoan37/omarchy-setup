@@ -53,8 +53,10 @@ Vulkan rather than OpenGL ES.
   other.
 - **Intel (Wildcat Lake XPS 13):** Mesa ships no Intel VA-API driver, so the
   `VaapiVideoDecoder` half is a no-op until `intel-media-driver` (iHD) is
-  installed: `sudo pacman -S intel-media-driver`. Vulkan itself works out of
-  the box via `vulkan-intel` (ANV).
+  installed — and Omarchy's installer **skips it on this hardware**, which is
+  why the fan spins up on video. Full write-up and the correct package set in
+  [xps13-fan-spins-up-on-video.md](xps13-fan-spins-up-on-video.md). Vulkan
+  itself works out of the box via `vulkan-intel` (ANV).
 - **AMD (HawkPoint1):** `radeonsi_drv_video.so` comes with Mesa, so VA-API
   decode works with no extra packages. `VaapiIgnoreDriverChecks` is needed
   because Chrome's allowlist doesn't recognize the Mesa stack.
