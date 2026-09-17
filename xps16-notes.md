@@ -92,6 +92,10 @@ seems off, that is the reason — and a measured XPS 16 correction would be a
 legitimate upstream contribution. Toggle with `omarchy audio tuning off` to
 A/B against the raw Cirrus voicing before concluding anything.
 
+**Follow-up, same day: it does fatigue the ear.** Corrected with a local
+corrective stage and a variant switcher rather than by editing the packaged
+files — [xps16-speaker-tuning.md](xps16-speaker-tuning.md).
+
 ### Touchpad — different hardware, same fix, no re-measurement needed
 
 The pad is `VEN_2C2F:0033`, not the XPS 13's Goodix `GXTP7863`, and

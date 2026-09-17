@@ -92,6 +92,30 @@ measured" — the curve was measured on the XPS 14. Worth an A/B
 (`omarchy audio tuning off`) before trusting it, and a measured XPS 16
 correction would be a real upstream contribution.
 
+## 1b. XPS 16 speaker tuning — our directory, so an update can wipe it
+
+`/usr/share/omarchy/default/audio/tunings/dell-xps-16-custom/` is ours and sits
+inside a package-owned parent, exactly like the XPS 13 profile did. pacman only
+removes files it owns, so it should survive — verify rather than assume:
+
+```sh
+xps16-tuning                  # lists variants, marks active, prints live status
+omarchy audio tuning status   # must say: Dell XPS 16 (2026) speakers [soft, experimental]
+```
+
+If it says `dell-xps-2026` instead, our directory is gone and upstream's curve
+took over (audible: the sharpness returns). Reinstall:
+
+```sh
+sudo bash ~/.local/share/omarchy-xps16-tuning/restore.sh   # reinstates default-variant
+omarchy audio tuning on --force
+```
+
+`restore.sh` also warns if the packaged chain changed, which means the variants
+were built against an older upstream and
+`python3 ~/.local/share/omarchy-xps16-tuning/build-variants.py` should be re-run.
+Details: [xps16-speaker-tuning.md](xps16-speaker-tuning.md).
+
 ## 2. Hyprland plugins — WILL break if the update bumps Hyprland
 
 Both plugins check the ABI and refuse to load on a mismatched Hyprland, so a
@@ -178,7 +202,7 @@ edits, and everything is documented here:
 | `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+A select-all, SUPER+SHIFT+S screenshot (needs `hl.unbind` first) | same |
 | `~/.config/hypr/monitors.lua` | monitor scale 1.6 | same |
 | `~/.config/hypr/autostart.lua` | `hyprpm reload -n` | [hyprpm-notes.md](hyprpm-notes.md) |
-| `~/.config/omarchy/shell.json` | clock format, Slack tray pin | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
+| `~/.config/omarchy/shell.json` | clock format, Slack tray pin (`Slack_status_icon_1`) | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/omarchy/shell.toml` | base-size 12 | same |
 | `~/.claude/settings.json` | `cleanupPeriodDays` (session retention) | [claude-code-notes.md](claude-code-notes.md) |
 | `~/.config/xdg-terminals.list` | default terminal (kitty on the XPS 16, ghostty on the XPS 13) | [quattro-lua-migration.md](quattro-lua-migration.md) |

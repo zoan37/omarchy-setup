@@ -43,10 +43,13 @@ switch back to once in a while.
 - [11pt terminal with 12px global text size](terminal-font-size.md) — decouple terminal font size from Omarchy's global text-size knob, for ghostty and kitty. Kitty needs an extra step or the fix silently dies.
 - [hyprpm: install gotchas](hyprpm-notes.md) — plugins in use (my hypr-momentum and hypr-tab-drag), and why hyprpm dies with "failed to create cache dir" outside a terminal.
 - [Touchpad: momentum scrolling + cursor feel](touchpad-momentum-scroll.md) — macOS-style momentum via my hypr-momentum plugin, and why the XPS 13 pad itself is fine.
+- [**XPS 16: taming the packaged tuning's sharpness**](xps16-speaker-tuning.md) — the shipped `dell-xps-2026` curve was fitted on the XPS 14 and fatigues the ear on the 16. A generated corrective stage on top of it, plus an `xps16-tuning` switcher. Includes the measured-by-computation finding that the curve is *not* bright — the real culprit is a +5.96 dB local peak at 1322 Hz — and the wrong rationale that got there first.
 - [**Syncthing + the ufw wall**](syncthing-and-ufw.md) — Omarchy enables `ufw` by default and ships no helper, so nothing on a fresh machine is reachable: two laptops ping each other fine while every TCP port times out, and each concludes the *other* isn't running syncthing. Also v2's moved config path, the vanished default `~/Sync`, and the folder-ID direction trap.
 - [Claude Code: local session retention](claude-code-notes.md) — sessions expire after 30 days by default; there is no "never" value and `0` is invalid, so it takes a large number. Also what the sweep deletes beyond transcripts.
 - [Hyprland + shell tweaks](hyprland-shell-tweaks.md) — the small stuff: Alt/Super swap, natural scroll, hair-trigger 3-finger swipe, border-resize, group tab-reorder + SUPER+A select-all binds, monitor scale, clock/tray, syncthing, mise tools.
 
 `assets/xps13-speaker-tuning/` holds the actual speaker-tuning files (restore
 kit mirror), since the live profile sits in a package-owned path that omarchy
-updates wipe.
+updates wipe. `assets/xps16-speaker-tuning/` is the same idea for the XPS 16,
+plus the generator that builds its curves —
+[xps16-speaker-tuning.md](xps16-speaker-tuning.md).

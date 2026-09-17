@@ -145,9 +145,20 @@ busctl --user get-property :1.79 /org/chromium/StatusNotifierItem/1 \
 # -> s "Slack_status_icon_1"
 ```
 
-Note the path says **chromium**: Slack runs as a Chrome webapp here, so the
-DBus path names the host process and only `Id` names the app. Do not try to
+Note the path says **chromium**: Slack ran as a Chrome webapp on the XPS 13, so
+the DBus path names the host process and only `Id` names the app. Do not try to
 guess the ID from the path.
+
+**The path is not stable across installs** (XPS 16, 2026-09-17). With the native
+`slack-desktop` Electron package there is no chromium anywhere: the item
+registers as `org.freedesktop.StatusNotifierItem-<pid>-1` with path
+`/StatusNotifierItem/1`, and the watcher returns a well-known bus name rather
+than a `:1.79`-style unique name (`busctl` accepts either as the service
+argument). The `Id` was still `Slack_status_icon_1`. The rule holds in the form
+that matters: **the path tells you nothing, only `Id` does** — so read it, never
+derive it. `Title` is empty on this build, which is why `Id` is the only handle,
+and the trailing `_1` is an instance index, so re-read it if Slack is
+reinstalled or a second tray item appears.
 
 Pinning is per item, so a newly installed tray app lands back in the drawer and
 needs its own pin. Making the drawer unconditional would mean cloning the

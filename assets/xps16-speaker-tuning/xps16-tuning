@@ -1,0 +1,92 @@
+#!/bin/bash
+# Switch between local XPS 16 speaker tuning curves.
+#
+#   xps16-tuning              list variants, marking the active one
+#   xps16-tuning soft         apply a variant and reload
+#   xps16-tuning stock        the packaged dell-xps-2026 curve, unmodified
+#   xps16-tuning off          no tuning at all (raw Cirrus voicing)
+#
+# Omarchy picks one tuning directory per machine, so variants cannot live side
+# by side -- switching means swapping the filter chain inside the single matched
+# directory. restore.sh chowns that directory to you, so none of this needs root.
+set -euo pipefail
+
+# omarchy-audio-tuning reads $OMARCHY_PATH with `set -u` and dies with
+# "OMARCHY_PATH: unbound variable" if it is missing. Omarchy's shell profile
+# exports it, so this is invisible interactively -- but it breaks over ssh, in
+# cron, and from any non-login shell. Default it rather than requiring a login
+# shell to switch an EQ curve.
+export OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
+
+kit=~/.local/share/omarchy-xps16-tuning
+variants="$kit/variants"
+target=/usr/share/omarchy/default/audio/tunings/dell-xps-16-custom/filter-chain.conf
+
+usage() {
+  echo "Usage: xps16-tuning [<variant>|off|list]" >&2
+  echo >&2
+  echo "Variants:" >&2
+  for f in "$variants"/*.conf; do
+    [[ -r $f ]] || continue
+    name="$(basename "$f" .conf)"
+    if [[ -r $target ]] && cmp -s "$f" "$target"; then
+      echo "  $name (active)" >&2
+    else
+      echo "  $name" >&2
+    fi
+  done
+  echo >&2
+  echo "  soft    = packaged curve minus 1.4k honk, 3k bite, 5.5k sibilance, 9k air" >&2
+  echo "  softer  = same bands, deeper; expected failure direction is dull/boxy" >&2
+  echo "  stock   = packaged dell-xps-2026, byte-identical (for A/B)" >&2
+}
+
+action="${1:-list}"
+
+case "$action" in
+  list | -h | --help)
+    usage
+    # Report whether the tuning is actually running, not just which file is staged.
+    echo >&2
+    omarchy-audio-tuning status >&2
+    ;;
+
+  off)
+    omarchy-audio-tuning off
+    ;;
+
+  *)
+    src="$variants/$action.conf"
+    [[ -r $src ]] || {
+      echo "No such variant: $action" >&2
+      usage
+      exit 1
+    }
+    [[ -d $(dirname "$target") ]] || {
+      echo "Tuning directory does not exist yet. Install it with:" >&2
+      echo "  sudo bash $kit/restore.sh" >&2
+      exit 1
+    }
+    [[ -w $(dirname "$target") ]] || {
+      echo "Tuning directory is not writable -- was it wiped by an update?" >&2
+      echo "Restore it with:" >&2
+      echo "  sudo bash $kit/restore.sh" >&2
+      exit 1
+    }
+    install -m644 "$src" "$target"
+    # Keep the description honest: omarchy-audio-tuning status reads it from
+    # tuning.conf, which is per-directory, so without this it keeps naming
+    # whichever variant the directory was created with.
+    conf="$(dirname "$target")/tuning.conf"
+    [[ -w $conf ]] && sed -i \
+      "s|^description=.*|description=\"Dell XPS 16 (2026) speakers [$action, experimental]\"|" \
+      "$conf"
+    # Remember the choice so restore.sh reinstates this variant after an update
+    # wipes the directory.
+    printf '%s\n' "$action" >"$kit/default-variant"
+    # --force because the "already current" check compares the rendered chain
+    # against the installed fragment, and a variant swap changes it -- but the
+    # service also has to restart to actually load the new graph.
+    omarchy-audio-tuning on --force
+    ;;
+esac
