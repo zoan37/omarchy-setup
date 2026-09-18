@@ -167,7 +167,7 @@ happening now. Use two-pass `top -bn2` for instantaneous values.
 
 ## Catch it in the act
 
-The measurement this doc is missing. While the fan is audibly running:
+The ten-second diagnostic. While the fan is audibly running:
 
 ```bash
 # 1. Name the process, instantaneously (not ps lifetime averages)
