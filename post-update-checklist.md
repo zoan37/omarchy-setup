@@ -40,8 +40,11 @@ omarchy menu keybindings --print
 touching any config file you own:
 
 ```sh
-omarchy-default-terminal    # Quattro switched this to foot, which has no tabs
+omarchy default terminal    # Expected: ghostty on the XPS 16 trial and XPS 13
 ```
+
+The XPS 16 switched from Kitty to a Ghostty trial on 2026-09-18; see
+[trial and rollback notes](xps16-ghostty-trial.md).
 
 ## 1. Speaker tuning — RETIRED 2026-08-26 (XPS 13 only; N/A on XPS 16)
 
@@ -132,7 +135,16 @@ zoan37), `tab-drag` (zoan37). The `o.exec_on_start("hyprpm reload -n")` line
 in `autostart.lua` is what loads them at all — see
 [hyprpm-notes.md](hyprpm-notes.md).
 
-## 3. Panel Replay / PSR boot fix — XPS 13 only; N/A on XPS 16 (kernel 7.2 carries its quirk)
+## 3. Panel Replay / PSR boot fix — XPS 13; assess XPS 16 separately
+
+**XPS 16 correction (2026-09-18):** kernel 7.2.5 does not by itself establish
+that Panel Replay is disabled or fixed. Live checks reported Panel Replay mode,
+but only 334–348 Xe interrupts/second and 62.6% GPU C6 residency in a 10-second
+sample, unlike the severe pattern in
+[PR #11076](https://github.com/omacom/omarchy/pull/11076). Battery impact remains
+unverified. No display workaround was applied; if symptoms appear, use the
+measurements and checks in [xps16-notes.md](xps16-notes.md). The boot workaround
+below remains specific to the XPS 13.
 
 `/etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf` is ours and
 persists. After a **kernel** update, check whether the upstream quirk landed
@@ -205,7 +217,7 @@ edits, and everything is documented here:
 | `~/.config/omarchy/shell.json` | clock format, Slack tray pin (`Slack_status_icon_1`) | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/omarchy/shell.toml` | base-size 12 | same |
 | `~/.claude/settings.json` | `cleanupPeriodDays` (session retention) | [claude-code-notes.md](claude-code-notes.md) |
-| `~/.config/xdg-terminals.list` | default terminal (kitty on the XPS 16, ghostty on the XPS 13) | [quattro-lua-migration.md](quattro-lua-migration.md) |
+| `~/.config/xdg-terminals.list` | default terminal (Ghostty trial on the XPS 16; Ghostty on the XPS 13) | [xps16-ghostty-trial.md](xps16-ghostty-trial.md) |
 | `~/.config/kitty/{kitty,local}.conf` | `font_size 11.0` + the seeded line and trailing include | [terminal-font-size.md](terminal-font-size.md) |
 | `~/.config/chrome-flags.conf` | Vulkan/VA-API flags | [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md) |
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
@@ -219,6 +231,16 @@ Cosmetic, and not caused by the update itself — the shell can start before
 Wi-Fi associates, and the weather widget hides itself when it has no data.
 `omarchy restart shell` fixes it.
 [weather-widget-boot-race.md](weather-widget-boot-race.md)
+
+## 8. Chrome theme selection — check if the administrator restriction returns
+
+If Chrome was opted out of Omarchy's forced theme, its
+`/etc/opt/chrome/policies/managed` directory should remain absent. The installed
+theme script skips missing directories, but browser reinstallation or a future
+migration can recreate it. If Chrome's theme becomes administrator-managed
+again, inspect `managed/color.json` and check `chrome://policy` before making
+changes. Backup, repair, and undo steps:
+[chrome-managed-theme.md](chrome-managed-theme.md).
 
 ## Known open gap (XPS 13 / SER8)
 

@@ -1,10 +1,12 @@
 # Dell XPS 16 (DA16260): what carried over from the XPS 13, and what didn't
 
 **Set up 2026-09-17** on a fresh Omarchy `4.0.4-1` install, kernel
-`7.2.5-3-omarchy`. The headline: **every hardware fix in this repo is XPS
-13-specific and none of them apply here**, while every software tweak ported
-across unchanged. Two of the three hardware problems are fixed upstream on this
-machine, and the third was never this machine's problem.
+`7.2.5-3-omarchy`. The XPS 13 hardware workarounds were not carried over;
+the software tweaks ported across unchanged. **Correction 2026-09-18:** kernel
+version alone does not establish that Panel Replay is disabled or fixed here.
+Live checks did not show the severe interrupt/awake pattern reported in
+Omarchy PR #11076, but battery impact remains unverified. See the measurements
+below before applying a display workaround.
 
 ## Identifiers
 
@@ -23,32 +25,70 @@ The XPS 13 is Wildcat Lake with a 2560x1600 IPS panel and a Goodix touchpad, so
 **the two machines share almost no silicon below the CPU vendor.** Don't reason
 from one to the other.
 
-## The hardware fixes: all three skip this machine
+## XPS 13 hardware fixes: assess this machine separately
 
-### Panel Replay / PSR — fixed in-kernel, do not add the drop-in
+### Panel Replay / PSR — severe failure not observed; no workaround applied
 
-Do **not** create a `dell-xps16-*-display.conf` analogue of
-[xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scroll-judder.md).
-That doc's own upstream trail names the fix: the `intel_dpcd_quirks[]` entry for
-**XPS 16 DA16260** is commit `cb8d155b0806`, landed in **7.2-rc1**. This machine
-runs 7.2.5, so it is carrying its own quirk. The XPS 13 needed the cmdline
-workaround precisely because no quirk existed for `DX13260`.
+The earlier version of this note inferred from an upstream quirk and kernel
+7.2.5 that Panel Replay was disabled. **That conclusion was not verified and
+does not match the live mode report.** Do not use the kernel version or smooth
+scrolling alone as evidence that this feature is off or free of power issues.
 
-Omarchy also auto-applies its Panther Lake fix here, which the XPS 13 never
-got because the hardware gate didn't match Wildcat Lake:
+[Omarchy PR #11076](https://github.com/omacom/omarchy/pull/11076) reports a
+Panel Replay failure on an XPS 14 with Panther Lake: roughly 6,000 GPU
+interrupts/second at 120 Hz, the render tile awake 95% of the time, and high
+battery draw. Its proposed workaround disables only Panel Replay and keeps
+PSR2 available. Those are the reporter's observations, not measurements from
+this XPS 16.
+
+Read-only checks on **2026-09-18**, running `7.2.5-3-omarchy`, found:
+
+| Check | XPS 16 result |
+|---|---|
+| Boot log | `Applying Panel Replay ALPM cursor lag workaround`; also `Selective fetch area calculation failed in pipe A` |
+| Module parameters | `enable_panel_replay = -1`, `enable_psr = -1`; no explicit disable flags in `/proc/cmdline` |
+| Reported PSR mode | `Panel Replay Selective Update enabled (Early Transport)` |
+| Source control/status snapshot | `disabled [0x00000000]` / `IDLE [0x04002400]` |
+| Performance counter / selective fetch | `0` / `enabled` |
+| Xe interrupt rate | 347.7/s over 5 seconds; 333.8/s in a later 10-second sample |
+| GPU C6 residency | 62.6% during that 10-second sample; a separate snapshot reported `gt-c6` and actual frequency 0 |
+| Battery | `Full`, not discharging; battery-drain impact was not measured |
+
+**Interpretation:** the boot warning overlaps with the PR, but these short
+samples do not show its severe interrupt storm or nearly always-awake GPU.
+The mode line does not prove Panel Replay was actively updating the panel at
+that instant: the source control/status snapshot also reported disabled/IDLE.
+Neither that snapshot nor the zero performance counter establishes the PR's
+failure by itself. This was ordinary desktop activity, not a controlled idle
+or battery A/B test, and it cannot rule out intermittent or smaller effects.
+
+No display settings were changed. Do not copy the XPS 13's combined PSR and
+Panel Replay disable flags based on this evidence. If lag or unexplained
+battery drain appears, repeat the live checks and compare matched workloads
+before deciding whether the narrower workaround in PR #11076 helps.
+
+Useful read-only checks:
+
+```sh
+journalctl -k -b --no-pager | rg -i 'selective fetch|panel replay|psr'
+sudo cat /sys/kernel/debug/dri/0000:00:02.0/eDP-1/i915_psr_status
+sudo cat /sys/module/xe/parameters/enable_panel_replay /sys/module/xe/parameters/enable_psr
+cat /proc/cmdline
+cat /sys/class/drm/card0/device/tile0/gt0/gtidle/idle_status
+cat /sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms
+rg '\bxe$' /proc/interrupts
+```
+
+Interrupt totals and idle residency are cumulative: take two readings and
+divide their differences by elapsed time. C6 percentage is the residency
+difference in milliseconds divided by elapsed milliseconds, multiplied by 100.
+
+Omarchy also applied `fred=on` on this machine. That is a separate setting and
+does not verify Panel Replay's state:
 
 ```sh
 cat /etc/limine-entry-tool.d/intel-panther-lake-fred.conf   # -> KERNEL_CMDLINE[default]+=" fred=on"
 cat /proc/cmdline | grep -o 'fred=on'
-```
-
-Scrolling was smooth out of the box; no judder to chase. If it ever regresses,
-read the state before adding anything — the quirk disables Panel Replay but
-leaves PSR2 selective fetch available, which is the mode that juddered on the
-XPS 13:
-
-```sh
-sudo cat /sys/kernel/debug/dri/0000:00:02.0/eDP-1/i915_psr_status
 ```
 
 Note the **panel is OLED here**, which the XPS 13's is not. Omarchy ships a
@@ -152,6 +192,11 @@ lua` from the start, so [quattro-lua-migration.md](quattro-lua-migration.md) is
 history, not a checklist.
 
 ### What a fresh Quattro install does *not* give you
+
+**Current terminal (2026-09-18):** Ghostty is installed and selected as the
+default for a trial, with an 11pt font override. Kitty remains installed.
+See [Ghostty trial, verification, and rollback](xps16-ghostty-trial.md).
+The list below describes the original fresh-install state.
 
 The XPS 13 carried some things across from Omarchy 3 that a clean 4.0.4 install
 simply lacks. These read as "already done" if you only check the XPS 13's notes:

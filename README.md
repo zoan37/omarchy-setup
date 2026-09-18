@@ -12,14 +12,14 @@ agent ("set up this machine"; identify the machine via
 | Machine | GPU | Notes |
 |---|---|---|
 | Dell XPS 13 (DX13260) | Intel Wildcat Lake | 2560x1600@120Hz eDP, fractional scale 1.6 |
-| Dell XPS 16 (DA16260) | Intel Panther Lake (Arc B390) | SKU `0DBA`. 3200x2000@120Hz LG **OLED** eDP, fractional scale 1.6 (stock `auto` resolved correctly). Fresh Quattro 4.0.4 install. **None of the XPS 13 hardware fixes apply** — see [xps16-notes.md](xps16-notes.md). |
+| Dell XPS 16 (DA16260) | Intel Panther Lake (Arc B390) | SKU `0DBA`. 3200x2000@120Hz LG **OLED** eDP, fractional scale 1.6 (stock `auto` resolved correctly). Fresh Quattro 4.0.4 install. Assess display issues separately from the XPS 13; live Panel Replay checks in [xps16-notes.md](xps16-notes.md). |
 | Beelink SER8 | AMD Hawk Point iGPU (Radeon 780M) | 32GB RAM, mini-PC. 3440x1440 ultrawide over HDMI, scale 1 (stock `auto` resolves correctly). Wi-Fi, which is what exposes the weather boot race. Logitech keyboard + mouse, **no touchpad** — so the touchpad/gesture/kinetic-scroll fixes below don't apply here. Upgraded from Omarchy 3; the XPS 13 was a fresh Quattro install. |
 
 ## Checklists
 
 - [**Post-update checklist**](post-update-checklist.md) — run after every `omarchy update`: what breaks (speaker tuning, hyprpm plugins), what to spot-check, what survives.
 - [New machine checklist](new-machine-checklist.md) — condensed order of operations for a fresh Omarchy install.
-- [**Dell XPS 16 notes**](xps16-notes.md) — what ported over from the XPS 13 and what didn't, for the 2026 XPS 16. Short version: every hardware fix here is XPS 13-only; every software tweak carried across unchanged.
+- [**Dell XPS 16 notes**](xps16-notes.md) — what ported over from the XPS 13 and what didn't. Includes the September 18 Panel Replay checks: the severe failure in PR #11076 was not observed, but battery impact remains unverified; no display workaround applied.
 
 ## Themes
 
@@ -38,6 +38,7 @@ switch back to once in a while.
 - [**XPS 16: turbo-off trial for less fan noise**](xps16-turbo-off-trial.md) — started 2026-09-17; turbo disabled now and at boot, with a deliberate tradeoff in development performance. Evaluation ongoing, not a confirmed fan fix. Includes verified speed ceilings, existing power limits, reboot checks, and rollback.
 - [**Quattro (4.0): the `.conf` → `.lua` migration drops your tweaks**](quattro-lua-migration.md) — a major upgrade orphans `~/.config/hypr/*.conf` without warning or backup. What was lost, how to tell, and the Lua equivalents. Also covers the two quieter halves of the same upgrade: keys silently reclaimed by new stock bindings (screenshot → Google Maps), and the default terminal switching to foot, whose lack of tabs reads as Ghostty breaking.
 - [Chrome: Vulkan + white-video fix](chrome-vulkan-white-video.md) — enable Vulkan without x.com/YouTube videos rendering as white rectangles, plus the flags-file gotcha that makes it look like nothing works.
+- [Chrome: unlock the administrator-managed theme](chrome-managed-theme.md) — Omarchy's local color policy locks theme selection; back up its policy directory to choose Chrome themes independently, with verification and undo steps.
 - [**XPS 13: fan spins up on YouTube / x.com video**](xps13-fan-spins-up-on-video.md) — Omarchy's Intel detection regex doesn't match `Wildcat Lake`, so it silently installs no VA-API driver and Chrome decodes every video in software. One `pacman -S` fixes it; upstream issue #11958. Also covers the 35 W RAPL limit as the second quiet-mode knob.
 - [**XPS 16: fan spins up on video — it was a web page, not the hardware**](xps16-fan-spins-up-on-video.md) — same symptom as the XPS 13, entirely different cause, and that machine's fix is a no-op here (VA-API is installed and working). A local page rebuilt a DOM layer every frame at 120 Hz, holding ~54% of a core and raising the idle floor 33 °C → 45 °C until anything tipped the fan over. Chrome's Task Manager named it in seconds; four OS-side thermal levers before that moved nothing. Keeps the dead ends (EPP, turbo cap, halved RAPL, BIOS `Quiet`), the sensor trap that hid it for hours (`dell_ddv` reads ~20 °C below `x86_pkg_temp`), the inverse fan/temperature correlation, and the BIOS `ThermalManagement` attribute Linux can set without rebooting.
 - [Bar weather icon missing after boot](weather-widget-boot-race.md) — the shell starts before Wi-Fi associates and the widget hides itself with no error; why a working `omarchy weather status` doesn't rule it out.
@@ -45,6 +46,7 @@ switch back to once in a while.
 - [XPS 13: second speaker amp dead → fixed by upstream PR #7032](xps13-sidecar-amps.md) — `dell-xps13-sidecar-amps` package forces the `SOC_SDW_SIDECAR_AMPS` quirk on kernel 7.1; makes the custom EQ below obsolete.
 - [XPS 13: speaker pops + piercing speech](xps13-speaker-pops-and-eq.md) *(obsolete, see above)* — EQ revision on the packaged soft tuning, WirePlumber no-suspend for the start pop, and `node.always-process` on the tuning chain for the stop snap. Includes the CS35L56 runtime-PM red herring.
 - [11pt terminal with 12px global text size](terminal-font-size.md) — decouple terminal font size from Omarchy's global text-size knob, for ghostty and kitty. Kitty needs an extra step or the fix silently dies.
+- [XPS 16: Ghostty default-terminal trial](xps16-ghostty-trial.md) — switched from Kitty on September 18, retaining 11pt text; verification, keyboard-test limits, and how to switch back.
 - [hyprpm: install gotchas](hyprpm-notes.md) — plugins in use (my hypr-momentum and hypr-tab-drag), and why hyprpm dies with "failed to create cache dir" outside a terminal.
 - [**Browser games: camera dies after the first WASD key**](browser-game-pointer-lock.md) — reads exactly like Chrome's pointer lock breaking, on both laptops but not macOS. It isn't: libinput's touchpad disable-while-typing mutes the pad while you hold a movement key. Includes the four dead ends (cursor `hide_on_key_press`, software cursors, fcitx5, XWayland) and the `hyprctl cursorpos` trick that proves the lock was held all along.
 - [Touchpad: momentum scrolling + cursor feel](touchpad-momentum-scroll.md) — macOS-style momentum via my hypr-momentum plugin, and why the XPS 13 pad itself is fine.
