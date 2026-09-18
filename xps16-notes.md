@@ -109,10 +109,11 @@ here. Don't re-derive them unless the cursor actually misbehaves.
 
 The one symptom the XPS 13 and XPS 16 genuinely share is "the fan spins up on
 video" — from unrelated causes. The XPS 13's is a missing VA-API driver; here
-the decode stack is installed and working, and the cause is still unproven
-after an evening of measurement. See
-[xps16-fan-spins-up-on-video.md](xps16-fan-spins-up-on-video.md), which is
-mostly a dead-ends list.
+the decode stack is installed and working, and the cause turned out not to be
+hardware at all: a local web page rebuilding a DOM layer every frame at 120 Hz,
+holding ~54% of a core and raising the idle floor until the EC's fan trip band
+was permanently within reach. See
+[xps16-fan-spins-up-on-video.md](xps16-fan-spins-up-on-video.md).
 
 Two findings from it are worth knowing before touching anything thermal here:
 

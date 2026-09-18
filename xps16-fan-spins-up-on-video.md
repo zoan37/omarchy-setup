@@ -4,16 +4,25 @@
 and while scrolling an x.com timeline with several YouTube tabs open. It runs
 ~2200–3300 RPM for 60–90 s at a time, then stops, then comes back.
 
-**Status: cause not proven.** This is a measurement log, not a fix. The one
-thing an evening of instrumenting did establish is what it *isn't*, and that
-list is long enough to be worth writing down so it isn't re-chased. The leading
-hypothesis — a single runaway Chrome tab — is consistent with the data but was
-never confirmed by a controlled test, because the tab disappeared by accident
-before it could be isolated.
+**Cause: a local web page burning ~54% of a CPU core, continuously.** Not video
+decode, not the fan curve, not the power limits. My own Cubo portfolio
+dashboard rebuilt a layer of DOM labels over a three.js scene on every
+animation frame, at the panel's full 120 Hz. Any tab doing that holds the
+package around 45–47 °C, which parks the machine inside the EC's fan trip band
+so that *anything* extra — a video, a scroll — tips it over.
+
+**The fan was behaving correctly the entire time.** Four separate OS-side
+thermal levers were tried before the actual load was found; none of them
+mattered, and the dead-ends list below is the useful residue of that.
+
+Fixed in the page itself (zoan37/cubo `dffec9a`): labels are created once and
+mutated in place instead of recreated per frame, and the render loop pauses
+when the tab is hidden or scrolled out of view. That tab measured **~54% → ~21%
+focused, and 0% backgrounded.**
 
 If you are here because the fan is spinning *right now*, skip to
-[Catch it in the act](#catch-it-in-the-act). That is the measurement that was
-missing.
+[Catch it in the act](#catch-it-in-the-act) — that is the diagnostic that
+finally worked, and it takes about ten seconds.
 
 ## Not the XPS 13's problem
 
@@ -111,12 +120,38 @@ PID 119673  --type=renderer     peak 100.5%, ~48% sustained, alive 16:31 onward
 PID  48983  --type=gpu-process  33:51 CPU-minutes over 5.5 h
 ```
 
-When PID 119673 went away (a window closed incidentally, not as a test), the
-machine returned to fans-off at 45 °C and stayed there.
+Chrome's own Task Manager (**Shift+Esc**, with the Process ID column enabled)
+named it immediately, which is the step that should have come first:
 
-**This is the unproven part.** A single misbehaving tab explains the raised
-floor, the accumulated CPU time, and the recovery — but it was never isolated,
-reproduced, or named.
+```
+Tab: Portfolio - Cubo AI        CPU 54.0    PID 243366
+Tab: <an x.com timeline>        CPU 14.0    PID 243806
+App: <a YouTube video>          CPU  3.0    PID 243143
+```
+
+So there were two separate things, and conflating them cost hours: the
+**Portfolio tab held a continuous ~54% floor**, while x.com video tabs *burst*
+on top of it. The bursts are what you hear; the floor is what makes them
+audible. On a 45 °C floor a burst trips the fan; on the 33 °C floor the machine
+had at the start of the evening, nothing could.
+
+The page was a three.js solar-system visualisation whose animation loop did
+this every frame:
+
+```js
+labelsDiv.innerHTML = '';                       // wipe every label
+for (const p of planets) {
+    const lbl = document.createElement('div');  // recreate it
+    lbl.innerHTML = `${p.symbol}<br><span ...>`;// + an HTML parse, per planet
+    labelsDiv.appendChild(lbl);
+}
+```
+
+At 120 Hz that is 120 × (number of assets) element creations, `innerHTML`
+parses, style recalcs and layout passes **per second**, all on the renderer's
+main thread. The WebGL scene itself was cheap — the profile put the cost on the
+main thread (8584 ticks) versus the compositor (1152), with the GPU frequently
+reading 0 MHz.
 
 ### A counting trap that hid this for hours
 
@@ -147,9 +182,12 @@ echo "pkg=$(( $(cat /sys/class/thermal/thermal_zone10/temp)/1000 ))C \
 fans=$(cat /sys/class/hwmon/hwmon3/fan1_input)/$(cat /sys/class/hwmon/hwmon3/fan2_input)"
 ```
 
-If a single tab is responsible, closing it should drop the idle floor back
-toward the mid-30s and the fan should stop within ~90 s (EC spin-down
-hysteresis). **That** is the controlled test that was never run.
+Closing the responsible tab drops the idle floor back toward the mid-30s, and
+the fan stops within ~90 s (EC spin-down hysteresis).
+
+**Do this first.** Every other measurement in this document is downstream of
+not having done it. Chrome's Task Manager names the tab in seconds; `top` alone
+only ever gives you a PID, and a PID doesn't tell you which page to fix.
 
 ## Dead ends — already measured, don't re-chase
 
@@ -274,22 +312,37 @@ update to clobber. The BIOS attribute lives in firmware and is untouched by the
 OS entirely. The runtime knobs don't survive a *reboot*, let alone an update —
 which is the correct default while the cause is still unproven.
 
-## If you pick this up again
+## The lesson, for next time
 
-In rough order of expected value:
+The symptom pointed at video, so the investigation started at video decode and
+worked outward through thermal and power tuning — four levers, all of them
+firmware-controlled and none of them movable from Linux. The actual cause was
+an ordinary application bug in a page I wrote, findable in about ten seconds
+with a tool built into the browser.
 
-1. **Identify the tab.** Shift+Esc while the fan runs. Everything else here is
-   downstream of not having done this.
-2. **Test the Vulkan flags.** Omarchy forces
-   `Vulkan,DefaultANGLEVulkan,VulkanFromANGLE` on every machine
-   ([chrome-vulkan-white-video.md](chrome-vulkan-white-video.md)). On a brand-new
-   Xe3 iGPU driving 3200x2000@120 Hz at fractional scale 1.6, a GPU process
-   averaging 25–30% of a core at idle deserves an A/B against a launch without
-   them. Remember the relaunch gotcha: `chrome://restart` re-execs with the old
-   command line and reads no config — full quit, then launch from the wrapper.
-   Verify with `pgrep -a -f '^/opt/google/chrome/chrome '`.
-3. **Check whether the idle floor rises with Chrome uptime**, independent of
-   what's on screen. Log `thermal_zone10` at 0.5 Hz for a few hours across a
-   Chrome restart. If the floor resets, it's Chrome; if not, look elsewhere.
-4. Only then consider the fan curve itself. Four separate OS-side levers failed
-   to move it; the EC is not taking instruction from this side.
+**When a laptop is hot, find out what is running before tuning how it runs.**
+`top` plus Chrome's Task Manager, in that order, before touching a single knob.
+
+Two specific traps worth remembering, both of which actively delayed this:
+
+- **A 16-core aggregate hides a small number of busy cores.** `%Cpu(s)` read
+  "91% idle" throughout, while ~2.3 cores were pinned. Watch load average and
+  per-process CPU instead.
+- **`ps -eo pcpu` is a lifetime average, not current CPU.** It yields smoothly
+  drifting numbers that look like data and mean nothing about the present.
+  Two-pass `top -bn2`, or read `/proc/<pid>/stat` deltas yourself.
+
+## Still open
+
+- **The Vulkan flags are untested.** Omarchy forces
+  `Vulkan,DefaultANGLEVulkan,VulkanFromANGLE` on every machine
+  ([chrome-vulkan-white-video.md](chrome-vulkan-white-video.md)). On a brand-new
+  Xe3 iGPU driving 3200x2000@120 Hz at fractional scale 1.6, Chrome's
+  gpu-process averaged 25–30% of a core, and some of that may be the ANGLE
+  path rather than the page. Worth an A/B against a launch without them.
+  Remember the relaunch gotcha: `chrome://restart` re-execs with the old
+  command line and reads no config — full quit, then launch from the wrapper,
+  and verify with `pgrep -a -f '^/opt/google/chrome/chrome '`.
+- **Whether the idle floor still creeps** with the page fixed. If it does,
+  something else is accumulating; log `thermal_zone10` at 0.5 Hz across a
+  Chrome restart and compare.
