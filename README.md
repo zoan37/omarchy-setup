@@ -34,6 +34,7 @@ switch back to once in a while.
 
 ## Fixes
 
+- [XPS 16: custom fan-control investigation](xps16-custom-fan-control.md) — paused after no noticeable noise on September 18; BIOS/client findings, offline checks, and a read-only recorder for revisiting it. Manual control remains unverified; F12 diagnostics deferred.
 - [**XPS 16: turbo-off trial for less fan noise**](xps16-turbo-off-trial.md) — started 2026-09-17; turbo disabled now and at boot, with a deliberate tradeoff in development performance. Evaluation ongoing, not a confirmed fan fix. Includes verified speed ceilings, existing power limits, reboot checks, and rollback.
 - [**Quattro (4.0): the `.conf` → `.lua` migration drops your tweaks**](quattro-lua-migration.md) — a major upgrade orphans `~/.config/hypr/*.conf` without warning or backup. What was lost, how to tell, and the Lua equivalents. Also covers the two quieter halves of the same upgrade: keys silently reclaimed by new stock bindings (screenshot → Google Maps), and the default terminal switching to foot, whose lack of tabs reads as Ghostty breaking.
 - [Chrome: Vulkan + white-video fix](chrome-vulkan-white-video.md) — enable Vulkan without x.com/YouTube videos rendering as white rectangles, plus the flags-file gotcha that makes it look like nothing works.
