@@ -286,6 +286,76 @@ This is a **firmware setting: it persists across reboots and survives
 capping CPU power; `Optimized` is stock. Revert with the same command and
 `Optimized`.
 
+## Keeping the low-power settings, if you want them
+
+**These did not fix the fan** — that was the page, above. But they are a
+reasonable quiet/battery tradeoff in their own right, and they were left on for
+a while after the investigation, so here is how to re-apply them deliberately
+rather than by re-deriving the numbers.
+
+What they cost: burst CPU. PL2 at 30 W and a 3.9 GHz ceiling are invisible for
+browsing and video, and noticeable on a long compile or an export.
+
+`/usr/local/bin/xps16-quiet`:
+
+```bash
+#!/bin/bash
+# usage: xps16-quiet on|off      (runtime only; resets on reboot)
+case "$1" in
+  on)  EPP=balance_power;       PCT=75;  PL1=20; PL2=30 ;;
+  off) EPP=balance_performance; PCT=100; PL1=41; PL2=65 ;;
+  *)   echo "usage: $0 on|off"; exit 1 ;;
+esac
+for c in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+  echo "$EPP" > "$c"
+done
+echo "$PCT" > /sys/devices/system/cpu/intel_pstate/max_perf_pct
+R=/sys/class/powercap/intel-rapl:0
+echo "$((PL1 * 1000000))" > $R/constraint_0_power_limit_uw
+echo "$((PL2 * 1000000))" > $R/constraint_1_power_limit_uw
+printf 'EPP=%s  max_perf_pct=%s  PL1/PL2=%s/%sW\n' \
+  "$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference)" \
+  "$(cat /sys/devices/system/cpu/intel_pstate/max_perf_pct)" \
+  "$(( $(cat $R/constraint_0_power_limit_uw) / 1000000 ))" \
+  "$(( $(cat $R/constraint_1_power_limit_uw) / 1000000 ))"
+```
+
+`sudo chmod +x /usr/local/bin/xps16-quiet`, then `sudo xps16-quiet on`.
+
+Note RAPL is **not** locked on this machine — the writes stick and read back,
+which is worth knowing because on plenty of Dell firmware they silently revert.
+The script echoes the values back so a silent revert is visible.
+
+### Making it survive a reboot
+
+Only do this after living with it for a few days; it is a permanent cap on
+burst performance.
+
+```ini
+# /etc/systemd/system/xps16-quiet.service
+[Unit]
+Description=Quiet power limits for XPS 16
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/xps16-quiet on
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now xps16-quiet.service
+```
+
+Caveat: `power-profiles-daemon` also writes EPP when the GUI power mode
+changes, and it will win on any later toggle. The RAPL limits and
+`max_perf_pct` are unaffected by it. Disable with
+`sudo systemctl disable --now xps16-quiet.service`, which takes effect at the
+next boot — run `sudo xps16-quiet off` to clear it immediately.
+
 ## Revert everything this doc touches
 
 The CPU-side knobs are all runtime-only and reset on reboot:
@@ -309,9 +379,12 @@ with `ThermalManagement` = `Optimized` as above.
 
 Nothing here is a file in a package-owned path, so there is nothing for an
 update to clobber. The BIOS attribute lives in firmware and is untouched by the
-OS entirely. The runtime knobs don't survive a *reboot*, let alone an update —
-and since none of them turned out to do anything, that is the right default:
-leave them at stock.
+OS entirely. `/usr/local/bin/xps16-quiet` and the systemd unit above are both
+outside pacman's reach, so they survive updates too.
+
+Left alone, the CPU knobs don't survive a *reboot*, let alone an update — and
+since none of them fixed the fan, stock is the right default. Turn them on
+deliberately for battery or quiet, not as a fix for this.
 
 ## The lesson, for next time
 
