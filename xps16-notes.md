@@ -105,7 +105,7 @@ compositor, not the device, so the install is identical and the measurements in
 [touchpad-momentum-scroll.md](touchpad-momentum-scroll.md) are XPS 13 trivia
 here. Don't re-derive them unless the cursor actually misbehaves.
 
-### Fan noise — this machine's own problem, still unsolved
+### Fan noise — browser workload found; turbo-off trial ongoing
 
 The one symptom the XPS 13 and XPS 16 genuinely share is "the fan spins up on
 video" — from unrelated causes. The XPS 13's is a missing VA-API driver; here
@@ -127,7 +127,14 @@ Two findings from it are worth knowing before touching anything thermal here:
 
 The BIOS does expose a `Quiet` thermal mode via `dell-wmi-sysman`, settable
 from Linux without rebooting into setup (it didn't fix the fan, but it's the
-only persistent thermal knob on this machine) — details in the same doc.
+firmware setting that persists on its own) — details in the same doc.
+
+**Later on 2026-09-17:** started a separate
+[persistent turbo-off trial](xps16-turbo-off-trial.md), prioritizing less fan
+noise over peak development performance. `/etc/tmpfiles.d/disable-cpu-turbo.conf`
+sets `no_turbo=1` at boot; verified active immediately, with reboot and real-world
+evaluation still pending. This differs from the earlier 75% boost cap. Keep it
+enabled for the trial; the linked note covers verification and rollback.
 
 ## The software tweaks: all ported, unchanged
 

@@ -1,5 +1,11 @@
 # XPS 16: fan spins up on YouTube / x.com video
 
+**Later follow-up, 2026-09-17:** a separate
+[turbo-off trial](xps16-turbo-off-trial.md) now disables turbo completely and
+persists that choice through a tmpfiles rule. Its effect on fan noise and
+development performance is still being evaluated. The earlier measurements
+below tested a 75% boost cap, not that full turbo disable.
+
 **Symptom:** the fan ramps while watching video in Chrome — YouTube, x.com —
 and while scrolling an x.com timeline with several YouTube tabs open. It runs
 ~2200–3300 RPM for 60–90 s at a time, then stops, then comes back.
@@ -358,7 +364,11 @@ next boot — run `sudo xps16-quiet off` to clear it immediately.
 
 ## Revert everything this doc touches
 
-The CPU-side knobs are all runtime-only and reset on reboot:
+The CPU-side knobs from this earlier investigation are runtime-only unless
+the optional service above is installed. The later
+[turbo-off trial](xps16-turbo-off-trial.md#temporarily-compare-or-end-the-trial)
+has its own persistent rule and separate rollback; the commands below do not
+re-enable turbo:
 
 ```bash
 # EPP + clock ceiling back to stock
@@ -372,8 +382,9 @@ echo 41000000 | sudo tee /sys/class/powercap/intel-rapl:0/constraint_0_power_lim
 echo 65000000 | sudo tee /sys/class/powercap/intel-rapl:0/constraint_1_power_limit_uw
 ```
 
-The BIOS thermal mode is the only change that persists — revert it explicitly
-with `ThermalManagement` = `Optimized` as above.
+Revert the persistent BIOS thermal mode explicitly with `ThermalManagement` =
+`Optimized` as above. Also remove any optional `xps16-quiet.service` persistence
+using the instructions above if it was installed.
 
 ## Survives `omarchy update`?
 
@@ -382,9 +393,10 @@ update to clobber. The BIOS attribute lives in firmware and is untouched by the
 OS entirely. `/usr/local/bin/xps16-quiet` and the systemd unit above are both
 outside pacman's reach, so they survive updates too.
 
-Left alone, the CPU knobs don't survive a *reboot*, let alone an update — and
-since none of them fixed the fan, stock is the right default. Turn them on
-deliberately for battery or quiet, not as a fix for this.
+Without the optional service, these earlier CPU knobs don't survive a reboot.
+Turn them on deliberately for battery or quiet, not as a fix for the page
+problem. The later turbo-off trial is a separate, deliberately persistent
+noise/performance preference; see its note before restoring defaults.
 
 ## The lesson, for next time
 
