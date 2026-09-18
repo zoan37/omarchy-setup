@@ -310,7 +310,8 @@ with `ThermalManagement` = `Optimized` as above.
 Nothing here is a file in a package-owned path, so there is nothing for an
 update to clobber. The BIOS attribute lives in firmware and is untouched by the
 OS entirely. The runtime knobs don't survive a *reboot*, let alone an update —
-which is the correct default while the cause is still unproven.
+and since none of them turned out to do anything, that is the right default:
+leave them at stock.
 
 ## The lesson, for next time
 
