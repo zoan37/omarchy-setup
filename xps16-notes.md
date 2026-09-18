@@ -105,6 +105,29 @@ compositor, not the device, so the install is identical and the measurements in
 [touchpad-momentum-scroll.md](touchpad-momentum-scroll.md) are XPS 13 trivia
 here. Don't re-derive them unless the cursor actually misbehaves.
 
+### Fan noise — this machine's own problem, still unsolved
+
+The one symptom the XPS 13 and XPS 16 genuinely share is "the fan spins up on
+video" — from unrelated causes. The XPS 13's is a missing VA-API driver; here
+the decode stack is installed and working, and the cause is still unproven
+after an evening of measurement. See
+[xps16-fan-spins-up-on-video.md](xps16-fan-spins-up-on-video.md), which is
+mostly a dead-ends list.
+
+Two findings from it are worth knowing before touching anything thermal here:
+
+- **`dell_wmi_ddv` and `coretemp` under-report by ~20 °C** versus
+  `x86_pkg_temp` (`/sys/class/thermal/thermal_zone10`), and are too slow to see
+  what the EC reacts to. Sample the package at ≥2 Hz or you will measure a
+  placid 41 °C while the chip spikes to 92 °C.
+- **`platform_profile` offers only `balanced` and `performance`** here — there
+  is no `low-power`, unlike the XPS 13. The GUI power-saver toggle sets the
+  profile to `custom` and drives EPP directly instead.
+
+The BIOS does expose a `Quiet` thermal mode via `dell-wmi-sysman`, settable
+from Linux without rebooting into setup (it didn't fix the fan, but it's the
+only persistent thermal knob on this machine) — details in the same doc.
+
 ## The software tweaks: all ported, unchanged
 
 Everything in [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) applied
