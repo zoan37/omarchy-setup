@@ -27,7 +27,7 @@ from one to the other.
 
 ## XPS 13 hardware fixes: assess this machine separately
 
-### Panel Replay / PSR — severe failure not observed; no workaround applied
+### Panel Replay / PSR — flicker seen; PSR2 selective fetch disabled (2026-09-19)
 
 The earlier version of this note inferred from an upstream quirk and kernel
 7.2.5 that Panel Replay was disabled. **That conclusion was not verified and
@@ -62,10 +62,57 @@ Neither that snapshot nor the zero performance counter establishes the PR's
 failure by itself. This was ordinary desktop activity, not a controlled idle
 or battery A/B test, and it cannot rule out intermittent or smaller effects.
 
-No display settings were changed. Do not copy the XPS 13's combined PSR and
-Panel Replay disable flags based on this evidence. If lag or unexplained
-battery drain appears, repeat the live checks and compare matched workloads
-before deciding whether the narrower workaround in PR #11076 helps.
+No display settings were changed on 2026-09-18. Do not copy the XPS 13's
+combined PSR and Panel Replay disable flags based on this evidence. If lag or
+unexplained battery drain appears, repeat the live checks and compare matched
+workloads before deciding whether the narrower workaround in PR #11076 helps.
+
+#### 2026-09-19: flickering line → `xe.enable_psr2_sel_fetch=0`
+
+**Symptom:** a dark line/band flickering across the full width of the screen
+in roughly the bottom quarter, during ordinary desktop use.
+
+**Evidence:** this boot's kernel log again had `Selective fetch area
+calculation failed in pipe A`, the driver's error for PSR2 *selective fetch*
+(redrawing only the changed region of the panel). The panel is the same LG
+Display `0x07C5` as in
+[Omarchy issue #11176](https://github.com/omacom/omarchy/issues/11176)
+(XPS 16 DA16260 display failures under `xe` PSR). In a comment on that issue,
+a non-Dell Panther Lake laptop showed the same log line with full-screen
+corruption, and it stopped after disabling selective fetch alone. The link
+between this flicker and selective fetch is inferred from that match; it was
+not isolated with a live A/B test here.
+
+**Fix applied:** the narrowest of the known flags. It turns off only
+selective fetch and keeps PSR and Panel Replay enabled, unlike the XPS 13's
+`xe.enable_psr=0 xe.enable_panel_replay=0`:
+
+```sh
+echo 'KERNEL_CMDLINE[default]+=" xe.enable_psr2_sel_fetch=0"' | sudo tee /etc/limine-entry-tool.d/xe-psr.conf
+sudo limine-mkinitcpio linux-omarchy   # the kernel package is linux-omarchy; `linux` errors out
+# reboot
+```
+
+**Verify after reboot:**
+
+```sh
+cat /proc/cmdline | grep -o 'xe.enable_psr2_sel_fetch=0'
+journalctl -k -b --no-pager | rg -i 'selective fetch'   # expect no 'calculation failed' line
+```
+
+**Status:** applied, pending verification after reboot and a few days of use.
+Expected cost is somewhat higher panel power use, since changed frames are
+sent in full; battery impact not measured.
+
+**If the flicker continues:** try adding `xe.enable_panel_replay=0` (the
+PR #11076 workaround) to the same file. If the line ever appears in the BIOS
+setup screen (F2), outside Linux, treat it as hardware and raise it with Dell.
+
+**Revert:**
+
+```sh
+sudo rm /etc/limine-entry-tool.d/xe-psr.conf && sudo limine-mkinitcpio linux-omarchy   # then reboot
+```
 
 Useful read-only checks:
 

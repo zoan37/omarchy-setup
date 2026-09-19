@@ -19,7 +19,7 @@ agent ("set up this machine"; identify the machine via
 
 - [**Post-update checklist**](post-update-checklist.md) — run after every `omarchy update`: what breaks (speaker tuning, hyprpm plugins), what to spot-check, what survives.
 - [New machine checklist](new-machine-checklist.md) — condensed order of operations for a fresh Omarchy install.
-- [**Dell XPS 16 notes**](xps16-notes.md) — what ported over from the XPS 13 and what didn't. Includes the September 18 Panel Replay checks: the severe failure in PR #11076 was not observed, but battery impact remains unverified; no display workaround applied.
+- [**Dell XPS 16 notes**](xps16-notes.md) — what ported over from the XPS 13 and what didn't. Includes the September 18 Panel Replay checks (the severe failure in PR #11076 was not observed) and the September 19 flickering-line fix: PSR2 selective fetch disabled with `xe.enable_psr2_sel_fetch=0`, pending verification.
 
 ## Themes
 
