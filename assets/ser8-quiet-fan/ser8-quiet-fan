@@ -1,0 +1,71 @@
+#!/usr/bin/bash
+# Hardware automatic fan curve for the verified SER8/IT8613E configuration.
+set -euo pipefail
+
+action=${1:-status}
+case "$action" in apply|restore|status|resume) ;; *) echo 'Usage: ser8-quiet-fan {apply|restore|status|resume}' >&2; exit 2;; esac
+if [[ $action == resume ]]; then
+    systemctl is-active --quiet ser8-quiet-fan.service || exit 0
+    action=apply
+fi
+
+[[ $(cat /sys/class/dmi/id/product_name) == SER8 ]] || exit 1
+[[ $(cat /sys/class/dmi/id/bios_version) == HPT.8xxx.SER8.V029.P8C0M0C15.13.Link ]] || {
+    echo 'BIOS version changed; revalidate the fan curve before applying it.' >&2
+    exit 1
+}
+
+if [[ $action != status ]]; then
+    [[ $EUID == 0 ]] || { echo 'Administrator access is required.' >&2; exit 1; }
+    exec 9>/run/lock/ser8-quiet-fan.lock
+    flock -x 9
+    modprobe it87
+fi
+
+fan=
+for candidate in /sys/class/hwmon/hwmon*; do
+    if [[ $(cat "$candidate/name") == it8613 && $(basename "$(readlink -f "$candidate/device")") == it87.2592 ]]; then
+        [[ -z $fan ]] || { echo 'Multiple matching controllers; stopping.' >&2; exit 1; }
+        fan=$candidate
+    fi
+done
+[[ -n $fan ]] || { echo 'Verified IT8613E controller is not available.' >&2; exit 1; }
+
+if [[ $action == status ]]; then
+    for field in pwm2_enable pwm2_auto_start pwm2_auto_slope pwm2_auto_point2_temp pwm2_auto_point3_temp fan2_input; do
+        printf '%s=%s\n' "$field" "$(cat "$fan/$field")"
+    done
+    exit 0
+fi
+
+# Never take over a manual fan or silently override a changed BIOS setup.
+for pair in pwm2_enable:2 pwm2_auto_channels_temp:1 pwm2_auto_point1_temp:0 pwm2_auto_point1_temp_hyst:0 pwm2_auto_point2_temp:40000 pwm2_auto_point3_temp:90000; do
+    field=${pair%:*}
+    expected=${pair#*:}
+    [[ $(cat "$fan/$field") == "$expected" ]] || {
+        echo "Unexpected $field; leaving the curve untouched." >&2
+        exit 1
+    }
+done
+original_start=$(cat "$fan/pwm2_auto_start")
+original_slope=$(cat "$fan/pwm2_auto_slope")
+case "$original_start:$original_slope" in 60:16|40:20|60:20) ;; *)
+    echo 'Fan curve has changed independently; leaving it untouched.' >&2; exit 1;;
+esac
+
+rollback() {
+    printf '%s\n' "$original_start" > "$fan/pwm2_auto_start"
+    printf '%s\n' "$original_slope" > "$fan/pwm2_auto_slope"
+}
+trap rollback ERR INT TERM HUP
+if [[ $action == apply ]]; then
+    printf '20\n' > "$fan/pwm2_auto_slope"
+    printf '40\n' > "$fan/pwm2_auto_start"
+    [[ $(cat "$fan/pwm2_auto_start") == 40 && $(cat "$fan/pwm2_auto_slope") == 20 ]]
+else
+    printf '60\n' > "$fan/pwm2_auto_start"
+    printf '16\n' > "$fan/pwm2_auto_slope"
+    [[ $(cat "$fan/pwm2_auto_start") == 60 && $(cat "$fan/pwm2_auto_slope") == 16 ]]
+fi
+trap - ERR INT TERM HUP
+printf 'Fan curve %s complete; automatic mode and temperature thresholds retained.\n' "$action"

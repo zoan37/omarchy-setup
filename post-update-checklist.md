@@ -2,8 +2,8 @@
 
 Run through this after every `omarchy update` (or any `omarchy refresh ...`).
 Ordered by likelihood of breakage. Compiled 2026-08-14 from a full audit of
-session history + live system state. Sections 1 and 3 are XPS 13-only; the
-rest applies to any machine.
+session history + live system state, with subsequent additions. Follow the
+machine labels: the speaker, display, and SER8 fan checks are hardware-specific.
 
 ## 0. Major-version upgrades: check the config provider first
 
@@ -241,6 +241,31 @@ migration can recreate it. If Chrome's theme becomes administrator-managed
 again, inspect `managed/color.json` and check `chrome://policy` before making
 changes. Backup, repair, and undo steps:
 [chrome-managed-theme.md](chrome-managed-theme.md).
+
+## 9. SER8 quiet fan — check the DKMS build after kernel updates
+
+The helper and systemd units live outside Omarchy's package-owned tree, but
+the IT8613E driver must build for the new kernel. After rebooting into it:
+
+```sh
+uname -r
+dkms status
+modinfo -n it87
+systemctl status ser8-quiet-fan.service
+ser8-quiet-fan status
+powerprofilesctl get
+```
+
+Expect `it87/bc06d34.20260913` installed for the running kernel, a module path
+under `updates/dkms`, automatic mode `2`, start `40`, slope `20`, and the
+40°C/90°C ramp/full-speed thresholds. Power profile should be `power-saver`.
+Idle RPM depends on temperature; about 755 RPM was observed near 39°C.
+
+A failed DKMS build or changed BIOS needs investigation, not forced device IDs
+or bypassed guards. Check matching kernel headers and
+`journalctl -b -u ser8-quiet-fan.service`. Re-check the curve after a real
+suspend/resume too; the initial setup only exercised the resume handler
+directly. Restore and rollback: [ser8-quiet-fan.md](ser8-quiet-fan.md).
 
 ## Known open gap (XPS 13 / SER8)
 

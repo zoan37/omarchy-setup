@@ -1,0 +1,14 @@
+[Unit]
+Description=Reapply SER8 automatic fan curve after sleep
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/true
+ExecStop=/usr/local/sbin/ser8-quiet-fan resume
+TimeoutStopSec=20
+
+[Install]
+WantedBy=sleep.target

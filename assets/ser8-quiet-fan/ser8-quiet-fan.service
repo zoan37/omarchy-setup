@@ -1,0 +1,14 @@
+[Unit]
+Description=SER8 quiet automatic fan curve
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/ser8-quiet-fan apply
+ExecStop=/usr/local/sbin/ser8-quiet-fan restore
+TimeoutStartSec=20
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

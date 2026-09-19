@@ -2,7 +2,8 @@
 
 Condensed order of operations. Details in the per-topic files.
 
-Machine-specific pages: [Dell XPS 16](xps16-notes.md). Identify the machine with
+Machine-specific pages: [Dell XPS 16](xps16-notes.md),
+[Beelink SER8 quiet fan setup](ser8-quiet-fan.md). Identify the machine with
 `cat /sys/class/dmi/id/product_name` and its speaker/display variant with
 `cat /sys/class/dmi/id/product_sku`.
 
@@ -108,6 +109,17 @@ Panel Replay/PSR boot workaround — see
 unnecessary).
 
 ## Services
+
+### SER8 fan noise
+
+On the SER8, start with `powerprofilesctl set power-saver`; on the verified
+8745HS setup this also disables CPU boost. If the idle fan remains audible,
+follow [ser8-quiet-fan.md](ser8-quiet-fan.md) to identify the IT8613E controller
+and reproduce the automatic curve using `assets/ser8-quiet-fan/`. The helper
+is scoped to the recorded SER8 BIOS and controller configuration. Do not
+apply the curve to the Dell machines or bypass a failed hardware check.
+
+### General services
 
 - `sudo pacman -S syncthing && systemctl --user enable --now syncthing` (not
   installed by default; starts at login, not boot)

@@ -2,8 +2,8 @@
 
 Nuanced fixes and hard-won config for my Omarchy machines, so a fresh install
 doesn't mean re-deriving everything. Written for myself — and maybe useful to
-other Dell XPS 13 / XPS 16 owners running Omarchy. Steps carry exact commands,
-verification, and revert paths, so the checklists also work handed to a coding
+other Dell XPS 13 / XPS 16 / Beelink SER8 owners running Omarchy. Steps carry
+exact commands, verification, and revert paths, so the checklists also work handed to a coding
 agent ("set up this machine"; identify the machine via
 `cat /sys/class/dmi/id/product_name`).
 
@@ -34,6 +34,7 @@ switch back to once in a while.
 
 ## Fixes
 
+- [**SER8: quieter automatic fan curve**](ser8-quiet-fan.md) — power-saver disables CPU boost; an IT8613E driver exposes the hardware fan curve directly in Linux. Lowered idle speed from about 1,076 to 755 RPM, with a 2°C increase in the short CPU load test. Includes the exact driver pin, startup/wake services, restore assets, rollback, and the wattage-control investigation that remains unimplemented.
 - [**XPS 16: built-in keyboard drops keystrokes**](xps16-keyboard-dropped-keys.md) — Dell's known issue 000435203 still reproduces on BIOS 1.11.0: the keyboard controller stalls, then sends only its current state, losing keys in between (visible in `libinput debug-events` as a long apparent hold, then a release and a press in the same millisecond). A Q-to-P swipe test to check yours, the external-keyboard and XPS 13 comparisons, and the later night of A/B tests (CPU sleep states, charger, suspend, restart vs power-off, Dell quiet mode) that found no trigger. Ends with why the laptop went back: the zero-lattice keyboard itself.
 - [XPS 16: custom fan-control investigation](xps16-custom-fan-control.md) — paused after no noticeable noise on September 18; BIOS/client findings, offline checks, and a read-only recorder for revisiting it. Manual control remains unverified; F12 diagnostics deferred.
 - [**XPS 16: turbo-off trial for less fan noise**](xps16-turbo-off-trial.md) — started 2026-09-17; turbo disabled now and at boot, with a deliberate tradeoff in development performance. Evaluation ongoing, not a confirmed fan fix. Includes verified speed ceilings, existing power limits, reboot checks, and rollback.
@@ -62,3 +63,7 @@ kit mirror), since the live profile sits in a package-owned path that omarchy
 updates wipe. `assets/xps16-speaker-tuning/` is the same idea for the XPS 16,
 plus the generator that builds its curves —
 [xps16-speaker-tuning.md](xps16-speaker-tuning.md).
+
+`assets/ser8-quiet-fan/` mirrors the installed fan helper, systemd units, DKMS
+configuration, and original controller settings; reproduction steps are in
+[ser8-quiet-fan.md](ser8-quiet-fan.md).

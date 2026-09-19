@@ -1,0 +1,17 @@
+SER8 fan state recorded before tuning, 2026-09-19
+BIOS: HPT.8xxx.SER8.V029.P8C0M0C15.13.Link
+Controller: ITE IT8613E revision 12, ISA address 0xa20
+Driver source: https://github.com/frankcrawford/it87
+Driver commit: bc06d3488439e5fcd725c1bdcfcac994d6d95cac
+Fan channel: fan2 / pwm2
+pwm2_enable=2
+pwm2_auto_start=60
+pwm2_auto_slope=16
+pwm2_auto_point1_temp=0
+pwm2_auto_point1_temp_hyst=0
+pwm2_auto_point2_temp=40000
+pwm2_auto_point3_temp=90000
+pwm2_auto_channels_temp=1
+pwm2_freq=23437
+Observed idle speed: approximately 1074 RPM at CPU temperature 36 C.
+Slope units: eighths of a PWM unit per C, so 16 means 2 PWM/C.
