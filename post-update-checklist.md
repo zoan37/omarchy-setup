@@ -217,6 +217,7 @@ edits, and everything is documented here:
 | `~/.config/omarchy/shell.json` | clock format, Slack tray pin (`Slack_status_icon_1`) | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/omarchy/shell.toml` | base-size 12 | same |
 | `~/.claude/settings.json` | `cleanupPeriodDays` (session retention) | [claude-code-notes.md](claude-code-notes.md) |
+| `~/.config/ghostty/local.conf` | `ctrl+enter=unbind` lets Claude Code receive Ctrl+Enter (SER8); requires the trailing include in `ghostty/config` | [ghostty-ctrl-enter.md](ghostty-ctrl-enter.md) |
 | `~/.config/xdg-terminals.list` | default terminal (Ghostty trial on the XPS 16; Ghostty on the XPS 13) | [xps16-ghostty-trial.md](xps16-ghostty-trial.md) |
 | `~/.config/kitty/{kitty,local}.conf` | `font_size 11.0` + the seeded line and trailing include | [terminal-font-size.md](terminal-font-size.md) |
 | `~/.config/chrome-flags.conf` | Vulkan/VA-API flags | [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md) |
