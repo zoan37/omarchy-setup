@@ -1,0 +1,2 @@
+# Disable the activity LED on the TP-Link USB Wi-Fi adapter (2357:0120).
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="rtw88-*", ATTRS{idVendor}=="2357", ATTRS{idProduct}=="0120", ATTR{trigger}="none", ATTR{brightness}="0"
