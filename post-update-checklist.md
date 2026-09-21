@@ -268,6 +268,24 @@ or bypassed guards. Check matching kernel headers and
 suspend/resume too; the initial setup only exercised the resume handler
 directly. Restore and rollback: [ser8-quiet-fan.md](ser8-quiet-fan.md).
 
+## 10. SER8 desktop power selector
+
+The local `zoan.power` widget should remain at the far top right. Click its
+icon and verify the mode picker opens; Power Saver uses a leaf icon. Check the
+live and saved choices:
+
+```sh
+powerprofilesctl get
+cat "${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/powerprofiles/ac"
+```
+
+Both should say `power-saver` unless another mode was deliberately selected.
+Use `omarchy powerprofiles set ac power-saver` to restore it persistently;
+`powerprofilesctl set` alone does not update Omarchy's startup preference.
+The clone survives in user config but depends on the installed shell's UI
+components. Restoration, shell-restart workaround, and rollback:
+[ser8-power-selector.md](ser8-power-selector.md).
+
 ## Known open gap (XPS 13 / SER8)
 
 `chrome-flags.conf` enables `VaapiVideoDecoder`, but `intel-media-driver`

@@ -35,7 +35,7 @@ The machine initially used `performance`, with boost enabled to approximately
 5 GHz. The owner selected:
 
 ```sh
-powerprofilesctl set power-saver
+omarchy powerprofiles set ac power-saver
 ```
 
 On this installed version, that changed all 16 CPU policies to `powersave`,
@@ -54,8 +54,15 @@ for p in /sys/devices/system/cpu/cpufreq/policy*; do
 done
 ```
 
-The daemon saved `Profile=power-saver` in
-`/var/lib/power-profiles-daemon/state.ini` and its service is enabled at startup.
+**Persistence correction, 2026-09-20:** the initial setup used
+`powerprofilesctl set power-saver`, and the daemon saved `Profile=power-saver`
+in `/var/lib/power-profiles-daemon/state.ini`. However, Omarchy's startup helper
+has its own saved AC profile and defaults to Performance when none is saved;
+the machine was found in Performance mode the next day. Use the Omarchy command
+above, which also saves `~/.local/state/omarchy/powerprofiles/ac`.
+Power Saver is now active and saved there. The new
+[desktop power selector](ser8-power-selector.md) uses that same helper.
+
 Early snapshots dropped from about 48°C to 35°C after the profile change,
 but workloads differed, so those temperatures are not a controlled comparison.
 

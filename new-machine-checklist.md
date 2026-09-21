@@ -112,12 +112,17 @@ unnecessary).
 
 ### SER8 fan noise
 
-On the SER8, start with `powerprofilesctl set power-saver`; on the verified
+On the SER8, start with `omarchy powerprofiles set ac power-saver` so Omarchy
+remembers the choice at startup; on the verified
 8745HS setup this also disables CPU boost. If the idle fan remains audible,
 follow [ser8-quiet-fan.md](ser8-quiet-fan.md) to identify the IT8613E controller
 and reproduce the automatic curve using `assets/ser8-quiet-fan/`. The helper
 is scoped to the recorded SER8 BIOS and controller configuration. Do not
 apply the curve to the Dell machines or bypass a failed hardware check.
+
+For a visible power-mode control on the desktop, install the local
+[SER8 power selector](ser8-power-selector.md) from its restore assets. The
+stock power widget hides itself on machines without a battery.
 
 ### General services
 
