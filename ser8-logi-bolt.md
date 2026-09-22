@@ -8,6 +8,8 @@ The receiver was detected immediately, but both peripherals initially
 remained on Bluetooth. Pairing through Solaar connected them to Bolt.
 Scrolling then became excessively fast; disabling the mouse's
 high-resolution wheel mode restored normal scrolling, confirmed by the user.
+Ghostty still felt slow afterward; restoring its default mouse-wheel
+multiplier separately improved scrolling in the Codex terminal window.
 
 ## Install and pair
 
@@ -87,6 +89,52 @@ to set **Scroll Wheel Resolution → Ignore this setting** using the icon at
 the right of the setting, then turn the mouse off and on. The command above
 was the immediate fix verified on this receiver; do not assume forcing it
 off is correct for every Bluetooth or HID++ driver configuration.
+
+## Ghostty follow-up: normal wheel speed, not touchpad momentum
+
+After the device-level fix, scrolling in the Codex session inside Ghostty
+still felt slow. `~/.config/ghostty/config` contained
+`mouse-scroll-multiplier = 0.95`, applying that multiplier to both precision
+devices and discrete mouse wheels. Ghostty's default discrete-wheel
+multiplier is `3`, so the existing setting moved about one-third as far per
+notch. See [Ghostty's configuration reference](https://ghostty.org/docs/config/reference#mouse-scroll-multiplier).
+
+Back up `~/.config/ghostty/local.conf`, then add this override there:
+
+```ini
+# Use Ghostty's default wheel speed for the Logitech mouse over Bolt.
+# Preserve the existing multiplier for precision scrolling devices.
+mouse-scroll-multiplier = precision:0.95,discrete:3
+```
+
+The main `config` already includes `local.conf` as its last line, so this
+overrides the earlier `0.95` without changing the packaged-style defaults.
+Preserve the existing font and keybinding overrides in `local.conf`.
+Validate and reload the running terminals:
+
+```sh
+ghostty +validate-config
+ghostty +show-config | rg '^mouse-scroll-multiplier'
+omarchy restart terminal
+```
+
+Validation passed and the effective configuration reported
+`precision:0.95,discrete:3`. The user confirmed scrolling felt better after
+the reload. The mouse's `hires-smooth-resolution` remained `False`; no
+Hyprland scroll factor was changed. This restores Ghostty's standard wheel
+speed, not a measured reproduction of the previous Bluetooth behavior.
+
+The [momentum plugin](touchpad-momentum-scroll.md) is a separate laptop
+touchpad feature. On this SER8, `hyprpm list` and `hyprctl plugin list`
+showed only `tab-drag`, and
+[hypr-momentum explicitly handles touchpads only](https://github.com/zoan37/hypr-momentum#notes).
+Installing it would not add inertia to this mouse. Changing Ghostty's
+multiplier changes scroll distance, not momentum.
+
+To undo only this terminal adjustment, remove the new multiplier line from
+`local.conf`, validate, and run `omarchy restart terminal` again. The earlier
+`0.95` in the main config will apply. Keep the separate Bolt resolution fix
+unless its symptoms also warrant reassessment.
 
 ## Recheck after updates or reconnects
 
