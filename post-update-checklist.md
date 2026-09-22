@@ -220,7 +220,7 @@ edits, and everything is documented here:
 | `~/.config/ghostty/local.conf` | `ctrl+enter=unbind` lets Claude Code receive Ctrl+Enter (SER8); requires the trailing include in `ghostty/config` | [ghostty-ctrl-enter.md](ghostty-ctrl-enter.md) |
 | `~/.config/xdg-terminals.list` | default terminal (Ghostty trial on the XPS 16; Ghostty on the XPS 13) | [xps16-ghostty-trial.md](xps16-ghostty-trial.md) |
 | `~/.config/kitty/{kitty,local}.conf` | `font_size 11.0` + the seeded line and trailing include | [terminal-font-size.md](terminal-font-size.md) |
-| `~/.config/chrome-flags.conf` | Vulkan/VA-API flags | [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md) |
+| `~/.config/chrome-flags.conf` | Machine-specific Vulkan/VA-API flags; SER8 is trying OpenGL ANGLE with Vulkan retained | [white-video setup](chrome-vulkan-white-video.md), [SER8 flicker trial and rollback](chrome-ser8-flicker-trial.md) |
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
 | `~/.config/mise/config.toml` | claude/codex/gh/node | — |
 | syncthing user service | enabled (starts at login, not boot) | [syncthing-and-ufw.md](syncthing-and-ufw.md) |
