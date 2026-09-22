@@ -69,6 +69,10 @@ Font (ghostty only):
 
 ## Touchpad / scrolling
 
+**SER8 Logitech mouse and keyboard:** use the
+[Logi Bolt setup and scroll fix](ser8-logi-bolt.md) for Solaar pairing and
+wheel-speed verification. The touchpad steps below apply to the laptops.
+
 - `sudo pacman -S cmake` and then `hyprpm update` **first** — a fresh install
   has no Hyprland headers and no cmake, and the failure misreports itself as
   "Headers outdated" ([hyprpm-notes.md](hyprpm-notes.md)).

@@ -34,6 +34,7 @@ switch back to once in a while.
 
 ## Fixes
 
+- [**SER8: Logi Bolt pairing and fast-scroll fix**](ser8-logi-bolt.md) — pair the MX Anywhere 3S and MX Keys Mini through Solaar; disabling high-resolution wheel output restored normal scrolling after switching from Bluetooth. Includes verification, the driver interaction, reconnect checks, and undo steps.
 - [**SER8: turn off the blinking USB Wi-Fi LED**](ser8-usb-wifi-led.md) — the TP-Link adapter's Linux driver exposes an LED control; a small udev rule disables the green activity light while keeping Wi-Fi enabled. Includes the exact rule, verification, and undo steps.
 - [**SER8: desktop power-mode selector**](ser8-power-selector.md) — adds the missing top-right Power Saver / Balanced / Performance control on a machine without a battery. Includes the widget files, restoration steps, and the Omarchy-specific setting needed to retain the chosen mode at startup.
 - [**SER8: quieter automatic fan curve**](ser8-quiet-fan.md) — power-saver disables CPU boost; an IT8613E driver exposes the hardware fan curve directly in Linux. Lowered idle speed from about 1,076 to 755 RPM, with a 2°C increase in the short CPU load test. Includes the exact driver pin, startup/wake services, restore assets, rollback, and the wattage-control investigation that remains unimplemented.

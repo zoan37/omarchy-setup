@@ -202,6 +202,14 @@ Doesn't matter: upgrades are done manually anyway —
 `MISE_MINIMUM_RELEASE_AGE=0 mise install claude@$(npm view @anthropic-ai/claude-code version)`.
 Do NOT re-add PATH workarounds to `~/.bashrc`; it stays stock.
 
+## SER8: Logitech mouse scrolling after updates or reconnects
+
+Check that a few wheel notches scroll normally through the Bolt receiver.
+If scrolling suddenly becomes very fast or slow, inspect Solaar's live
+wheel-resolution setting before adjusting Hyprland's scroll factor. The
+[Bolt setup and scroll-fix notes](ser8-logi-bolt.md) record the verified
+command, the saved ignore policy, and the untested reboot/power-cycle behavior.
+
 ## 6. Things that survive updates (only `omarchy refresh <x>` resets them)
 
 Spot-check only if something feels off. All have `.bak.*` neighbors from past
