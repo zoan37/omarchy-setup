@@ -28,6 +28,12 @@ git config --global user.email "104385984+zoan37@users.noreply.github.com"
 
 ## Chrome
 
+**SER8 exception:** the existing machine is trying
+[OpenGL ANGLE with Vulkan retained](chrome-ser8-flicker-trial.md) for toolbar
+flicker. When reproducing that machine's current setup, use that page's flags
+and checks instead of the Vulkan ANGLE configuration below. It is still a
+trial; it has not replaced the laptop configuration or proven a flicker fix.
+
 1. Install Chrome (Quattro may already ship it), then edit
    `~/.config/chrome-flags.conf`. A fresh install already has an
    `--enable-features=` line, so **merge** rather than adding a second one:
