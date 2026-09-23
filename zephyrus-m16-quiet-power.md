@@ -1,10 +1,12 @@
 # ASUS Zephyrus M16 (GU603ZW): quiet fans, low power, no desktop lag
 
-Set up **2026-09-20**, with one fix on **2026-09-22** so the setup survives a reboot. Result: at idle the
-fans stay at **0 RPM** and the CPU package sits at about **35–37°C** (ambient
-and workload not controlled). Before the changes, fans were audible on AC
-and the NVIDIA dGPU drew about 11 W at idle. Single-core boost still reaches
-**4.7 GHz**, so the 165 Hz desktop stays smooth.
+Set up **2026-09-20**, with further tuning through **2026-09-23**. The current baseline uses
+both fans **off through the 66°C curve point**, rising to 10% at 70°C, a **3.8 GHz**
+CPU cap, and a **165 Hz** desktop with VRR. The September 23 five-minute trial averaged
+55°C with both fans off in ~87% of measured samples; heavier activity still triggered
+brief fan ramps and temperature spikes. See section 9 for the measurements and tradeoff. Earlier fans-off and 4.7 GHz results
+below describe previous configurations. Before the changes, fans were audible on AC
+and the NVIDIA dGPU drew about 11 W at idle.
 
 These are temperature and RPM readings plus the owner's subjective
 confirmation, not decibel or wall-power measurements.
@@ -16,8 +18,8 @@ confirmation, not decibel or wall-power measurements.
 | Machine | ASUS ROG Zephyrus M16 `GU603ZW_GU603ZW` |
 | BIOS | `GU603ZW.311`, dated 2022-12-22 (released 2023-02-17, latest; flashed 2026-09-22 from 308 via EZ Flash) |
 | CPU | Intel Core i9-12900H (14 cores / 20 threads), `intel_pstate` active |
-| GPUs | Intel Iris Xe (Alder Lake-P) + NVIDIA RTX 3070 Ti Laptop, hybrid via supergfxd |
-| Display | BOE eDP-2, 2560x1600@165 Hz, scale 1.6 (stock `auto`), VRR-capable but off |
+| GPUs | Intel Iris Xe (Alder Lake-P) + NVIDIA RTX 3070 Ti Laptop, Integrated mode via supergfxd (NVIDIA powered off) |
+| Display | BOE eDP-2, 2560x1600@165 Hz, scale 1.6 (stock `auto`), VRR on |
 | Omarchy / kernel | 4.0.4 (fresh Quattro install) / `7.2.5-3-omarchy` |
 | Hyprland | 0.56.2, Lua config |
 | `asusctl` | 6.4.0-2 |
@@ -38,7 +40,7 @@ SER8 machines.
 | ASUS platform profile | **Quiet** on AC and battery | `/etc/asusd/asusd.ron` |
 | Omarchy power profile | `power-saver` on AC and battery | `~/.local/state/omarchy/powerprofiles/{ac,battery}` |
 | CPU EPP | `balance_performance` (via asusd link) | `asusd.ron` + PPD drop-in |
-| Quiet fan curve | **CPU fan constant 7% / 18 PWM (~2,000 RPM, ±100 EC wobble)**, GPU fan off until 66°C; both 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
+| Quiet fan curve | **Both fans 0 PWM through 66°C**, 10% at 70°C, 30% at 80°C, 45% at 90°C; occasional ramps under load | `/etc/asusd/fan_curves.ron` |
 | Fan-curve guard | re-applies the curve if the EC drops to firmware mode | `zephyrus-fan-curve-guard.timer` |
 | CPU power cap | **30 W sustained / 35 W burst** (was 60 / 135) | `asusd.ron` → `ac/dc_profile_tunings.Quiet` |
 | GPU mode | **Integrated** (dGPU powered off) | `/etc/supergfxd.conf` |
@@ -126,7 +128,7 @@ powerprofilesctl list | head -4        # performance: shows PlatformDriver only,
 cat /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference | sort | uniq -c
                                        # expect: 20 balance_performance
 timeout 4 sh -c 'while :; do :; done' & sleep 3; grep MHz /proc/cpuinfo | sort -k4 -n | tail -1
-                                       # expect ~4700 (was ~1660 with EPP=power)
+                                       # expect up to ~3800 with the section 8 cap (was ~1660 with EPP=power)
 ```
 
 With this in place, idle stayed at 37°C with fans at 0 RPM.
@@ -141,7 +143,9 @@ refresh rate was declined. The EPP fix above is what fixed it.
 
 ## 3. Quiet fan curve
 
-**Current curve (2026-09-22, evening): a constant low baseline instead of fans-off.** Even with the
+**Previous curve (2026-09-22, evening): a constant low baseline instead of fans-off.**
+Replaced by the September 23 fans-off retry in section 9. The commands here are retained
+as the alternative for a steady hum instead of occasional ramps. Even with the
 66°C start below, the fans still briefly spun up whenever a busy Chrome tab pushed the
 package from ~60–64°C past the threshold. Since the fans were off, heat built up in the chassis and
 kept the resting temperature near the start point. **The EC has a hardware minimum
@@ -367,10 +371,11 @@ The last software levers, tested together over the same 45 s of scrolling X and 
 | Before | 6.7 W | 25.7 W | 51.4°C | **73°C** | 5,000 MHz |
 | Clock cap + VRR + overdrive off | 9.7 W | 31.4 W | 51.2°C | **61°C** | 3,800 MHz |
 
-The measurable win is **no more temperature spikes**: the top boost bins (4.4–5.0 GHz) need a large
+The observed win in this short test was **a lower peak temperature**: the top boost bins (4.4–5.0 GHz) need a large
 voltage jump, and that caused the split-second 65–79°C blips. Average power didn't measurably
-change. The 3 W difference is workload noise between two uncontrolled 45 s windows
-(a lower cap can't add 3 W), so don't expect watts from these three changes. No flicker with
+change. The uncontrolled 45 s windows cannot establish a power difference: work duration and
+background activity can change with frequency, so a lower clock does not guarantee lower
+average power. These measurements do not establish watt savings from the three changes. No flicker with
 VRR, and scrolling stays smooth at 3.8 GHz (more than twice the 1.7 GHz that caused the section 2 jank).
 
 **Clock cap:** 3.8 GHz on every policy. That's also the E-cores' own maximum, so only P-core boost is
@@ -408,6 +413,141 @@ can cause halo artifacts): `asusctl armoury set panel_overdrive 0`, which asusd 
 Repasting is risky because ROG models of this era often use liquid metal. Dusting the fans and
 heatsink, and raising the rear for intake airflow, are the remaining physical options.
 
+## 9. Further quiet/power trials (2026-09-23, Codex follow-up)
+
+**Method:** a separate Chromium 152 window automatically scrolls a fixed local page at
+165 Hz (text, gradients and 300 cards, no network or extensions). The user's Chrome
+154 session remains open, so background activity is still a confounder. Seven 35 s clock
+rounds alternate configurations; discard the first 5 s of each. This tests a scrolling
+workload, not page-loading speed or every website. JavaScript frame callback intervals
+are a responsiveness proxy, not measured display presentation times.
+
+The new [`zephyrus-power-sample`](assets/zephyrus-m16/zephyrus-power-sample) uses
+actual monotonic elapsed time, handles RAPL counter wrap, and finds fans by their labels.
+The previous shell sampler assumed exactly 0.5 s and selected the first fan glob.
+Both measure CPU **package energy**, not whole-laptop or wall power, and sample every 0.5 s.
+
+```sh
+# Run from this repo, in separate terminals. Leave the test window visible.
+python3 assets/zephyrus-m16/zephyrus-scroll-test --seconds 300
+pkexec python3 assets/zephyrus-m16/zephyrus-power-sample --seconds 45 > /tmp/zephyrus-power.jsonl
+```
+
+The scrolling helper requires matching `chromium` and `chromedriver` (both already
+installed here), creates its own temporary profile, prints the log directory, and closes
+only its own browser when finished. It does not change the user's Chrome profile.
+
+### Clock reductions: reverted
+
+| P-core / E-core maximum | Average package W in each round | Frame intervals >9.1 ms |
+|---|---|---|
+| Original 3.8 / 3.8 GHz | 8.292, 8.327, 8.132 | 0–0.061% |
+| 3.8 / 2.4 GHz | 8.579, 8.343 | 0.020–0.040% |
+| 3.2 / 2.4 GHz | 8.197, 8.175 | 0–0.020% |
+
+No useful demonstrated saving: the most restrictive cap was only ~0.06 W below the
+baseline mean, less than the variation between baseline rounds. Restored **3.8 GHz on
+all policies**, leaving EPP `balance_performance` on all CPUs. The kernel's
+`/sys/devices/cpu_core/cpus` and `/sys/devices/cpu_atom/cpus` masks
+were read locally: **P threads 0–11; E cores 12–19**. No process affinities were changed.
+
+### VRR versus panel self-refresh: reverted
+
+With VRR on, i915 reports PSR disabled. Turning VRR off at the **same 165 Hz** enables
+PSR1. The kernel driver explicitly excludes PSR with VRR; see
+[Intel display driver](https://github.com/torvalds/linux/blob/master/drivers/gpu/drm/i915/display/intel_psr.c).
+However, enabled is not the same as spending time in self-refresh: our samples showed
+`IDLE`, rather than establishing substantial residency.
+
+Two 25 s measured windows per setting, ordered on/off/off/on, averaged **5.83 / 5.73 /
+5.96 / 6.03 W**. The screen content was uncontrolled for this initial trial. No useful
+saving demonstrated; restored **VRR on**. FBC was already enabled, DMC firmware loaded,
+and the DC5 entry counter nonzero. No i915 module parameters were forced.
+
+### Fans-off retry with the existing 3.8 GHz cap: kept
+
+The earlier fans-off trial preceded the clock cap, so this was worth retrying with the
+current CPU settings. Changed only the CPU fan's first five points from 18 to 0 PWM;
+the GPU curve already matched. The cap stays **3.8 GHz**, EPP stays
+`balance_performance`, C8/C10 stay disabled, and the normal higher-temperature ramp remains:
+
+```sh
+asusctl fan-curve --mod-profile quiet --fan cpu --data 30c:0%,40c:0%,50c:0%,60c:0%,66c:0%,70c:10%,80c:30%,90c:45%
+asusctl fan-curve --mod-profile quiet --enable-fan-curves true
+```
+
+**Measured:** a five-minute trial, first 15 s excluded for fan spin-down, 564 samples:
+both fans off **86.7%** of samples, CPU fan peak **2,100 RPM**, GPU fan **0 throughout**.
+Average package temperature **55.1°C**, peak **75°C**; average package power **12.24 W**.
+The first part used the local scroll page, later activity was uncontrolled regular desktop
+and browsing, so that power number is **not an A/B saving**. Temperatures were mostly
+around 49–51°C initially, then around 59°C in the final minute with heavier activity.
+Raw numerical summaries are in
+[`2026-09-23-trial-summary.json`](assets/zephyrus-m16/2026-09-23-trial-summary.json).
+
+The CPU fan first returned during heavier activity around 3½ minutes in, then stopped
+again. **This trades the constant hum for longer silent periods plus occasional ramps; it
+does not eliminate fan bursts or temperature spikes.** The owner heard the initial quiet
+period and reported the fan gone and whine no longer noticeable. That is subjective sound
+evidence, not proof of an electrical coil-whine reduction. No C-state change was made. Subsequent heavier Chrome activity also reached ~3,100 RPM;
+this curve does not promise silence under sustained load.
+The five-minute test also does not establish long-session thermal equilibrium.
+
+**Verify:** both `pwm*_enable` read `1`; both curves are PWM
+`0 0 0 0 0 26 77 115` at `30 40 50 60 66 70 80 90`°C. The fan guard remains active.
+The fan-curve file was backed up to `/etc/asusd/fan_curves.ron.bak.<epoch>` before testing,
+and the repo copy matches the retained live curve. asusd persists it for the Quiet profile
+on AC and battery; reboot/resume with this revision has not yet been tested.
+
+**Revert to the steady CPU fan**, without changing the GPU curve or any CPU setting:
+
+```sh
+asusctl fan-curve --mod-profile quiet --fan cpu --data 30c:7%,40c:7%,50c:7%,60c:7%,66c:7%,70c:10%,80c:30%,90c:45%
+asusctl fan-curve --mod-profile quiet --enable-fan-curves true
+```
+
+### Disconnected Ethernet runtime power: kept
+
+The onboard RTL8125 was disconnected but forced `power/control=on` and stayed active.
+Two `auto → on` trials consistently changed **active → suspended after roughly 10–15 s**,
+then resumed to active with `on`. No kernel warnings during the trials. Installed
+[`80-zephyrus-ethernet-pm.rules`](assets/zephyrus-m16/80-zephyrus-ethernet-pm.rules),
+matching this ASUS controller's PCI vendor/device and subsystem IDs. The
+[r8169 driver](https://github.com/torvalds/linux/blob/master/drivers/net/ethernet/realtek/r8169_main.c)
+only schedules this idle suspend when the interface is down or has no carrier, and enables
+PHY wake when suspending a running interface.
+
+**Result:** the unused device now reaches `suspended`. Watt savings and wired cable
+reconnect have **not** been measured/tested; the laptop's active connection is Wi-Fi.
+This is independent of CPU fan RPM and is not claimed as a coil-whine fix.
+
+```sh
+pkexec install -m 644 assets/zephyrus-m16/80-zephyrus-ethernet-pm.rules /etc/udev/rules.d/
+pkexec udevadm control --reload-rules
+pkexec udevadm trigger --action=bind /sys/bus/pci/devices/0000:2c:00.0
+# After 15 s without an Ethernet cable: auto / suspended
+cat /sys/bus/pci/devices/0000:2c:00.0/power/{control,runtime_status}
+```
+
+**Revert:** remove `/etc/udev/rules.d/80-zephyrus-ethernet-pm.rules`, reload udev rules,
+and write `on` to `/sys/bus/pci/devices/0000:2c:00.0/power/control` using `pkexec`.
+This does not disable or unbind the interface.
+
+### Other findings / left unchanged
+
+- A live 12 s process sample found a Chrome renderer using ~24% of one CPU and its GPU
+  process ~12%. Do not identify a tab from a renderer PID alone or blindly freeze it.
+- Chrome's [Energy Saver](https://support.google.com/chrome/answer/12929150?hl=en)
+  operates when unplugged or at low battery and may affect visual smoothness; it is
+  not an AC power fix. No Chrome settings were changed.
+- `intel_lpmd` still has low-power mode forced off. Global core confinement can also
+  constrain foreground work; it was not enabled in this pass. No claimed saving.
+- Audio power-save timeout is already 10 s; NVMe APST latency policy is nonzero
+  (100000 µs). The latter alone does not verify actual APST residency. Wi-Fi power
+  saving is off and left unchanged; no blanket USB/PCIe power tuning was applied.
+- C8/C10 remain disabled. No electrical/acoustic instrument measured coil whine;
+  the owner's listening report is the sound evidence.
+
 ## BIOS update (308 → 311)
 
 Linux can't flash it and fwupd isn't used, but no Windows is needed either. Download the **EZ Flash**
@@ -439,8 +579,7 @@ Use Chrome's Task Manager (Shift+Esc) to find it, the same lesson as
 
 ## Not done / possible next steps
 
-- **VRR.** The panel is VRR-capable, but VRR is off. It might save a little at idle; not
-  tried.
+- **VRR is already on.** The September 23 follow-up below tests its interaction with panel self-refresh.
 - `intel_lpmd` is running with stock config (low-power mode forced off for
   the Balanced/Power-saver PPD profiles). Left unchanged.
 

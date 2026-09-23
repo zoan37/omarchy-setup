@@ -303,7 +303,7 @@ change who writes EPP. After updating and **rebooting**:
 asusctl profile get                   # AC + Battery: Quiet
 powerprofilesctl list | head -4       # no CpuDriver line (drop-in active)
 cat /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference | sort | uniq -c   # 20 balance_performance
-timeout 4 sh -c 'while :; do :; done' & sleep 3; grep MHz /proc/cpuinfo | sort -k4 -n | tail -1   # ~4700
+timeout 4 sh -c 'while :; do :; done' & sleep 3; grep MHz /proc/cpuinfo | sort -k4 -n | tail -1   # up to ~3800 with the clock cap
 supergfxctl -g                        # Integrated
 asusctl battery info                  # 80%
 cat /sys/devices/system/cpu/cpu0/cpuidle/state{3,4}/{name,disable}   # C8 1, C10 1 (coil-whine fix)
@@ -311,16 +311,22 @@ cat /sys/class/firmware-attributes/*/attributes/ppt_pl{1_spl,2_sppt}/current_val
 systemctl is-active zephyrus-fan-curve-guard.timer   # active
 cat /sys/devices/system/cpu/cpufreq/policy*/scaling_max_freq | sort -u   # 3800000
 hyprctl monitors | grep vrr           # vrr: true
+cat /sys/bus/pci/devices/0000:2c:00.0/power/{control,runtime_status}   # auto / suspended after ~15 s without Ethernet
 ```
 
 Fan curve: check the hardware, not `asusctl`. After the BIOS 311 flash, asusctl said
 "enabled" while the controller ran the firmware curve. `pwm1_enable` in the
-`asus_custom_fan_curve` hwmon must be `1`, and the auto points must read `30 40 50 60 66 70 80 90` with an 18/255 CPU-fan baseline and GPU fan 0 until 66°C. The guard timer
+`asus_custom_fan_curve` hwmon must be `1`, and the auto points must read `30 40 50 60 66 70 80 90` with both fans at PWM `0 0 0 0 0 26 77 115` (fans off through the 66°C point). The guard timer
 should repair a reset within 30 s. The fix is in the Zephyrus doc's BIOS section.
 
 If EPP reads `power` again, the desktop will stutter at 165 Hz. Check that
 `/etc/systemd/system/power-profiles-daemon.service.d/no-cpu-epp.conf` still
 exists and that PPD still accepts `--block-driver` (`/usr/lib/power-profiles-daemon --help-all`).
+Ethernet runtime PM is scoped to the onboard ASUS RTL8125 by
+`/etc/udev/rules.d/80-zephyrus-ethernet-pm.rules`. With a cable/link, active is normal;
+a cable reconnect still needs a practical check. For comparable package-power samples, use
+`pkexec python3 assets/zephyrus-m16/zephyrus-power-sample --seconds 45`.
+
 Details: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md).
 
 ## Known open gap (XPS 13 / SER8)

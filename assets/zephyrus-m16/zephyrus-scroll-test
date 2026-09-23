@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""Temporary local Chromium scroll workload; requires matching chromedriver."""
+import urllib.request,json,subprocess,time,signal,sys,argparse,tempfile
+from pathlib import Path
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--seconds',type=int,default=45)
+parser.add_argument('--port',type=int,default=19515)
+args=parser.parse_args()
+if args.seconds <= 0: parser.error('seconds must be positive')
+b=Path(tempfile.mkdtemp(prefix='zephyrus-scroll-'))
+print('Logs and temporary profile:',b,flush=True)
+page=Path(__file__).resolve().parent/'scroll-test.html'
+port=args.port
+p=subprocess.Popen(['chromedriver','--port='+str(port),'--allowed-ips=127.0.0.1'],stdout=(b/'chromedriver.log').open('w'),stderr=subprocess.STDOUT)
+sid=None
+def req(method,path,data=None):
+ r=urllib.request.Request('http://127.0.0.1:'+str(port)+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json'},method=method)
+ with urllib.request.urlopen(r,timeout=15) as f: return json.load(f)['value']
+def stop(*a): raise KeyboardInterrupt
+signal.signal(signal.SIGTERM,stop)
+try:
+ for i in range(40):
+  try:
+   if p.poll() is not None: raise RuntimeError('chromedriver failed; see '+str(b/'chromedriver.log'))
+   req('GET','/status');break
+  except OSError:time.sleep(.25)
+ value=req('POST','/session',{'capabilities':{'alwaysMatch':{'browserName':'chrome','goog:chromeOptions':{'binary':'/usr/bin/chromium','args':['--ozone-platform=wayland','--no-first-run','--no-default-browser-check','--disable-extensions','--user-data-dir='+str(b/'test-profile')]}}}})
+ sid=value['sessionId']; req('POST','/session/'+sid+'/url',{'url':page.as_uri()})
+ print('Temporary scrolling window ready',flush=True)
+ for i in range(args.seconds):
+  time.sleep(1)
+  result=req('POST','/session/'+sid+'/execute/sync',{'script':'return {visible:document.visibilityState,samples:window.samples.splice(0)}','args':[]})
+  with (b/'frames.jsonl').open('a') as f: f.write(json.dumps(result)+'\n')
+
+finally:
+ if sid:
+  try:req('DELETE','/session/'+sid)
+  except Exception:pass
+ p.terminate();p.wait(timeout=10)
+
+print('Finished; frame timestamps are in',b/'frames.jsonl')

@@ -1,0 +1,3 @@
+# GU603ZW onboard RTL8125: permit driver-managed sleep without a cable.
+# The r8169 driver schedules suspend after 10 s with no link and enables PHY wake.
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x10ec", ATTR{device}=="0x8125", ATTR{subsystem_vendor}=="0x1043", ATTR{subsystem_device}=="0x205f", TEST=="power/control", ATTR{power/control}="auto"

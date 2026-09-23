@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Read-only package-energy, temperature and fan sampler. Run with pkexec."""
+import argparse
+import json
+import statistics
+import time
+from pathlib import Path
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--seconds", type=float, default=45)
+    parser.add_argument("--interval", type=float, default=0.5)
+    args = parser.parse_args()
+    if args.seconds <= 0 or args.interval <= 0:
+        parser.error("seconds and interval must be positive")
+
+    def read(path):
+        return path.read_text().strip()
+
+    rapl = Path("/sys/class/powercap/intel-rapl:0")
+    if read(rapl / "name") != "package-0":
+        raise SystemExit("Expected the package-0 RAPL counter")
+    energy = rapl / "energy_uj"
+    wrap = int(read(rapl / "max_energy_range_uj"))
+    temp = next(p.parent / "temp" for p in Path("/sys/class/thermal").glob("thermal_zone*/type")
+                if read(p) == "x86_pkg_temp")
+    hwmon = next(p.parent for p in Path("/sys/class/hwmon").glob("hwmon*/name")
+                 if read(p) == "asus")
+    fans = {read(p): p.with_name(p.name.replace("label", "input"))
+            for p in hwmon.glob("fan*_label")}
+    freq = list(Path("/sys/devices/system/cpu/cpufreq").glob("policy*/scaling_cur_freq"))
+    previous = int(read(energy))
+    start = last = time.monotonic()
+    rows = []
+    while time.monotonic() - start < args.seconds:
+        time.sleep(min(args.interval, max(0, args.seconds - (time.monotonic() - start))))
+        current = int(read(energy))
+        now = time.monotonic()
+        elapsed = now - last
+        row = {"time": time.time(), "elapsed_s": now - start, "interval_s": elapsed,
+               "watts": ((current - previous) % wrap) / 1e6 / elapsed,
+               "temp_c": int(read(temp)) / 1000,
+               "fans_rpm": {label: int(read(path)) for label, path in fans.items()},
+               "max_mhz": max(int(read(p)) for p in freq) / 1000}
+        print(json.dumps(row), flush=True)
+        rows.append(row)
+        previous, last = current, now
+    duration = sum(r["interval_s"] for r in rows)
+    print(json.dumps({"summary": {"seconds": duration,
+          "avg_watts": sum(r["watts"] * r["interval_s"] for r in rows) / duration,
+          "peak_watts": max(r["watts"] for r in rows),
+          "avg_temp_c": statistics.mean(r["temp_c"] for r in rows),
+          "peak_temp_c": max(r["temp_c"] for r in rows)}}))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except PermissionError:
+        raise SystemExit("RAPL requires root: run this script with pkexec python3.")
