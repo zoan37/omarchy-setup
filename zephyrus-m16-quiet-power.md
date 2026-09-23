@@ -14,7 +14,7 @@ confirmation, not decibel or wall-power measurements.
 | Item | Verified configuration |
 |---|---|
 | Machine | ASUS ROG Zephyrus M16 `GU603ZW_GU603ZW` |
-| BIOS | `GU603ZW.308`, dated 2022-06-01 |
+| BIOS | `GU603ZW.311`, dated 2022-12-22 (released 2023-02-17, latest; flashed 2026-09-22 from 308 via EZ Flash) |
 | CPU | Intel Core i9-12900H (14 cores / 20 threads), `intel_pstate` active |
 | GPUs | Intel Iris Xe (Alder Lake-P) + NVIDIA RTX 3070 Ti Laptop, hybrid via supergfxd |
 | Display | BOE eDP-2, 2560x1600@165 Hz, scale 1.6 (stock `auto`), VRR-capable but off |
@@ -176,7 +176,7 @@ gaming either. Run `omarchy toggle hybrid gpu` again and reboot to switch back.
 ## 5. Small stuff
 
 ```sh
-asusctl armoury set BootSound 0                 # no POST chime (stored in asusd.ron)
+asusctl armoury set boot_sound 0                # no POST chime (stored in asusd.ron)
 asusctl aura static -c ffd9b0                   # warm white, not RGB
 asusctl leds set med
 asusctl battery limit 80                        # mostly on AC; stored in asusd.ron
@@ -188,6 +188,18 @@ limit, the charger stops charging and the machine runs on wall power. Near full,
 would otherwise keep topping itself off, which adds a little heat inside the chassis next to the
 CPU. Don't expect a noticeable temperature drop; the main gain is battery lifespan.
 Cost: about 20% less runtime unplugged. Before a trip, run `asusctl battery limit 100`.
+
+## BIOS update (308 → 311)
+
+Linux can't flash it and fwupd isn't used, but no Windows is needed either. Download the **EZ Flash**
+zip from ASUS (`GU603ZWAS311.zip`, SHA256 `0de27aab…ffbf7d2a`), unzip
+`GU603ZWAS.311` onto a FAT32 USB, then F2 → F7 (Advanced) → Advanced → ASUS
+EZ Flash 3. Didn't change the faint idle coil whine.
+
+Everything in this doc survived: it all lives in Linux. The flash reset the
+boot sound, so the chime played once, but asusd restores `boot_sound 0` from
+`asusd.ron` at startup (`journalctl -b -u asusd | grep boot_sound`). The boot
+order stayed on Limine.
 
 ## Chrome on this machine
 
