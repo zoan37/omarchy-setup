@@ -3,7 +3,8 @@
 Condensed order of operations. Details in the per-topic files.
 
 Machine-specific pages: [Dell XPS 16](xps16-notes.md),
-[Beelink SER8 quiet fan setup](ser8-quiet-fan.md). Identify the machine with
+[Beelink SER8 quiet fan setup](ser8-quiet-fan.md),
+[ASUS Zephyrus M16 quiet/power setup](zephyrus-m16-quiet-power.md). Identify the machine with
 `cat /sys/class/dmi/id/product_name` and its speaker/display variant with
 `cat /sys/class/dmi/id/product_sku`.
 
@@ -133,6 +134,17 @@ apply the curve to the Dell machines or bypass a failed hardware check.
 For a visible power-mode control on the desktop, install the local
 [SER8 power selector](ser8-power-selector.md) from its restore assets. The
 stock power widget hides itself on machines without a battery.
+
+### Zephyrus M16 fans, power, and GPU
+
+Follow [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md) in order:
+Quiet profile in asusd **and** `omarchy powerprofiles set ac|battery power-saver`,
+the EPP fix (asusd `BalancePerformance` + the PPD `--block-driver=intel_pstate`
+drop-in; **verify boost after a reboot**), the Quiet fan curve,
+`omarchy toggle hybrid gpu` (reboot; HDMI likely stops working), then boot
+sound off, keyboard color, and `asusctl battery limit 80`. The file copies in
+`assets/zephyrus-m16/` are for reference; apply changes with the commands so a newer asusd
+can write its own format.
 
 ### General services
 

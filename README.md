@@ -2,7 +2,7 @@
 
 Nuanced fixes and hard-won config for my Omarchy machines, so a fresh install
 doesn't mean re-deriving everything. Written for myself — and maybe useful to
-other Dell XPS 13 / XPS 16 / Beelink SER8 owners running Omarchy. Steps carry
+other Dell XPS 13 / XPS 16 / Beelink SER8 / ASUS Zephyrus M16 owners running Omarchy. Steps carry
 exact commands, verification, and revert paths, so the checklists also work handed to a coding
 agent ("set up this machine"; identify the machine via
 `cat /sys/class/dmi/id/product_name`).
@@ -14,6 +14,7 @@ agent ("set up this machine"; identify the machine via
 | Dell XPS 13 (DX13260) | Intel Wildcat Lake | 2560x1600@120Hz eDP, fractional scale 1.6 |
 | Dell XPS 16 (DA16260) | Intel Panther Lake (Arc B390) | SKU `0DBA`. **Being returned (2026-09-19): the zero-lattice keyboard never felt right; see [keyboard notes](xps16-keyboard-dropped-keys.md).** 3200x2000@120Hz LG **OLED** eDP, fractional scale 1.6 (stock `auto` resolved correctly). Fresh Quattro 4.0.4 install. Assess display issues separately from the XPS 13; live Panel Replay checks in [xps16-notes.md](xps16-notes.md). |
 | Beelink SER8 | AMD Hawk Point iGPU (Radeon 780M) | 32GB RAM, mini-PC. 3440x1440 ultrawide over HDMI, scale 1 (stock `auto` resolves correctly). Wi-Fi, which is what exposes the weather boot race. Logitech keyboard + mouse, **no touchpad** — so the touchpad/gesture/kinetic-scroll fixes below don't apply here. Upgraded from Omarchy 3; the XPS 13 was a fresh Quattro install. |
+| ASUS ROG Zephyrus M16 (GU603ZW) | Intel Iris Xe + RTX 3070 Ti (run **Integrated-only**) | i9-12900H. 2560x1600@165Hz eDP, scale 1.6 (stock `auto`). Fresh Quattro 4.0.4 install, 2026-09-20. Hardware via `asusctl`/`supergfxctl`. Quiet/power-saver everywhere, silent fan curve, dGPU off, 80% charge limit: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md). |
 
 ## Checklists
 
@@ -34,6 +35,7 @@ switch back to once in a while.
 
 ## Fixes
 
+- [**Zephyrus M16: quiet fans, low power, no desktop lag**](zephyrus-m16-quiet-power.md) — Quiet profile on AC and battery (Omarchy's own power-profile layer overrides asusd unless you set it too), a 0-RPM-below-58°C fan curve, and Integrated-only GPU because the RTX 3070 Ti never suspends in hybrid mode (~11 W idle). Also the catch that made the 165 Hz desktop stutter: EPP `power` capped the i9 at ~1.7 GHz, and power-profiles-daemon's `power-saver` reapplied it after every reboot. Fixed with a `--block-driver=intel_pstate` drop-in; boost back to 4.7 GHz, idle 37°C with fans off. Exact commands, verification, and revert steps.
 - [**SER8: Logi Bolt pairing and fast-scroll fix**](ser8-logi-bolt.md) — pair the MX Anywhere 3S and MX Keys Mini through Solaar; disabling high-resolution wheel output restored normal scrolling after switching from Bluetooth. Includes the separate Ghostty wheel-speed adjustment, why the touchpad momentum plugin does not apply, verification, reconnect checks, and undo steps.
 - [**SER8: turn off the blinking USB Wi-Fi LED**](ser8-usb-wifi-led.md) — the TP-Link adapter's Linux driver exposes an LED control; a small udev rule disables the green activity light while keeping Wi-Fi enabled. Includes the exact rule, verification, and undo steps.
 - [**SER8: desktop power-mode selector**](ser8-power-selector.md) — adds the missing top-right Power Saver / Balanced / Performance control on a machine without a battery. Includes the widget files, restoration steps, and the Omarchy-specific setting needed to retain the chosen mode at startup.
@@ -72,3 +74,7 @@ plus the generator that builds its curves —
 `assets/ser8-quiet-fan/` mirrors the installed fan helper, systemd units, DKMS
 configuration, and original controller settings; reproduction steps are in
 [ser8-quiet-fan.md](ser8-quiet-fan.md).
+
+`assets/zephyrus-m16/` mirrors the Zephyrus asusd, fan-curve, supergfxd, and
+power-profiles-daemon drop-in files; see
+[zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md).

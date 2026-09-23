@@ -294,6 +294,25 @@ The clone survives in user config but depends on the installed shell's UI
 components. Restoration, shell-restart workaround, and rollback:
 [ser8-power-selector.md](ser8-power-selector.md).
 
+## 11. Zephyrus M16 — boost, profile, and GPU mode
+
+Nothing here is package-owned, but a new power-profiles-daemon or asusd can
+change who writes EPP. After updating and **rebooting**:
+
+```sh
+asusctl profile get                   # AC + Battery: Quiet
+powerprofilesctl list | head -4       # no CpuDriver line (drop-in active)
+cat /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference | sort | uniq -c   # 20 balance_performance
+timeout 4 sh -c 'while :; do :; done' & sleep 3; grep MHz /proc/cpuinfo | sort -k4 -n | tail -1   # ~4700
+supergfxctl -g                        # Integrated
+asusctl battery info                  # 80%
+```
+
+If EPP reads `power` again, the desktop will stutter at 165 Hz. Check that
+`/etc/systemd/system/power-profiles-daemon.service.d/no-cpu-epp.conf` still
+exists and that PPD still accepts `--block-driver` (`/usr/lib/power-profiles-daemon --help-all`).
+Details: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md).
+
 ## Known open gap (XPS 13 / SER8)
 
 `chrome-flags.conf` enables `VaapiVideoDecoder`, but `intel-media-driver`
