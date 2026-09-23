@@ -38,7 +38,7 @@ SER8 machines.
 | ASUS platform profile | **Quiet** on AC and battery | `/etc/asusd/asusd.ron` |
 | Omarchy power profile | `power-saver` on AC and battery | `~/.local/state/omarchy/powerprofiles/{ac,battery}` |
 | CPU EPP | `balance_performance` (via asusd link) | `asusd.ron` + PPD drop-in |
-| Quiet fan curve | **constant 5% baseline (~2,000 RPM)**, 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
+| Quiet fan curve | **CPU fan constant 5% (~2,000 RPM)**, GPU fan off until 66°C; both 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
 | Fan-curve guard | re-applies the curve if the EC drops to firmware mode | `zephyrus-fan-curve-guard.timer` |
 | CPU power cap | **30 W sustained / 35 W burst** (was 60 / 135) | `asusd.ron` → `ac/dc_profile_tunings.Quiet` |
 | GPU mode | **Integrated** (dGPU powered off) | `/etc/supergfxd.conf` |
@@ -148,14 +148,21 @@ speed as the bursts), so there is no whisper-quiet in-between. A steady hum is l
 noticeable than start/stop bursts at the same speed, and it keeps the chip cooler (57 → 53–55°C) and the
 keyboard deck cooler:
 
+**Baseline on the CPU fan only.** With both fans at the baseline, the CPU fan held 2,000 RPM
+but the GPU fan hunted between 1,900 and 2,100 RPM in a ~4 s cycle, right at the bottom of its range. The two
+slightly different speeds beat against each other, making an audible oscillating "wah-wah". The dGPU
+is off and both fans share the heat pipes, so the GPU fan now stays off until 66°C and
+joins at the ramp:
+
 ```sh
-C=30c:5%,40c:5%,50c:5%,60c:5%,66c:5%,70c:10%,80c:30%,90c:45%
-asusctl fan-curve --mod-profile quiet --fan cpu --data $C
-asusctl fan-curve --mod-profile quiet --fan gpu --data $C
+asusctl fan-curve --mod-profile quiet --fan cpu --data 30c:5%,40c:5%,50c:5%,60c:5%,66c:5%,70c:10%,80c:30%,90c:45%
+asusctl fan-curve --mod-profile quiet --fan gpu --data 30c:0%,40c:0%,50c:0%,60c:0%,66c:0%,70c:10%,80c:30%,90c:45%
 asusctl fan-curve --mod-profile quiet --enable-fan-curves true
 ```
 
-Stored as PWM `(13, 13, 13, 13, 13, 26, 77, 115)` at `(30, 40, 50, 60, 66, 70, 80, 90)`°C.
+Stored at `(30, 40, 50, 60, 66, 70, 80, 90)`°C as PWM CPU `(13, 13, 13, 13, 13, 26, 77, 115)` and
+GPU `(0, 0, 0, 0, 0, 26, 77, 115)`. Result: CPU fan a flat 2,000 RPM and the package at ~50°C,
+the same as with both fans running.
 (5% rather than 3% so the fan reliably starts; both sound the same.) To go back to silence
 with occasional bursts, use the fans-off curve below.
 
