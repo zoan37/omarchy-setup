@@ -38,7 +38,7 @@ SER8 machines.
 | ASUS platform profile | **Quiet** on AC and battery | `/etc/asusd/asusd.ron` |
 | Omarchy power profile | `power-saver` on AC and battery | `~/.local/state/omarchy/powerprofiles/{ac,battery}` |
 | CPU EPP | `balance_performance` (via asusd link) | `asusd.ron` + PPD drop-in |
-| Quiet fan curve | **0% up to 66°C**, 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
+| Quiet fan curve | **constant 5% baseline (~2,000 RPM)**, 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
 | Fan-curve guard | re-applies the curve if the EC drops to firmware mode | `zephyrus-fan-curve-guard.timer` |
 | CPU power cap | **30 W sustained / 35 W burst** (was 60 / 135) | `asusd.ron` → `ac/dc_profile_tunings.Quiet` |
 | GPU mode | **Integrated** (dGPU powered off) | `/etc/supergfxd.conf` |
@@ -139,6 +139,28 @@ refresh rate was declined. The EPP fix above is what fixed it.
 
 ## 3. Quiet fan curve
 
+**Current curve (2026-09-22, evening): a constant low baseline instead of fans-off.** Even with the
+66°C start below, the fans still briefly spun up whenever a busy Chrome tab pushed the
+package from ~60–64°C past the threshold. Since the fans were off, heat built up in the chassis and
+kept the resting temperature near the start point. **The EC has a hardware minimum
+speed:** 3%, 5%, 7% and 10% PWM all ran at **~2,000–2,200 RPM** (the same
+speed as the bursts), so there is no whisper-quiet in-between. A steady hum is less
+noticeable than start/stop bursts at the same speed, and it keeps the chip cooler (57 → 53–55°C) and the
+keyboard deck cooler:
+
+```sh
+C=30c:5%,40c:5%,50c:5%,60c:5%,66c:5%,70c:10%,80c:30%,90c:45%
+asusctl fan-curve --mod-profile quiet --fan cpu --data $C
+asusctl fan-curve --mod-profile quiet --fan gpu --data $C
+asusctl fan-curve --mod-profile quiet --enable-fan-curves true
+```
+
+Stored as PWM `(13, 13, 13, 13, 13, 26, 77, 115)` at `(30, 40, 50, 60, 66, 70, 80, 90)`°C.
+(5% rather than 3% so the fan reliably starts; both sound the same.) To go back to silence
+with occasional bursts, use the fans-off curve below.
+
+### Previous curves
+
 The stock Quiet curve spins the fans up at idle-ish temperatures. The first custom curve
 (2026-09-20) started at 58°C, but at light use the package sits at **55–58°C**, and
 whenever a single core boosts to 4.4–4.9 GHz it spikes to 65–79°C for a split second
@@ -178,7 +200,7 @@ spins up at 55°C.
 ```sh
 h=$(dirname "$(grep -l asus_custom_fan_curve /sys/class/hwmon/hwmon*/name)")
 cat $h/pwm1_enable $h/pwm2_enable            # expect 1 1 (2 = firmware curve)
-paste $h/pwm1_auto_point{1..8}_temp          # expect 40 50 60 66 70 75 80 90
+paste $h/pwm1_auto_point{1..8}_temp          # expect 30 40 50 60 66 70 80 90
 ```
 
 **Guard:** `zephyrus-fan-curve-guard.timer` runs every 30 s (first run 20 s after
