@@ -1,0 +1,10 @@
+#!/bin/sh
+# Disable the C8/C10 CPU idle states on the Zephyrus M16 (i9-12900H).
+# Rapid entry/exit of these deep states makes the CPU power stage's coils whine;
+# cost measured at ~0.5-1.5 W package power at light idle (2026-09-22).
+# Matches by name, not index, so a kernel/BIOS reordering can't hit the wrong state.
+for d in /sys/devices/system/cpu/cpu*/cpuidle/state*; do
+  case "$(cat "$d/name")" in
+    C8|C10) echo 1 > "$d/disable" ;;
+  esac
+done

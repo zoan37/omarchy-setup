@@ -1,0 +1,10 @@
+[Unit]
+Description=Disable C8/C10 CPU idle states (reduces coil whine)
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/zephyrus-no-deep-cstates
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

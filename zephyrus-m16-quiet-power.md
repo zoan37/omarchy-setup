@@ -43,9 +43,10 @@ SER8 machines.
 | BIOS boot sound | off | `asusd.ron` → `armoury_settings` |
 | Keyboard | static warm white `ffd9b0`, Med | `/etc/asusd/aura_19b6.ron` |
 | Battery charge limit | **80%** (set 2026-09-22) | `asusd.ron` → `charge_control_end_threshold` |
+| CPU idle states | **C8 + C10 disabled** (less coil whine) | `zephyrus-no-deep-cstates.service` |
 | Refresh rate | **165 Hz, kept on purpose** | stock |
 
-Copies of `asusd.ron`, `fan_curves.ron`, `supergfxd.conf`, and the PPD drop-in are in [`assets/zephyrus-m16/`](assets/zephyrus-m16/).
+Copies of `asusd.ron`, `fan_curves.ron`, `supergfxd.conf`, the PPD drop-in, and the C-state script + unit are in [`assets/zephyrus-m16/`](assets/zephyrus-m16/).
 
 ## 1. Quiet platform profile everywhere
 
@@ -188,6 +189,45 @@ limit, the charger stops charging and the machine runs on wall power. Near full,
 would otherwise keep topping itself off, which adds a little heat inside the chassis next to the
 CPU. Don't expect a noticeable temperature drop; the main gain is battery lifespan.
 Cost: about 20% less runtime unplugged. Before a trip, run `asusctl battery limit 100`.
+
+## 6. Coil whine: disable the C8/C10 idle states
+
+A faint high-pitched whine at idle, audible only with the room quiet and an ear
+close. It was still there on battery, so it wasn't the charger. It got louder
+("dudh-dhu") under a full 20-thread load, and the dGPU is off in Integrated mode, which points at
+the CPU's power-stage coils. At idle the CPU enters and leaves its deepest sleep states
+thousands of times a second, and that on/off switching is what makes the coils sing. The XPS 13 has none of
+this: a ~15 W chip pulling small currents through small coils.
+
+**Test:** the idle states on this CPU are `POLL, C1E, C6, C8, C10`. Disabling only
+**C8 and C10** made the whine "way less" (owner, 2026-09-22). C6 is still allowed.
+
+**Cost:** measured with the RAPL package counter over alternating 10–15 s windows, on
+AC with Chrome open. Deep states on averaged 4.4–5.7 W (with one 12.4 W
+background spike), off averaged 5.9–6.8 W. That's about **0.5–1.5 W**, near the noise
+floor, with no temperature or fan change (50°C, 0 RPM). The cost is likely larger at true idle
+on battery; not measured.
+
+**Persisted** with a script that matches states by *name* (so a BIOS or kernel reorder
+can't disable the wrong one) and a oneshot unit that runs at boot and after every
+resume from suspend or hibernate:
+
+```sh
+sudo install -m 755 assets/zephyrus-m16/zephyrus-no-deep-cstates /usr/local/bin/
+sudo install -m 644 assets/zephyrus-m16/zephyrus-no-deep-cstates.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now zephyrus-no-deep-cstates.service
+```
+
+**Verify:**
+
+```sh
+for s in /sys/devices/system/cpu/cpu0/cpuidle/state*; do echo "$(cat $s/name) disable=$(cat $s/disable)"; done
+# expect C8 and C10 = 1, others 0. Check again after a suspend/resume.
+```
+
+**Revert:** `sudo systemctl disable --now zephyrus-no-deep-cstates.service`, then
+reboot, or write `0` to those `disable` files. If you want it stronger, disabling C6 too
+is the next step, but that wasn't needed and costs more power.
 
 ## BIOS update (308 → 311)
 

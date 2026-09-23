@@ -306,6 +306,7 @@ cat /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference | sort | 
 timeout 4 sh -c 'while :; do :; done' & sleep 3; grep MHz /proc/cpuinfo | sort -k4 -n | tail -1   # ~4700
 supergfxctl -g                        # Integrated
 asusctl battery info                  # 80%
+cat /sys/devices/system/cpu/cpu0/cpuidle/state{3,4}/{name,disable}   # C8 1, C10 1 (coil-whine fix)
 ```
 
 Fan curve: check the hardware, not `asusctl`. After the BIOS 311 flash, asusctl said
