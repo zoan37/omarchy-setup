@@ -194,7 +194,7 @@ Cost: about 20% less runtime unplugged. Before a trip, run `asusctl battery limi
 Linux can't flash it and fwupd isn't used, but no Windows is needed either. Download the **EZ Flash**
 zip from ASUS (`GU603ZWAS311.zip`, SHA256 `0de27aab…ffbf7d2a`), unzip
 `GU603ZWAS.311` onto a FAT32 USB, then F2 → F7 (Advanced) → Advanced → ASUS
-EZ Flash 3. Didn't change the faint idle coil whine.
+EZ Flash 3. Effect on the faint idle coil whine not tested.
 
 Everything in this doc survived: it all lives in Linux. The flash reset the
 boot sound, so the chime played once, but asusd restores `boot_sound 0` from
