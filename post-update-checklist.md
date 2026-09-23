@@ -309,6 +309,8 @@ asusctl battery info                  # 80%
 cat /sys/devices/system/cpu/cpu0/cpuidle/state{3,4}/{name,disable}   # C8 1, C10 1 (coil-whine fix)
 cat /sys/class/firmware-attributes/*/attributes/ppt_pl{1_spl,2_sppt}/current_value   # 30 35
 systemctl is-active zephyrus-fan-curve-guard.timer   # active
+cat /sys/devices/system/cpu/cpufreq/policy*/scaling_max_freq | sort -u   # 3800000
+hyprctl monitors | grep vrr           # vrr: true
 ```
 
 Fan curve: check the hardware, not `asusctl`. After the BIOS 311 flash, asusctl said

@@ -1,0 +1,10 @@
+[Unit]
+Description=Cap CPU at 3.8 GHz (fewer temperature spikes)
+After=asusd.service power-profiles-daemon.service suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/zephyrus-cpu-freq-cap
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

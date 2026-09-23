@@ -1,0 +1,9 @@
+#!/bin/sh
+# Cap the i9-12900H at 3.8 GHz on every core. The top boost bins (4.4-5.0 GHz) need a big
+# voltage jump that caused split-second 65-79C spikes during light use (browsing X);
+# with the cap, peak temp in the same test fell 73C -> 61C (2026-09-23).
+# 3.8 GHz is also the E-cores' own max, so only P-core boost is trimmed.
+CAP_KHZ=3800000
+for f in /sys/devices/system/cpu/cpufreq/policy*/scaling_max_freq; do
+  echo "$CAP_KHZ" > "$f"
+done

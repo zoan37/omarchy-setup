@@ -14,20 +14,20 @@
     profile_custom_epp: Performance,
     profile_performance_epp: Performance,
     ac_profile_tunings: {
-        Balanced: (
-            enabled: false,
-            group: {},
-        ),
         Quiet: (
             enabled: true,
             group: {
-                NvDynamicBoost: 20,
-                NvTempTarget: 87,
-                PptPl2Sppt: 35,
                 PptPl1Spl: 30,
+                NvDynamicBoost: 20,
+                PptPl2Sppt: 35,
+                NvTempTarget: 87,
             },
         ),
         Performance: (
+            enabled: false,
+            group: {},
+        ),
+        Balanced: (
             enabled: false,
             group: {},
         ),
@@ -42,6 +42,7 @@
         ),
     },
     armoury_settings: {
+        PanelOverdrive: 0,
         BootSound: 0,
     },
 )

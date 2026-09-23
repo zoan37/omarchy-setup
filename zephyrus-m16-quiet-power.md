@@ -46,9 +46,11 @@ SER8 machines.
 | Keyboard | static warm white `ffd9b0`, Med | `/etc/asusd/aura_19b6.ron` |
 | Battery charge limit | **80%** (set 2026-09-22) | `asusd.ron` → `charge_control_end_threshold` |
 | CPU idle states | **C8 + C10 disabled** (less coil whine) | `zephyrus-no-deep-cstates.service` |
-| Refresh rate | **165 Hz, kept on purpose** | stock |
+| Refresh rate | **165 Hz, kept on purpose**, with **VRR on** | `~/.config/hypr/looknfeel.lua` (`misc.vrr = 1`) |
+| CPU max clock | **3.8 GHz cap** (was 5.0 GHz boost) | `zephyrus-cpu-freq-cap.service` |
+| Panel overdrive | **off** | `asusd.ron` → `armoury_settings.PanelOverdrive` |
 
-Copies of `asusd.ron`, `fan_curves.ron`, `supergfxd.conf`, the PPD drop-in, and the C-state and fan-guard scripts + units are in [`assets/zephyrus-m16/`](assets/zephyrus-m16/).
+Copies of `asusd.ron`, `fan_curves.ron`, `supergfxd.conf`, the PPD drop-in, and the C-state, fan-guard, and clock-cap scripts + units are in [`assets/zephyrus-m16/`](assets/zephyrus-m16/).
 
 ## 1. Quiet platform profile everywhere
 
@@ -354,6 +356,57 @@ cat /sys/class/firmware-attributes/*/attributes/ppt_pl{1_spl,2_sppt}/current_val
 the same, but long all-core jobs (big compiles) get roughly 30–40% slower than at 60 W
 (estimate, not benchmarked). **Revert:** `asusctl profile tuning false`, on AC and again
 on battery, or set both values back to 60/135.
+
+## 8. Clock cap, VRR, and panel overdrive (2026-09-23)
+
+The last software levers, tested together over the same 45 s of scrolling X and then YouTube
+(0.5 s samples, CPU fan on the steady baseline):
+
+| | Avg pkg power | Peak | Avg temp | **Peak temp** | Max clock |
+|---|---|---|---|---|---|
+| Before | 6.7 W | 25.7 W | 51.4°C | **73°C** | 5,000 MHz |
+| Clock cap + VRR + overdrive off | 9.7 W | 31.4 W | 51.2°C | **61°C** | 3,800 MHz |
+
+The measurable win is **no more temperature spikes**: the top boost bins (4.4–5.0 GHz) need a large
+voltage jump, and that caused the split-second 65–79°C blips. Average power didn't measurably
+change. The 3 W difference is workload noise between two uncontrolled 45 s windows
+(a lower cap can't add 3 W), so don't expect watts from these three changes. No flicker with
+VRR, and scrolling stays smooth at 3.8 GHz (more than twice the 1.7 GHz that caused the section 2 jank).
+
+**Clock cap:** 3.8 GHz on every policy. That's also the E-cores' own maximum, so only P-core boost is
+trimmed (roughly 15–20% single-thread). Applied at boot and after resume. A profile re-set, which
+is what happens on AC plug/unplug, didn't reset it.
+
+```sh
+sudo install -m 755 assets/zephyrus-m16/zephyrus-cpu-freq-cap /usr/local/bin/
+sudo install -m 644 assets/zephyrus-m16/zephyrus-cpu-freq-cap.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now zephyrus-cpu-freq-cap.service
+cat /sys/devices/system/cpu/cpufreq/policy*/scaling_max_freq | sort | uniq -c   # 20 3800000
+```
+
+**VRR:** the BOE panel is VRR-capable. In `~/.config/hypr/looknfeel.lua`:
+
+```lua
+hl.config({
+  misc = {
+    vrr = 1,
+  },
+})
+```
+
+Check it with `hyprctl monitors | grep vrr` → `vrr: true`, and `hyprctl configerrors` should be empty.
+
+**Panel overdrive** (extra pixel drive for faster response in games; costs a little power and
+can cause halo artifacts): `asusctl armoury set panel_overdrive 0`, which asusd persists as
+`PanelOverdrive: 0`.
+
+**Revert:** `sudo systemctl disable --now zephyrus-cpu-freq-cap.service`, then write
+`5000000` back to the `scaling_max_freq` files (or reboot). Remove the `misc.vrr` block and run
+`hyprctl reload`. Run `asusctl armoury set panel_overdrive 1`.
+
+**Not done:** undervolting is almost certainly locked on 12th-gen (Plundervolt mitigation).
+Repasting is risky because ROG models of this era often use liquid metal. Dusting the fans and
+heatsink, and raising the rear for intake airflow, are the remaining physical options.
 
 ## BIOS update (308 → 311)
 
