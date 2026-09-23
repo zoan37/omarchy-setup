@@ -308,6 +308,10 @@ supergfxctl -g                        # Integrated
 asusctl battery info                  # 80%
 ```
 
+Fan curve: check the hardware, not `asusctl`. After the BIOS 311 flash, asusctl said
+"enabled" while the controller ran the firmware curve. `pwm1_enable` in the
+`asus_custom_fan_curve` hwmon must be `1`. The fix is in the Zephyrus doc's BIOS section.
+
 If EPP reads `power` again, the desktop will stutter at 165 Hz. Check that
 `/etc/systemd/system/power-profiles-daemon.service.d/no-cpu-epp.conf` still
 exists and that PPD still accepts `--block-driver` (`/usr/lib/power-profiles-daemon --help-all`).

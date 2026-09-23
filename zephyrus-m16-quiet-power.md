@@ -196,10 +196,27 @@ zip from ASUS (`GU603ZWAS311.zip`, SHA256 `0de27aab…ffbf7d2a`), unzip
 `GU603ZWAS.311` onto a FAT32 USB, then F2 → F7 (Advanced) → Advanced → ASUS
 EZ Flash 3. Effect on the faint idle coil whine not tested.
 
-Everything in this doc survived: it all lives in Linux. The flash reset the
-boot sound, so the chime played once, but asusd restores `boot_sound 0` from
-`asusd.ron` at startup (`journalctl -b -u asusd | grep boot_sound`). The boot
-order stayed on Limine.
+Almost everything survived, because it lives in Linux. The boot order stayed on Limine. The flash
+reset the boot sound, so the chime played once, but asusd restores `boot_sound 0` from
+`asusd.ron` at startup (`journalctl -b -u asusd | grep boot_sound`).
+
+**The fan curve did not survive.** `asusctl fan-curve --get-enabled` still
+reported the quiet curve as enabled, but the controller was back in firmware
+mode (`pwm1_enable=2`), with the stock curve spinning up at 55°C, so the fans ran at about 1,800 RPM
+at 50°C. Check the hardware, not asusctl:
+
+```sh
+h=$(grep -l asus_custom_fan_curve /sys/class/hwmon/hwmon*/name | xargs dirname)
+cat $h/pwm1_enable $h/pwm2_enable            # expect 1 1 (2 = firmware curve)
+paste $h/pwm1_auto_point{1..8}_temp          # expect 40 50 58 62 66 70 75 85
+```
+
+To fix it, toggle the curve off and on so asusd rewrites it:
+
+```sh
+asusctl fan-curve --mod-profile quiet --enable-fan-curves false
+asusctl fan-curve --mod-profile quiet --enable-fan-curves true
+```
 
 ## Chrome on this machine
 
