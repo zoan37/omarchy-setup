@@ -38,7 +38,7 @@ SER8 machines.
 | ASUS platform profile | **Quiet** on AC and battery | `/etc/asusd/asusd.ron` |
 | Omarchy power profile | `power-saver` on AC and battery | `~/.local/state/omarchy/powerprofiles/{ac,battery}` |
 | CPU EPP | `balance_performance` (via asusd link) | `asusd.ron` + PPD drop-in |
-| Quiet fan curve | **CPU fan constant 5% (~2,000 RPM)**, GPU fan off until 66°C; both 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
+| Quiet fan curve | **CPU fan constant 7% / 18 PWM (~2,000 RPM, ±100 EC wobble)**, GPU fan off until 66°C; both 10% at 70°C, 45% at 90°C | `/etc/asusd/fan_curves.ron` |
 | Fan-curve guard | re-applies the curve if the EC drops to firmware mode | `zephyrus-fan-curve-guard.timer` |
 | CPU power cap | **30 W sustained / 35 W burst** (was 60 / 135) | `asusd.ron` → `ac/dc_profile_tunings.Quiet` |
 | GPU mode | **Integrated** (dGPU powered off) | `/etc/supergfxd.conf` |
@@ -155,14 +155,22 @@ is off and both fans share the heat pipes, so the GPU fan now stays off until 66
 joins at the ramp:
 
 ```sh
-asusctl fan-curve --mod-profile quiet --fan cpu --data 30c:5%,40c:5%,50c:5%,60c:5%,66c:5%,70c:10%,80c:30%,90c:45%
+asusctl fan-curve --mod-profile quiet --fan cpu --data 30c:7%,40c:7%,50c:7%,60c:7%,66c:7%,70c:10%,80c:30%,90c:45%   # stored as 18/255
 asusctl fan-curve --mod-profile quiet --fan gpu --data 30c:0%,40c:0%,50c:0%,60c:0%,66c:0%,70c:10%,80c:30%,90c:45%
 asusctl fan-curve --mod-profile quiet --enable-fan-curves true
 ```
 
-Stored at `(30, 40, 50, 60, 66, 70, 80, 90)`°C as PWM CPU `(13, 13, 13, 13, 13, 26, 77, 115)` and
-GPU `(0, 0, 0, 0, 0, 26, 77, 115)`. Result: CPU fan a flat 2,000 RPM and the package at ~50°C,
-the same as with both fans running.
+Stored at `(30, 40, 50, 60, 66, 70, 80, 90)`°C as PWM CPU `(18, 18, 18, 18, 18, 26, 77, 115)` and
+GPU `(0, 0, 0, 0, 0, 26, 77, 115)`. The package sits at ~50°C, the same as with both fans running.
+
+**A single fan still wobbles a little, and the curve can't fix it.** With temperature flat at 47–50°C,
+the CPU fan alone also cycles ~1,900–2,100 RPM about every 4 s, which is audible as a slow rise and fall.
+Stepping the baseline through 20/28/36/45/55 PWM (7–21%) gave a ~200 RPM swing at every level
+(2,000–2,100 at 20 was a lucky 15 s sample; a longer sample at 18 read 1,900–2,200).
+It's the EC's own closed-loop RPM control. Linux only gets the curve and
+`pwm1_enable` 0/2 (full/auto) on `asus-nb-wmi`, with no direct duty control, so nothing
+from Linux removes it. A higher baseline only adds loudness. Kept at 18/255 (lowest
+reliable). The alternative is the fans-off curve below: silence plus occasional bursts.
 (5% rather than 3% so the fan reliably starts; both sound the same.) To go back to silence
 with occasional bursts, use the fans-off curve below.
 

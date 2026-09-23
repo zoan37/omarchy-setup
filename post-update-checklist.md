@@ -313,7 +313,7 @@ systemctl is-active zephyrus-fan-curve-guard.timer   # active
 
 Fan curve: check the hardware, not `asusctl`. After the BIOS 311 flash, asusctl said
 "enabled" while the controller ran the firmware curve. `pwm1_enable` in the
-`asus_custom_fan_curve` hwmon must be `1`, and the auto points must read `30 40 50 60 66 70 80 90` with a 5% (13/255) CPU-fan baseline and GPU fan 0 until 66°C. The guard timer
+`asus_custom_fan_curve` hwmon must be `1`, and the auto points must read `30 40 50 60 66 70 80 90` with an 18/255 CPU-fan baseline and GPU fan 0 until 66°C. The guard timer
 should repair a reset within 30 s. The fix is in the Zephyrus doc's BIOS section.
 
 If EPP reads `power` again, the desktop will stutter at 165 Hz. Check that
