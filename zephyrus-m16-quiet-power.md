@@ -268,7 +268,13 @@ for s in /sys/devices/system/cpu/cpu0/cpuidle/state*; do echo "$(cat $s/name) di
 
 **Revert:** `sudo systemctl disable --now zephyrus-no-deep-cstates.service`, then
 reboot, or write `0` to those `disable` files. If you want it stronger, disabling C6 too
-is the next step, but that wasn't needed and costs more power.
+was tested next (below) and wasn't worth it.
+
+**C6 tested too (2026-09-22), and left on.** Two 15 s rounds each way with C8/C10
+off: C6 on 5.9 / 6.0 W, C6 off 5.9 / 6.6 W, 57°C both ways, fans off. The cost was
+small (≤0.6 W), but the owner "couldn't even tell much" difference in the whine. The whine that remains,
+faint at idle and while browsing, is the board's normal response to load changes. No
+idle-state setting fixes it.
 
 ## 7. Power cap: 30 W sustained / 35 W burst
 
