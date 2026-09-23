@@ -1,0 +1,8 @@
+[Unit]
+Description=Re-apply Quiet fan curve if firmware reverted it
+After=asusd.service
+Requires=asusd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/zephyrus-fan-curve-guard

@@ -1,6 +1,6 @@
 (
     charge_control_end_threshold: 80,
-    base_charge_control_end_threshold: 80,
+    base_charge_control_end_threshold: 0,
     disable_nvidia_powerd_on_battery: true,
     ac_command: "",
     bat_command: "",
@@ -19,8 +19,13 @@
             group: {},
         ),
         Quiet: (
-            enabled: false,
-            group: {},
+            enabled: true,
+            group: {
+                NvDynamicBoost: 20,
+                NvTempTarget: 87,
+                PptPl2Sppt: 35,
+                PptPl1Spl: 30,
+            },
         ),
         Performance: (
             enabled: false,
@@ -29,8 +34,11 @@
     },
     dc_profile_tunings: {
         Quiet: (
-            enabled: false,
-            group: {},
+            enabled: true,
+            group: {
+                PptPl1Spl: 30,
+                PptPl2Sppt: 35,
+            },
         ),
     },
     armoury_settings: {

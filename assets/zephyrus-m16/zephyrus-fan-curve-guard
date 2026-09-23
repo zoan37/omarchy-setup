@@ -1,0 +1,12 @@
+#!/bin/sh
+# Re-apply the asusd Quiet fan curve if the EC has fallen back to its firmware curve.
+# asusd 6.4 on BIOS 311 sometimes leaves pwm*_enable=2 (firmware) after a restart or
+# BIOS flash while still reporting the custom curve as enabled.
+[ "$(cat /sys/firmware/acpi/platform_profile)" = quiet ] || exit 0
+h=$(dirname "$(grep -l asus_custom_fan_curve /sys/class/hwmon/hwmon*/name | head -1)")
+[ -d "$h" ] || exit 0
+if [ "$(cat "$h/pwm1_enable")" != 1 ] || [ "$(cat "$h/pwm2_enable")" != 1 ]; then
+  asusctl fan-curve --mod-profile quiet --enable-fan-curves false >/dev/null 2>&1
+  asusctl fan-curve --mod-profile quiet --enable-fan-curves true >/dev/null 2>&1
+  echo "fan curve was in firmware mode; re-applied (now $(cat "$h/pwm1_enable")/$(cat "$h/pwm2_enable"))"
+fi

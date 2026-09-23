@@ -307,11 +307,14 @@ timeout 4 sh -c 'while :; do :; done' & sleep 3; grep MHz /proc/cpuinfo | sort -
 supergfxctl -g                        # Integrated
 asusctl battery info                  # 80%
 cat /sys/devices/system/cpu/cpu0/cpuidle/state{3,4}/{name,disable}   # C8 1, C10 1 (coil-whine fix)
+cat /sys/class/firmware-attributes/*/attributes/ppt_pl{1_spl,2_sppt}/current_value   # 30 35
+systemctl is-active zephyrus-fan-curve-guard.timer   # active
 ```
 
 Fan curve: check the hardware, not `asusctl`. After the BIOS 311 flash, asusctl said
 "enabled" while the controller ran the firmware curve. `pwm1_enable` in the
-`asus_custom_fan_curve` hwmon must be `1`. The fix is in the Zephyrus doc's BIOS section.
+`asus_custom_fan_curve` hwmon must be `1`, and the auto points must start `40 50 60 66`. The guard timer
+should repair a reset within 30 s. The fix is in the Zephyrus doc's BIOS section.
 
 If EPP reads `power` again, the desktop will stutter at 165 Hz. Check that
 `/etc/systemd/system/power-profiles-daemon.service.d/no-cpu-epp.conf` still
