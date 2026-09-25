@@ -1,0 +1,20 @@
+#!/bin/bash
+# a16-quiet-thermal: software "Quiet" thermal profile for the Zenbook A16.
+# Caps CPU clocks (to CAP_PCT% of max) when the hottest CPU sensor exceeds HOT, restores below COOL.
+HOT=${HOT:-85000}; COOL=${COOL:-78000}; CAP_PCT=${CAP_PCT:-60}
+capped=0
+while :; do
+  max=0
+  for z in /sys/class/thermal/thermal_zone*; do
+    case "$(cat $z/type 2>/dev/null)" in cpu*) t=$(cat $z/temp 2>/dev/null) || continue; [ "$t" -gt "$max" ] && max=$t;; esac
+  done
+  if [ $capped -eq 0 ] && [ "$max" -gt "$HOT" ]; then
+    for p in /sys/devices/system/cpu/cpufreq/policy*; do
+      m=$(cat $p/cpuinfo_max_freq); echo $(( m * CAP_PCT / 100 )) > $p/scaling_max_freq
+    done; capped=1; logger -t a16-quiet-thermal "cap on (max cpu temp ${max})"
+  elif [ $capped -eq 1 ] && [ "$max" -lt "$COOL" ]; then
+    for p in /sys/devices/system/cpu/cpufreq/policy*; do cat $p/cpuinfo_max_freq > $p/scaling_max_freq; done
+    capped=0; logger -t a16-quiet-thermal "cap off (max cpu temp ${max})"
+  fi
+  sleep 3
+done
