@@ -164,3 +164,20 @@ idle. **Revert:** `systemctl disable --now a16-quiet-thermal`.
 - Passwordless sudo for the SSH work (`/etc/sudoers.d/99-napdivad-nopasswd`) was removed at the
   end of the session. The SER8's SSH key remains in `~/.ssh/authorized_keys`.
 - Handoff notes from the laptop-side Claude session: `~/zenbook-a16-power-investigation.md`.
+
+## 9. Personal config ported from the other machines (2026-09-25)
+
+Applied over SSH, all user-level, backups as `~/.config/hypr/*.bak-20260925`:
+
+- `input.lua`: `altwin:swap_alt_win`, `touchpad.natural_scroll = true`,
+  `touchpad.disable_while_typing = false`, three-finger horizontal workspace swipe with the loose
+  gesture tuning ([hyprland-shell-tweaks.md](hyprland-shell-tweaks.md)).
+- `looknfeel.lua`: resize on border (`extend_border_grab_area = 15`).
+- `bindings.lua`: group move-window bindings, SUPER+A select-all, SUPER+SHIFT+S screenshot.
+- Ghostty `local.conf` (font-size 11, `ctrl+enter=unbind`) + the trailing `config-file` include
+  ([terminal-font-size.md](terminal-font-size.md), [ghostty-ctrl-enter.md](ghostty-ctrl-enter.md)).
+  **Ghostty itself is not installed** in the ARM image (foot is the default); install with
+  `sudo pacman -Sy ghostty && omarchy-default-terminal ghostty` if it is in the ARM repos.
+- `git config --global user.name/email` set to zoan37; `gh auth login` still to do.
+- Not ported: Chrome Vulkan/ANGLE flags (x86 GPU specific), hypr-momentum (needs cmake +
+  Hyprland headers via hyprpm; untried on this kernel/arch), Cyberspace theme.
