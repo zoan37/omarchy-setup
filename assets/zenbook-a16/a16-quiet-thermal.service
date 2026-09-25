@@ -1,0 +1,9 @@
+[Unit]
+Description=Zenbook A16 software quiet thermal profile (caps CPU clocks when hot)
+After=multi-user.target
+[Service]
+ExecStart=/usr/local/bin/a16-quiet-thermal
+Restart=always
+Nice=-5
+[Install]
+WantedBy=multi-user.target
