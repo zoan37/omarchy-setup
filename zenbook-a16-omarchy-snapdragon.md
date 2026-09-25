@@ -176,8 +176,11 @@ Applied over SSH, all user-level, backups as `~/.config/hypr/*.bak-20260925`:
 - `bindings.lua`: group move-window bindings, SUPER+A select-all, SUPER+SHIFT+S screenshot.
 - Ghostty `local.conf` (font-size 11, `ctrl+enter=unbind`) + the trailing `config-file` include
   ([terminal-font-size.md](terminal-font-size.md), [ghostty-ctrl-enter.md](ghostty-ctrl-enter.md)).
-  **Ghostty itself is not installed** in the ARM image (foot is the default); install with
-  `sudo pacman -Sy ghostty && omarchy-default-terminal ghostty` if it is in the ARM repos.
+  **Ghostty is not packaged for this ARM build** (`target not found`; only foot, kitty and
+  alacritty exist in the ALARM repos), so the terminal is **kitty**:
+  `sudo pacman -S kitty && omarchy-default-terminal kitty`, with the kitty font-size trick from
+  [terminal-font-size.md](terminal-font-size.md) staged (`local.conf` 11pt, active `font_size 9.0`
+  line, trailing `include local.conf`).
 - `git config --global user.name/email` set to zoan37; `gh auth login` still to do.
 - Not ported: Chrome Vulkan/ANGLE flags (x86 GPU specific), hypr-momentum (needs cmake +
   Hyprland headers via hyprpm; untried on this kernel/arch), Cyberspace theme.
