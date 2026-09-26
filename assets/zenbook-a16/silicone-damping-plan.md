@@ -8,6 +8,9 @@ ends any exchange option. Photos of every step: TechPowerUp review, "Disassembly
 ## Shopping list
 
 - ASI 388 electronic-grade neutral-cure silicone, 2.8 oz tube (clear, non-corrosive; **not** acetic-cure / vinegar-smelling)
+- for the cover-side damping (step 2b): **1 mm self-adhesive silicone sponge sheet** (e.g. 250×250 mm, ~$10–15 on
+  Amazon) or Poron 4701-30 very-soft foam 0.8–1.6 mm with adhesive; or a **1.5 mm soft thermal pad** (Arctic /
+  Gelid) for the same job with a thermal bonus. Not EVA, not Sorbothane, not butyl (Dynamat/Kilmat)
 - precision driver set with **Torx T5** and **Phillips PH0 / PH00**
 - plastic pry tool, or an old credit card / guitar pick
 - wooden toothpicks (applicator) and a wooden chopstick (press test)
@@ -51,6 +54,15 @@ Ear at the board. Press the chopstick on:
 
 Tone drops or dulls under pressure ⇒ silicone will do roughly the same. No change on a cluster ⇒ skip that cluster.
 Never run the machine with the heatsink removed.
+
+## Step 2b: foam on the cover (cheapest fix, try before any glue)
+
+With the cover off, look at the VRM plate (the metal plate on the heatpipe assembly over cluster 1) and the
+inside of the cover above it. Cut a strip of the 1 mm silicone sponge / Poron / 1.5 mm thermal pad the size of
+the plate, stick it to the **inside of the cover** so it presses on the plate when the cover is on (a Dell XPS
+write-up with 1.5–2.5 mm pads in the same place reports a lasting, noticeable reduction). Put the cover back
+with four screws and listen. If the gap is larger than the pad, stack two. Keep it off the fans and vents.
+Then decide whether to go on to the silicone.
 
 ## Step 3: power down and disconnect the battery
 
