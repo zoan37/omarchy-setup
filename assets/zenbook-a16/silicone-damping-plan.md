@@ -7,7 +7,12 @@ ends any exchange option. Photos of every step: TechPowerUp review, "Disassembly
 
 ## Shopping list
 
-- ASI 388 electronic-grade neutral-cure silicone, 2.8 oz tube (clear, non-corrosive; **not** acetic-cure / vinegar-smelling)
+- **Upsiren UTP-8 thermal putty, 10 g** (non-conductive, non-curing): the preferred material for the inductor
+  clusters. Softest and heaviest of the options, packs into every gap, conducts heat to the VRM plate, and comes
+  off completely. Best field record for VRM whine.
+- ASI 388 electronic-grade neutral-cure silicone, 2.8 oz tube (clear, non-corrosive; **not** acetic-cure /
+  vinegar-smelling): the bonding fallback, for a part that rocks on its joints, a lone inductor (charger), or a
+  cluster edge where putty would migrate.
 - for the cover-side damping (step 2b): **1 mm self-adhesive silicone sponge sheet** (e.g. 250×250 mm, ~$10–15 on
   Amazon) or Poron 4701-30 very-soft foam 0.8–1.6 mm with adhesive; or a **1.5 mm soft thermal pad** (Arctic /
   Gelid) for the same job with a thermal bonus. Not EVA, not Sorbothane, not butyl (Dynamat/Kilmat)
@@ -79,6 +84,15 @@ Then decide whether to go on to the silicone.
   touch the CPU pad.
 
 ## Step 5: apply
+
+Putty first, silicone only where bonding is needed.
+
+**Putty:** pinch a pea, press it into the gaps between the cubes of cluster 1 and around their bases with a
+toothpick or a fingertip, so the cluster becomes one filled block up to roughly the top of the parts. Same for
+cluster 2. Keep it off the tops (the plate's pad sits there) and off the PMICs. Wipe stray putty with a paper
+towel; it never cures, so there is no clock.
+
+**Silicone (where the press test showed a single part moving, or for the charger inductor):**
 
 - Dispense a pea of silicone onto the card. Do not apply from the nozzle.
 - Toothpick tip in the silicone, then touch it to the base of an inductor so it wicks into the gap between part
