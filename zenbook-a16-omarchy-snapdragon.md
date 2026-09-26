@@ -277,7 +277,12 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   offline, cpu6-11 at 4.45 GHz** (cpu0 can be hot-unplugged on this kernel). Caution: the first version of the
   script only re-onlined the *configured* set on stop, so `systemctl restart` after changing `OFFLINE_CPUS`
   stranded the machine on cpu17 alone and it hard-reset seconds later (journal ends mid-start, not a suspend);
-  the script now onlines every CPU before applying or removing the set,
+  the script now onlines every CPU before applying or removing the set. Core count below six makes no
+  difference (three cores at 4.45 GHz sounded the same, restored to six). Owner's verdict on the end state:
+  with the laptop on the left there is still a high tone, but it is now **consistent** instead of wandering, and
+  a steady tone is one the brain can filter, which the oscillating one never was; that steadiness is the fixed
+  clock (one voltage on the core rail, no light-load mode transitions), so it helps twice: lower peak and easier
+  habituation. Alternative pitches if it ever grates: cpu0-5 at 3.6 (tried, different pitch), 3.4 or 3.55 (untried),
   plus a second batch the owner rated as the bigger win ("less piercing pitch, more like a normal buzz"):
   `cpu-sleep-0` idle state disabled again (`a16-cpuidle-nosleep.service`, now enabled: the mic saw nothing, the
   ear does), **runtime PM forced `on`** for every USB/PCI/platform device except the GPU, and the unused
