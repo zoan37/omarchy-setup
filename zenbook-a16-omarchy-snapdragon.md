@@ -185,10 +185,28 @@ Applied over SSH, all user-level, backups as `~/.config/hypr/*.bak-20260925`:
 - Not ported: Chrome Vulkan/ANGLE flags (x86 GPU specific), hypr-momentum (needs cmake +
   Hyprland headers via hyprpm; untried on this kernel/arch), Cyberspace theme.
 
-### Fan daemon v2 (2026-09-26): Whisper-style smoothing
+### Fan daemon v3.1 "whisper" (2026-09-26): Mac-style policy
 
-Bursts (an app install, a page load) no longer spin the fan. The daemon smooths the hottest CPU zone with an
-exponential average (~50 s), turns on only above 60 °C smoothed, holds on ≥ 2 min, turns off after 60 s below
-50 °C, slew-limits duty changes (+6/−3 per 3 s), and bypasses smoothing above 78 °C instantaneous. All
-knobs live in [`/etc/default/a16-fan`](assets/zenbook-a16/a16-fan.conf) (`systemctl restart a16-fan-daemon`
-after editing). Idle result unchanged: 0 rpm.
+Measured on the A16 fan (mailbox tach byte ≈ rpm/250): it keeps spinning down to PWM 20 and starts reliably
+from rest at PWM 25 (PWM 30 ≈ 800 rpm, 45 ≈ 1400 rpm, 75 ≈ 2500 rpm, 120 ≈ 3700 rpm). The kernel's own
+limits are 95 °C passive / 115 °C critical, so the SoC can run warm. The policy is now:
+
+- **Input:** hottest CPU/GPU zone, smoothed with a ~60 s exponential average (5 % per 3 s sample).
+- **Off until warm:** fan starts only when the *smoothed* temperature passes 68 °C. A 45 s burst of 8 busy
+  threads peaks at 82 °C instantaneous and never moves the fan; a 12-thread all-core load takes ~45 s to
+  start it.
+- **Whisper stage:** it starts at PWM 30 (~800 rpm) and climbs 1 count per 3 s along
+  `68 °C:30 → 78:45 → 85:90 → 90:150 → 95:220` (4 counts per step above 82 °C smoothed).
+- **Fast path with hysteresis:** a ~10 s average above 88 °C engages an 8-count-per-step ramp; it releases
+  only 5 °C lower, so the fan cannot hunt around the threshold (v3 did).
+- **Exponential spin-down:** each step the duty may fall by 1/25 of its value, so after a load ends the fan
+  decays 160 → 30 in ~2.5 min, idles at whisper, and turns off once the smoothed value has been below 58 °C for
+  2 min (and it has run ≥ 3 min). Idle result: 0 rpm.
+- **Safety:** ≥ 97 °C or any I2C error hands control back to the EC's own curve; the 60 % clock cap from
+  section 6 still engages at 85 °C instantaneous and does most of the sustained-load work silently.
+- Mailbox transactions in the daemon and `a16-fan.sh` share `/run/lock/a16-fan.lock`, so `a16-fan.sh status`
+  no longer garbles the daemon's writes.
+
+Knobs live in [`/etc/default/a16-fan`](assets/zenbook-a16/a16-fan.conf) (values only on assignment lines:
+systemd keeps inline `#` comments as part of the value, which broke v2); `systemctl restart a16-fan-daemon`
+after editing. Watch it with `journalctl -fu a16-fan-daemon`.
