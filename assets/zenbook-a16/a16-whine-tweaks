@@ -32,9 +32,11 @@ if [ "$mode" = on ]; then
   for c in $(expand "$OFFLINE_CPUS"); do echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null; done
   for p in /sys/devices/system/cpu/cpufreq/policy*; do echo "$MAX_KHZ" > "$p/scaling_max_freq" 2>/dev/null; echo "$MIN_KHZ" > "$p/scaling_min_freq" 2>/dev/null; done
   if [ "$RUNTIME_PM" = on ]; then : > $RPM_SAVED
-    for f in /sys/bus/{usb,pci,platform}/devices/*/power/control; do case $f in *gpu*) continue;; esac
+    for f in /sys/bus/{usb,pci,platform}/devices/*/power/control; do case $f in *gpu*|*soundwire*|*/sound/*) continue;; esac
       [ "$(cat "$f" 2>/dev/null)" = auto ] && echo on > "$f" 2>/dev/null && echo "$f" >> $RPM_SAVED; done
-    log "runtime PM forced on for $(wc -l < $RPM_SAVED) devices"; fi
+    # audio path stays on runtime PM: speaker amps + soundwire controllers asleep when silent (ear: no worse, maybe better)
+    for f in /sys/bus/platform/devices/*soundwire*/power/control; do echo auto > "$f" 2>/dev/null; done
+    log "runtime PM forced on for $(wc -l < $RPM_SAVED) devices (GPU and audio path excluded)"; fi
   [ "$STOP_CDSP" = 1 ] && for r in /sys/class/remoteproc/*; do [ "$(cat $r/name)" = cdsp ] && echo stop > $r/state 2>/dev/null && log "cdsp stopped"; done
 else
   # online every CPU, not just the configured set: after a config change the old set may differ, and the kernel
