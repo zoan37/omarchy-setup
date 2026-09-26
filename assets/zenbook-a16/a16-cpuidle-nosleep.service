@@ -1,0 +1,12 @@
+[Unit]
+Description=Zenbook A16: keep CPU cores out of the cpu-sleep-0 power-collapse idle state (reduces coil whine)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for s in /sys/devices/system/cpu/cpu*/cpuidle/state1/disable; do echo 1 > "$s"; done'
+ExecStop=/bin/sh -c 'for s in /sys/devices/system/cpu/cpu*/cpuidle/state1/disable; do echo 0 > "$s"; done'
+
+[Install]
+WantedBy=multi-user.target
