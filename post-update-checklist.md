@@ -119,6 +119,23 @@ were built against an older upstream and
 `python3 ~/.local/share/omarchy-xps16-tuning/build-variants.py` should be re-run.
 Details: [xps16-speaker-tuning.md](xps16-speaker-tuning.md).
 
+## 1c. Zenbook A16 speaker filter — lives in `~/.config`, so updates leave it alone
+
+All of it is user config (`~/.config/pipewire/omarchy-speaker-tuning.conf*`,
+`~/.config/systemd/user/omarchy-speaker-tuning.service`), and `omarchy audio
+tuning on` finds no shipped match for this laptop, so it does nothing. Two things
+could still change that: a future Omarchy release that ships a tuning matching
+the A16 (then `on`, run by a migration, would overwrite our `90-tuning.conf`), or
+`lsp-plugins-lv2` going missing.
+
+```sh
+omarchy audio tuning status   # Tuning sink: present; Matches: nothing ships for this laptop
+grep -c tw_l_trim ~/.config/pipewire/omarchy-speaker-tuning.conf.d/90-tuning.conf   # 3 = ours
+```
+
+To reinstall: `bash assets/zenbook-a16/speaker-boost/install-speaker-boost.sh`. Details:
+[Zenbook notes, section 14](zenbook-a16-omarchy-snapdragon.md#14-speakers-tweeters-were-silent-plus-a-limited-6-db-boost-2026-09-26).
+
 ## 2. Hyprland plugins — WILL break if the update bumps Hyprland
 
 Both plugins check the ABI and refuse to load on a mismatched Hyprland, so a

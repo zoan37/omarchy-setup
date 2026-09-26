@@ -22,7 +22,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 |---|---|
 | Install, encrypted root, GRUB, 120 Hz OLED, GPU, keyboard, touchpad, brightness keys, keyboard backlight, USB-C charging | Works |
 | Wi-Fi 7 (QCC2072) | Works after the board-file fix below |
-| Speakers, microphone | Work after the UCM fix below |
+| Speakers, microphone | Work after the UCM fix below. The tweeters stay silent until the speaker filter in section 14 routes them (also +6 dB limited boost) |
 | CPU frequency scaling | Works after the device-tree patch below (355 MHz – 3.6/4.45 GHz, 3 policies) |
 | Fan | **Controlled from Linux** through the EC mailbox (section 7); `a16-fan-daemon` keeps it at **0 rpm at idle** with a Mac-style whisper policy (section 11) |
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
@@ -491,3 +491,71 @@ while discharging). A `/usr/local/bin` override doesn't work: quickshell's PATH 
 `/usr/share/omarchy/bin`, which symlinks to `/usr/bin`. The pacman hook
 [zz-omarchy-battery-status.hook](assets/zenbook-a16/zz-omarchy-battery-status.hook) re-applies it after every
 `omarchy` upgrade. Worth upstreaming. Right-click the bar battery icon to toggle the % next to it.
+
+## 14. Speakers: tweeters were silent, plus a limited +6 dB boost (2026-09-26)
+
+**Symptom:** the speakers were quiet and dull even at 100 %. Nothing had been turned off: every WSA884x amp
+had BOOST/COMP/DAC on and `PA Volume` at max (6/6), the `WSA*_RX* Digital Volume` controls sat at their
+81 = −3 dB ceiling (the machine driver caps them because `VISENSE` speaker protection is off on Linux), the
+ASM stream volume was unity (8192), and PipeWire was at 100 %. The coil-whine tweaks (section 8) exclude the
+audio path and don't change gain. Omarchy's own `omarchy audio tuning` ships only a Dell XPS profile
+(`status` → "nothing ships for this laptop").
+
+**Cause:** the speaker sink is 4 channels (`FL FR RL RR`) and the machine has 2 woofers and 2 tweeters.
+PipeWire's upmix leaves `RL`/`RR` silent for stereo sources (sink monitor: a stereo tone gave peak 0 on both
+rear channels), and **`RL`/`RR` are the tweeters**. Per-channel sine tones recorded with the internal mic,
+dB above the room noise:
+
+| Channel | 100 Hz | 200 | 400 | 1 k | 3 k | 8 k | Driver |
+|---|---|---|---|---|---|---|---|
+| FL | −3.2 | −7.7 | 14.4 | 29.5 | 29.5 | 13.5 | woofer, left |
+| FR | −2.9 | −3.1 | 16.3 | 21.3 | 26.4 | 19.3 | woofer, right |
+| RL | −6.9 | −1.8 | −4.2 | 7.0 | 32.3 | 45.4 | tweeter, **right** |
+| RR | 0.3 | −6.9 | −6.7 | 4.3 | 34.6 | 45.8 | tweeter, **left** |
+
+(The mic rolls off below ~300 Hz, so the low columns say nothing.) The tweeter sides are **crossed**: with the
+stereo mic, `RL` was 6.1 dB louder in the right capsule and `RR` 4.4 dB louder in the left. The woofers
+leaned the normal way, but only by 0.7/1.4 dB. Confirmed by ear through the finished filter: a left-only
+burst came from the left and a right-only one from the right.
+
+**Fix:** a PipeWire filter-chain in front of the speaker sink,
+[90-tuning.conf](assets/zenbook-a16/speaker-boost/90-tuning.conf):
+
+- 80 Hz highpass (the woofers can't reproduce anything lower, and removing it frees limiter headroom);
+- `+6 dB` into the LSP stereo lookahead limiter with the ceiling at −1 dBFS (`alr`/`boost` off, 5 ms
+  lookahead, 20 ms release), so quiet and mid-level material gets louder while the peaks stay below the stock
+  maximum;
+- woofers fed full range from the limiter output, the same as before;
+- tweeters fed through a 2 kHz 4th-order highpass (two Butterworth biquads) so they never see bass, trimmed
+  by −3 dB. Without the trim, the highpass phase shift let tweeter peaks overshoot the ceiling on full-scale
+  noise (`RR` hit 32768), and with it they peak at 21–25 k against a 29195 ceiling;
+- outputs wired explicitly as `FL=woofer L, FR=woofer R, RL=tweeter R, RR=tweeter L`, with
+  `channelmix.disable` on the playback side so nothing remixes them.
+
+It reuses Omarchy's speaker-tuning names (`omarchy_speaker_tuning` sink, host config
+`~/.config/pipewire/omarchy-speaker-tuning.conf`, user unit `omarchy-speaker-tuning.service`), so the volume
+keys and the audio panel resolve through it to the physical sink (`omarchy-audio-output-sink`), and
+`omarchy audio tuning off` removes it cleanly. `omarchy audio tuning on` finds no match for this laptop and
+leaves it alone.
+
+**Install** (as the user, needs the UCM fix from section 4):
+```
+bash assets/zenbook-a16/speaker-boost/install-speaker-boost.sh
+```
+That installs `lsp-plugins-lv2`, copies Omarchy's host config and unit plus our `90-tuning.conf` into
+`~/.config`, enables the unit, makes `omarchy_speaker_tuning` the default sink, and moves running streams
+onto it.
+
+**Verify:** `omarchy audio tuning status` shows "Host service: active (enabled)" and "Tuning sink: present",
+`pactl get-default-sink` gives `omarchy_speaker_tuning`, and `omarchy-audio-output-sink` gives
+`alsa_output.platform-sound.HiFi__Speaker__sink`. For the routing, play a left-only file to
+`omarchy_speaker_tuning` while recording the speaker sink's monitor with 4 channels: only `FL` and `RR` carry
+it, and `RR` has no 300 Hz content.
+
+**Tuning knobs:** `g_in` (2.0 = +6 dB; above that, loud music starts to sound squashed with a release this
+short), the tweeter `Freq` and trim `Mult`. After editing, run
+`systemctl --user restart omarchy-speaker-tuning.service`. **Revert:** `omarchy audio tuning off`, which also
+resets the default sink to the speakers. The tweeters go silent again.
+
+**Not done:** there's no EQ voicing (the Windows side has Dolby). The current voicing is flat apart from the
+crossover.
