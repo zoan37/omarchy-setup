@@ -242,9 +242,14 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   too** (checked 2026-09-26), so it is the board's parts, not anything Linux configures. The powered-off charging
   whine noticed on day one is the same power stage. Verdict: hardware; placement (not next to an ear) and
   habituation, or exchange the unit (a replacement may or may not be quieter). BIOS 312 (section 10) seemed to
-  reduce it a little. Left ear hears it more than the right at the deck: ear sensitivity at that frequency, not
-  the laptop. With the laptop in front of the owner it is not an issue. Do not re-investigate. The XPS
-  machines' silence is inductor selection, not CPU vendor.
+  reduce it a little. **Disabling the cores' `cpu-sleep-0` power-collapse idle state helped noticeably**
+  (the one CPU behaviour the load/clock tests had not switched off; same trick as the Zephyrus C-state fix):
+  [`a16-cpuidle-nosleep.service`](assets/zenbook-a16/a16-cpuidle-nosleep.service) writes 1 to
+  `/sys/devices/system/cpu/cpu*/cpuidle/state1/disable` at boot (`systemctl stop` re-enables it), installed by
+  `apply-a16-fixes.sh`. Cost: somewhat higher idle power (unmeasurable here while battery telemetry is broken);
+  idle temperature unchanged. Left ear hears the remainder more than the right at the deck: ear sensitivity at
+  that frequency, not the laptop. With the laptop in front of the owner it is not an issue. The XPS machines'
+  silence is inductor selection, not CPU vendor.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
   Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
   0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
