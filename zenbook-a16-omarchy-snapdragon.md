@@ -285,7 +285,9 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   habituation. Alternative pitches if it ever grates: cpu0-5 at 3.6 (tried, different pitch), 3.4 or 3.55 (untried),
   plus a second batch the owner rated as the bigger win ("less piercing pitch, more like a normal buzz"):
   `cpu-sleep-0` idle state disabled again (`a16-cpuidle-nosleep.service`, now enabled: the mic saw nothing, the
-  ear does), **runtime PM forced `on`** for every USB/PCI/platform device except the GPU, and the unused
+  ear does), **runtime PM forced `on`** for every USB/PCI/platform device except the GPU and the audio path (the
+  four WSA884x speaker amps and both soundwire controllers stay `auto`, so the speaker path is powered down
+  whenever nothing plays; ear: no worse, possibly better), and the unused
   **compute DSP (`cdsp`) stopped** (`adsp` stays up for audio). GPU devfreq pinned to max was tried too and
   reverted (power, +6 °C). Costs, in order of pain: multi-thread CPU performance drops to roughly a third and
   single-thread is at full speed on the prime cores; SSD sequential throughput is capped near
