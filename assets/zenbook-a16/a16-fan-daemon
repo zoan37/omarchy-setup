@@ -13,7 +13,8 @@ MIN_ON_S=${MIN_ON_S:-180}; OFF_HOLD_S=${OFF_HOLD_S:-120}; PERIOD=${PERIOD:-3}
 UP_STEP=${UP_STEP:-1}; UP_STEP_HOT=${UP_STEP_HOT:-4}; HOT_C=${HOT_C:-82000}; UP_STEP_FAST=${UP_STEP_FAST:-8}
 DOWN_DIV=${DOWN_DIV:-25}   # per period the duty may fall by pwm/DOWN_DIV (at least 1): 6 counts at 160, 1 at 30
 ALPHA_PCT=${ALPHA_PCT:-5}; FAST_ALPHA_PCT=${FAST_ALPHA_PCT:-25}; FAST_HYST=${FAST_HYST:-5000}
-PWM_MIN=${PWM_MIN:-30}; BUS=${BUS:-9}; LOCK=/run/lock/a16-fan.lock
+PWM_MIN=${PWM_MIN:-30}; IDLE_PWM=${IDLE_PWM:-0}   # duty while "off": 0 = fan stopped, 25-30 = always-on whisper floor
+BUS=${BUS:-9}; LOCK=/run/lock/a16-fan.lock
 # CURVE: "temp_mC:pwm" knots, smoothed temp -> target duty (linear between knots, clamped at the ends).
 CURVE=${CURVE:-"68000:30 78000:45 85000:90 90000:150 95000:220"}
 rb(){ i2ctransfer -y $BUS w3@0x5b 0x10 $1 $2 >/dev/null 2>&1 || return 1; v=$(i2ctransfer -y $BUS w1@0x5b 0x11 r1@0x5b 2>/dev/null) || return 1; echo $((v)); }
@@ -31,9 +32,9 @@ curve(){ # smoothed temp (mC) -> target pwm along CURVE
 release(){ set_auto; logger -t a16-fan "released to automatic ($1)"; exit ${2:-0}; }
 trap 'release stop 0' TERM INT
 eccw 0x01 0x82 0x02 || { logger -t a16-fan "cannot enter manual mode"; set_auto; exit 1; }
-logger -t a16-fan "v3.1 whisper: on>${ON_C} off<${OFF_C} hot>${HOT_C} fast>${FAST_C}(-${FAST_HYST}) trip>=${TRIP_C} alpha=${ALPHA_PCT}%/${FAST_ALPHA_PCT}% minon=${MIN_ON_S}s offhold=${OFF_HOLD_S}s pwm_min=${PWM_MIN} down=/${DOWN_DIV} curve='${CURVE}'"
-ema=$(maxtemp); emaf=$ema; fan_on=0; fast=0; pwm=0; on_since=0; below_since=0; now=0
-set_pwm 0 || release "i2c" 1
+logger -t a16-fan "v3.1 whisper: on>${ON_C} off<${OFF_C} hot>${HOT_C} fast>${FAST_C}(-${FAST_HYST}) trip>=${TRIP_C} alpha=${ALPHA_PCT}%/${FAST_ALPHA_PCT}% minon=${MIN_ON_S}s offhold=${OFF_HOLD_S}s pwm_min=${PWM_MIN} idle=${IDLE_PWM} down=/${DOWN_DIV} curve='${CURVE}'"
+ema=$(maxtemp); emaf=$ema; fan_on=0; fast=0; pwm=$IDLE_PWM; on_since=0; below_since=0; now=0
+set_pwm $IDLE_PWM || release "i2c" 1
 while :; do
   t=$(maxtemp); now=$((now+PERIOD))
   [ "$t" -ge "$TRIP_C" ] && release "trip $t" 1
@@ -57,7 +58,7 @@ while :; do
     else new=$pwm; fi
   else
     down=$((pwm/DOWN_DIV)); [ $down -lt 1 ] && down=1
-    if [ $pwm -gt $PWM_MIN ]; then new=$((pwm-down)); [ $new -lt $PWM_MIN ] && new=$PWM_MIN; else new=0; fi   # fade to the whisper duty, then off
+    if [ $pwm -gt $PWM_MIN ]; then new=$((pwm-down)); [ $new -lt $PWM_MIN ] && new=$PWM_MIN; else new=$IDLE_PWM; fi   # fade to the whisper duty, then idle duty
   fi
   if [ "$new" != "$pwm" ]; then set_pwm $new || release "i2c write failed" 1; pwm=$new; logger -t a16-fan "t=$t ema=$ema emaf=$emaf pwm=$pwm"; fi
   sleep $PERIOD
