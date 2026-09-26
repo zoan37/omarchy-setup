@@ -232,29 +232,33 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   screen and the lid does not sleep. Unmask the same targets to retry after a kernel update. Camera untested.
 - **Black screen after LUKS unlock:** intermittent eDP link-training failure on any entry (seen again on the boot
   after that reset); hold power ~10 s and boot again.
-- **Coil whine (2026-09-26):** with the fan stopped, a constant high tone ("eeee") is audible with an ear at the
-  chassis, not at desk distance; the owner noticed it because the laptop sat beside their left ear. It is unchanged
-  by the charger (unplugged), display brightness, screen off, CPU load, clocks pinned to max or min, Wi-Fi off, or
-  audio off (`~/whine-test.sh` on the laptop steps through those), so it is a fixed-frequency regulator on an
-  always-on rail (battery-to-system power stage or a standby rail), not the SoC regulators and not something
-  software can reach. Fan masking at 700 and 1250 rpm did not cover it. Keyboard backlight off vs full: no change.
-  Both ears hear it at the chassis; it localises to the middle of the keyboard. **Present under factory Windows
-  too** (checked 2026-09-26), so it is the board's parts, not anything Linux configures. The powered-off charging
-  whine noticed on day one is the same power stage. Verdict: hardware; placement (not next to an ear) and
-  habituation, or exchange the unit (a replacement may or may not be quieter). BIOS 312 (section 10) seemed to
-  reduce it a little. **Disabling the cores' `cpu-sleep-0` power-collapse idle state helped noticeably**
-  (the one CPU behaviour the load/clock tests had not switched off; same trick as the Zephyrus C-state fix):
-  [`a16-cpuidle-nosleep.service`](assets/zenbook-a16/a16-cpuidle-nosleep.service) writes 1 to
-  `/sys/devices/system/cpu/cpu*/cpuidle/state1/disable` at boot (`systemctl stop` re-enables it), installed by
-  `apply-a16-fixes.sh`. Cost: somewhat higher idle power (unmeasurable here while battery telemetry is broken);
-  idle temperature unchanged. **A second, clearly audible reduction** came from keeping the peripheral power
-  domains awake: PCIe ASPM policy `performance`, runtime PM forced `on` for all PCI, USB, platform, I2C and SPMI
-  devices, NVMe APST latency 0 ([`a16-nopowersave`](assets/zenbook-a16/a16-nopowersave) +
-  [`.service`](assets/zenbook-a16/a16-nopowersave.service), `a16-nopowersave off` restores defaults). Pinning
-  the GPU (devfreq `performance`, runtime PM on) was part of the first test but was reverted: it raised idle
-  temperature 6 °C and the owner asked to keep it on-demand. Left ear hears the remainder more than the right at the deck: ear sensitivity at
-  that frequency, not the laptop. With the laptop in front of the owner it is not an issue. The XPS machines'
-  silence is inductor selection, not CPU vendor.
+- **Coil whine (2026-09-26), solved as far as software can: it is the NVMe SSD's PCIe link power state.**
+  With the fan stopped, a high tone is audible with an ear at the middle of the keyboard (not at desk distance).
+  Ear-based tests (charger, brightness, screen off, CPU load, clocks pinned, Wi-Fi off, audio off, keyboard
+  backlight off, BIOS 305 → 312, fan masking at 700/1250 rpm, cores kept out of `cpu-sleep-0`) were inconclusive
+  or placebo, and it is present under Windows too. **A USB webcam mic at the keyboard centre settled it**
+  ([whine-mic/](assets/zenbook-a16/whine-mic/): `pw-record` 6 s + a pure-Python FFT that prints narrow peaks;
+  `whine-verify.sh` alternates a setting and averages 4 takes). Result, level of the strongest narrow tone at the
+  keyboard, 3–4 takes per row, repeatable to ±2 dB:
+
+  | SSD link (`0005:01:00.0/link/l1_aspm`) | 6.8 kHz tone | 8.9 kHz tone |
+  |---|---|---|
+  | L1 on (stock) | −97 dBFS | **−83 dBFS** |
+  | L1 off | **−92 dBFS** | −94 dBFS |
+
+  So the Samsung MZVL8512HFLU's regulator sings at 8.9 kHz when its link parks in L1 and at a quieter 6.8 kHz
+  when the link is held active: about 10 dB less at the loudest tone, and a lower pitch. Forcing ASPM off
+  system-wide gives the same 6.8 kHz tone; USB / PCI / platform runtime-PM, GPU pinning, cpufreq governor, the
+  `cpu-sleep-0` idle state and the fan made **no measurable difference** (all within ±2 dB), so those services
+  were removed/disabled again. Disabling only the L1.1 or L1.2 substate is not enough; link clock-PM does not
+  matter. Disabling the SSD's own APST (`nvme set-feature -f 0x0c -v 0`) hung the admin queue for ~10 min before
+  applying and did not help: do not do that on the root disk. **Permanent fix:**
+  [`a16-nvme-aspm`](assets/zenbook-a16/a16-nvme-aspm) + [`.service`](assets/zenbook-a16/a16-nvme-aspm.service)
+  write `0` to the NVMe controller's `link/l1_aspm` at boot (`a16-nvme-aspm off` restores it); Wi-Fi and
+  everything else keep their normal power saving. Cost: the SSD link never enters L1 (tens of mW). The remaining
+  6.8 kHz tone is the board's parts; the owner hears it with the left ear more than the right (ear sensitivity),
+  and not at all with the laptop in front of them. The XPS machines' silence is inductor selection, not CPU
+  vendor. Do not re-investigate beyond this.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
   Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
   0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
