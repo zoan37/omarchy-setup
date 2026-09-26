@@ -54,7 +54,7 @@ The touchpad is a **Sensel pressure-sensing pad** (`VEN_2C2F:00 2C2F:0033`). lib
 
 Palms and fingers press equally hard, so no pressure threshold can tell them apart. The pad doesn't report contact size either, so libinput has no other way to detect palms.
 
-This was one more reason the laptop went back. With no signal from the hardware, a custom palm filter wasn't possible either. The Zenbook A16 that replaced it is getting a behavior-based filter, which uses keystroke timing, where a touch lands and how it moves ([Zenbook notes](zenbook-a16-omarchy-snapdragon.md)).
+This was one more reason the laptop went back. With no signal from the hardware, a custom palm filter wasn't possible either. The Zenbook A16 that replaced it is getting a behavior-based filter, which uses keystroke timing, where a touch lands and how it moves ([Zenbook notes, section 15](zenbook-a16-omarchy-snapdragon.md#15-touchpad-palm-rejection-a-behavioral-filter-2026-09-26)).
 
 ### 4. Swipe test (Dell's reproduction from article 000435203)
 

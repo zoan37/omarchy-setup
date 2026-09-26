@@ -30,6 +30,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Battery percentage | **Works** after enabling the SoCCP remoteproc in the DTB (section 13): %, Wh, charge cycles, time left, 75–80 % charge limit all read. Power panel needs a small `omarchy-battery-status` patch |
 | Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 4.45 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Remainder is hardware (section 8) |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
+| Touchpad palm rejection | Custom behavioral filter `a16-palm-filter.service` (section 15); libinput's disable-while-typing stays off for games |
 | Camera | Not tested |
 | Black screen after LUKS unlock | Intermittent eDP link-training failure (`link training on sink failed. ret=-110`), any entry. Power-cycle. Also the backlight boots at 5 %, which looks black on the OLED |
 
@@ -559,3 +560,66 @@ resets the default sink to the speakers. The tweeters go silent again.
 
 **Not done:** there's no EQ voicing (the Windows side has Dolby). The current voicing is flat apart from the
 crossover.
+
+## 15. Touchpad palm rejection: a behavioral filter (2026-09-26)
+
+**Symptom:** while typing, a palm touches the (large, 150×98 mm) touchpad. The pointer jumps, and a tap-to-click
+selects text or moves the caret somewhere else.
+
+**Why stock libinput doesn't cover it:** `disable_while_typing` is **off** in `~/.config/hypr/input.lua` on
+purpose ([browser games](browser-game-pointer-lock.md): libinput mutes the pad while a WASD key is held).
+libinput's other palm signals don't apply here. This PixArt `093A:3012` pad reports **no contact size and no
+pressure**, only positions and `ABS_MT_TOOL_TYPE`. That last one does carry the firmware's palm flag, which
+fires reliably for a hand resting at the top-left corner by the keyboard. (The XPS 16 pad reported pressure,
+but palms and fingers pressed equally hard, and the lack of a usable signal there was one reason it went back.)
+
+**Approach:** judge a touch by *behavior* instead of shape: when it lands relative to typing, where it lands,
+and how it moves. [a16-palm-filter](assets/zenbook-a16/a16-palm-filter) (python-evdev) grabs the real pad,
+classifies every contact, and re-emits only the accepted ones on a uinput clone,
+"hid-over-i2c 093A:3012 Touchpad (palm filter)" (same ranges, resolution, bus and IDs). libinput and
+Hyprland treat the clone as the touchpad, so taps, gestures, scrolling and your Hyprland settings all
+behave as before. If the daemon dies, the grab goes away and the raw pad works again.
+
+At touch-down, a contact is:
+
+| Condition | Result |
+|---|---|
+| Firmware palm flag (`MT_TOOL_PALM`) | hidden for its lifetime |
+| Ctrl/Alt/Super held | passed through (modifier+pointer is deliberate) |
+| Typing: ≥ 2 quick keystrokes in the last 1.2 s and the newest < 0.5 s ago | held back until it travels 10 mm with no keystroke in between. A hand reaching for the pad sweeps; a palm creeps |
+| Within 3 s of typing, landing in a side strip (10 mm) or the top strip (8 mm) | held back until it travels 8 mm |
+| Within 1.2 s of a keystroke | held back until it travels 4 mm |
+| Another finger already down (and not at an edge) | passed through (two-finger scroll) |
+| Otherwise | passed through |
+
+A held-back contact becomes a palm on the next keystroke. If it's lifted without moving, it's swallowed, so palm
+taps never click. A physical click lets it through. A finger that sits still (< 1.5 mm over 0.8 s) while
+typing resumes is hidden, which covers a hand resting on the pad before typing. It comes back as a new touch once
+it moves 5 mm. A "keystroke" means a key pressed and released within 0.3 s, so keys held longer, like WASD in
+a game, never mute the pad. That's what libinput's disable-while-typing gets wrong for games. The daemon
+counts keystrokes by timing only, and key codes are never stored or logged.
+
+**Install:**
+```
+sudo pacman -S --needed python-evdev libinput-tools
+sudo install -m755 assets/zenbook-a16/a16-palm-filter /usr/local/bin/
+sudo install -m644 assets/zenbook-a16/a16-palm-filter.service /etc/systemd/system/
+sudo install -m644 assets/zenbook-a16/a16-palm.conf /etc/default/a16-palm
+sudo systemctl daemon-reload && sudo systemctl enable --now a16-palm-filter
+```
+Leave `disable_while_typing = false` in Hyprland: the filter replaces it.
+
+**Verify:** `hyprctl devices | grep -A1 palm-filter` lists the clone. `journalctl -u a16-palm-filter -f`
+logs one line for every contact the filter hid, swallowed or let through late (reason, duration, travel,
+start position as % of the pad). Normal fingers aren't logged. `python3 assets/zenbook-a16/test-a16-palm-filter.py`
+replays 20 synthetic scenarios against the logic (no hardware needed). `sudo a16-palm-filter --dry`
+classifies and logs without grabbing, so you can watch it next to the stock behavior.
+
+**Tuning:** all thresholds are environment variables (see the script header). Set them in `/etc/default/a16-palm`,
+then `sudo systemctl restart a16-palm-filter`. First live tuning, the same day: a "typing" touch was
+originally hidden for its whole lifetime. The log then showed rejected contacts that swept 30–55 mm in 0.2 s,
+which was a hand moving from the keyboard to the pad within half a second of the last key. So those touches are
+now held back and let through after 10 mm instead.
+
+**Revert:** `sudo systemctl disable --now a16-palm-filter`. The virtual pad disappears and the real one is
+used again straight away.

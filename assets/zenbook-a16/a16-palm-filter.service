@@ -1,0 +1,13 @@
+[Unit]
+Description=Zenbook A16: behavioral touchpad palm rejection (grabs the pad, re-emits fingers on a virtual pad)
+After=systemd-udevd.service
+
+[Service]
+EnvironmentFile=-/etc/default/a16-palm
+ExecStart=/usr/local/bin/a16-palm-filter
+Restart=always
+RestartSec=1
+Nice=-10
+
+[Install]
+WantedBy=multi-user.target
