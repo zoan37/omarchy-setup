@@ -28,6 +28,7 @@ for d in /sys/bus/pci/devices/*; do
   esac
 done
 if [ "$mode" = on ]; then
+  for f in /sys/devices/system/cpu/cpu[0-9]*/online; do echo 1 > "$f" 2>/dev/null; done   # start from all online
   for c in $(expand "$OFFLINE_CPUS"); do echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null; done
   for p in /sys/devices/system/cpu/cpufreq/policy*; do echo "$MAX_KHZ" > "$p/scaling_max_freq" 2>/dev/null; echo "$MIN_KHZ" > "$p/scaling_min_freq" 2>/dev/null; done
   if [ "$RUNTIME_PM" = on ]; then : > $RPM_SAVED
@@ -36,7 +37,9 @@ if [ "$mode" = on ]; then
     log "runtime PM forced on for $(wc -l < $RPM_SAVED) devices"; fi
   [ "$STOP_CDSP" = 1 ] && for r in /sys/class/remoteproc/*; do [ "$(cat $r/name)" = cdsp ] && echo stop > $r/state 2>/dev/null && log "cdsp stopped"; done
 else
-  for c in $(expand "$OFFLINE_CPUS"); do echo 1 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null; done
+  # online every CPU, not just the configured set: after a config change the old set may differ, and the kernel
+  # refuses to offline the last CPU, which once left only cpu17 running (2026-09-26)
+  for f in /sys/devices/system/cpu/cpu[0-9]*/online; do echo 1 > "$f" 2>/dev/null; done
   for p in /sys/devices/system/cpu/cpufreq/policy*; do cat "$p/cpuinfo_max_freq" > "$p/scaling_max_freq" 2>/dev/null; echo "$MIN_KHZ_STOCK" > "$p/scaling_min_freq" 2>/dev/null; done
   [ -e $RPM_SAVED ] && while read -r f; do echo auto > "$f" 2>/dev/null; done < $RPM_SAVED && rm -f $RPM_SAVED
   for r in /sys/class/remoteproc/*; do [ "$(cat $r/name)" = cdsp ] && echo start > $r/state 2>/dev/null; done
