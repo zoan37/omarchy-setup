@@ -307,6 +307,10 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   as a thin fillet around each inductor base and a bridge between neighbours, nothing on the tops (heatsink pad)
   or on the PMICs. Skins in ~20 min, reassemble after a few hours, full cure 7 days. Expectation: softer, not
   silent; capacitor/board-flex noise is untouched. Ends any exchange option.
+  Also tried by ear, no change: the audio DSP (`adsp`) stopped, display 60 Hz, Wi-Fi TX power limited to 5 dBm,
+  three cores instead of six. **Do not stop `adsp` at runtime:** after `start` the q6apm buffer allocation times
+  out, `clk_q6dsp_prepare` warns and the sound card never re-registers (driver rebind fails with -22); only a
+  reboot brings audio back. Stopping `cdsp` is fine.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
   Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
   0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
