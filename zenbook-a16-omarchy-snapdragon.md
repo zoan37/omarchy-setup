@@ -28,7 +28,8 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
 | Bluetooth | No adapter: needs a device-tree patch (serdev node + regulators + `w-disable2` polarity, see jc372 patch 0001). Firmware is already in the image. Not done yet |
 | Battery percentage | Empty (`qcom-battmgr` cannot link to `a600000.usb`/`a800000.usb`, so the PMIC GLINK battery manager never comes up). Charging works. The USB-PHY DT patch that fixes this on FixItFoundry's kernel breaks the panel here (section 12) |
-| Suspend, camera | Not tested / known gap |
+| Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
+| Camera | Not tested |
 | Black screen after LUKS unlock | Intermittent eDP link-training failure (`link training on sink failed. ret=-110`), any entry. Power-cycle. Also the backlight boots at 5 %, which looks black on the OLED |
 
 ## 1. Flash and install
@@ -224,8 +225,13 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   patch 0001 in the DTB. The in-place patcher only has ~169 bytes of slack in the PE section, so a bigger
   DTB means rebuilding the section (or a proper kernel package).
 - **Battery telemetry:** see section 12 for what not to do; needs the USB-controller/SoCCP side of the DT.
-- **Camera, suspend:** untested. **Black screen after LUKS unlock:** intermittent eDP link-training failure
-  on any entry; power-cycle. Not seen since the reinstall (0 occurrences in the current dmesg).
+- **Suspend is broken (found 2026-09-26):** the idle timer put the machine into `suspend (deep)` and it never
+  resumed; the firmware reset it instead, which looked like a random reboot (journal ends at `PM: suspend entry
+  (deep)`, no crash record). Sleep is now disabled: `systemctl mask sleep.target suspend.target hibernate.target
+  hybrid-sleep.target suspend-then-hibernate.target` (also step 5b of `apply-a16-fixes.sh`), so idle only locks the
+  screen and the lid does not sleep. Unmask the same targets to retry after a kernel update. Camera untested.
+- **Black screen after LUKS unlock:** intermittent eDP link-training failure on any entry (seen again on the boot
+  after that reset); hold power ~10 s and boot again.
 - **Coil whine (2026-09-26):** with the fan stopped, a constant high tone ("eeee") is audible with an ear at the
   chassis, not at desk distance; the owner noticed it because the laptop sat beside their left ear. It is unchanged
   by the charger (unplugged), display brightness, screen off, CPU load, clocks pinned to max or min, Wi-Fi off, or

@@ -57,6 +57,8 @@ install -m 755 "$D/a16-quiet-thermal" /usr/local/bin/a16-quiet-thermal
 install -m 644 "$D/a16-quiet-thermal.service" /etc/systemd/system/a16-quiet-thermal.service
 install -m 755 "$D/glymur-ec-read.sh" "$D/glymur-ec-block.sh" /usr/local/bin/
 systemctl daemon-reload; systemctl enable a16-quiet-thermal.service a16-fan-daemon.service >/dev/null 2>&1 || true
+echo "== 5b/6 suspend is broken on this kernel (never resumes, resets instead): mask the sleep targets"
+systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target >/dev/null 2>&1 || true
 echo "== 6/6 Wi-Fi power save (applies to any saved wireless connection)"
 for c in $(nmcli -t -f NAME,TYPE connection show | awk -F: '$2=="802-11-wireless"{print $1}'); do nmcli connection modify "$c" 802-11-wireless.powersave 3 || true; done
 sync; echo "DONE. Reboot; GRUB default is the patched entry. Then: nmcli device; wpctl status; ls /sys/devices/system/cpu/cpufreq/"
