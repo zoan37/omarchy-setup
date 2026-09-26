@@ -1,11 +1,24 @@
 # Chrome: Vulkan enabled + fix for white/blank video
 
-**SER8 update, 2026-09-21:** a separate
-[OpenGL ANGLE + Vulkan trial](chrome-ser8-flicker-trial.md) is now configured
-to investigate toolbar flickering while retaining WebGPU game support. Its
-MechaBlade test passed, but flicker improvement and video playback are not
-yet verified. Keep the configuration below as the known previous setup and
-rollback; do not silently overwrite the SER8 trial with it during maintenance.
+**Current SER8 configuration, 2026-09-22 at 11:56 EDT:** the main browser now
+uses the [experimental OpenGL + WebGPU interop flags](assets/chrome-ser8-gl-webgpu-experimental.conf),
+following renewed tab-strip/toolbar flicker under the full Vulkan settings
+below. Chrome was fully restarted and its running flags verified. See the
+[trial notes](chrome-ser8-flicker-trial.md) for activation, backup, and evidence.
+URL Flicker Tamer v1.4.0 is also installed locally and was submitted to the Web
+Store for review. The owner later reported a quiet interval without flicker,
+following earlier recurrences and a transient scrolling artifact; this is not
+yet a confirmed fix. The full Vulkan setup below remains the previous
+video-compatible configuration and rollback option.
+
+**SER8 update, 2026-09-22:** the
+[OpenGL ANGLE + Vulkan trial](chrome-ser8-flicker-trial.md) produced white
+video on x.com after activation. Restored the configuration below and fully
+restarted the daily browser with session restoration; its command line confirms
+the restored flags. A separate Chrome profile passed an H.264 playback check
+using `VaapiVideoDecoder` with visible colored frames and no media errors.
+The specific X post still needs a playback check in the daily profile. Toolbar
+flicker remains unresolved.
 
 **Symptom:** after enabling Vulkan in Chrome, videos on x.com / YouTube play
 audio but render as a solid white rectangle.
