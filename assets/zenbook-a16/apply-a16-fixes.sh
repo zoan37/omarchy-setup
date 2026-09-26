@@ -17,12 +17,21 @@ U=/usr/share/alsa/ucm2/conf.d/glymur; ln -sf GLYMUR-ASUS-Zenbook-A16-UX3607OA.co
 echo "== 3/6 cpufreq: patched kernel image + GRUB entries"
 SET=$(ls -d /usr/lib/oma-snap/sets/* | head -1)
 python3 "$D/patch-vmlinuz-dtb.py" "$SET/vmlinuz.efi" /tmp/vmlinuz-scmipoll.efi
+python3 "$D/patch-vmlinuz-soccp.py" /tmp/vmlinuz-scmipoll.efi /tmp/vmlinuz-scmipoll-soccp.efi   # battery: attach to UEFI-started SoCCP
 mkdir -p /boot/oma-snap/custom && install -m 700 /tmp/vmlinuz-scmipoll.efi /boot/oma-snap/custom/vmlinuz-scmipoll.efi
+install -m 700 /tmp/vmlinuz-scmipoll-soccp.efi /boot/oma-snap/custom/vmlinuz-scmipoll-soccp.efi
 echo scmi-cpufreq > /etc/modules-load.d/scmi-cpufreq.conf
 G=/boot/oma-snap/grub/grub.cfg; cp -n "$G" "$G.orig-$(date +%Y%m%d)"
 ENTRY=$(ls /boot/oma-snap/entries | head -1)
 CMD=$(grep -m1 -o 'cryptdevice=[^ ]* root=[^ ]* [^"]*rootfstype=btrfs' "$G")
 ESP=$(grep -m1 -o 'fs-uuid --set=root [0-9A-F-]*' "$G" | awk '{print $3}')
+grep -q oma-snap-custom-soccp "$G" || cat >> "$G" <<EOG
+menuentry 'Omarchy Snapdragon (SCMI polling + SoCCP battery)' --id 'oma-snap-custom-soccp' {
+  search --no-floppy --fs-uuid --set=root $ESP
+  linux /oma-snap/custom/vmlinuz-scmipoll-soccp.efi $CMD arm64.nopauth quiet splash
+  initrd /oma-snap/entries/$ENTRY/initramfs.img
+}
+EOG
 grep -q oma-snap-custom-noignore "$G" || cat >> "$G" <<EOG
 menuentry 'Omarchy Snapdragon (SCMI polling, no clk/pd_ignore_unused)' --id 'oma-snap-custom-noignore' {
   search --no-floppy --fs-uuid --set=root $ESP
@@ -35,7 +44,11 @@ menuentry 'Omarchy Snapdragon (SCMI polling, stock flags)' --id 'oma-snap-custom
   initrd /oma-snap/entries/$ENTRY/initramfs.img
 }
 EOG
-sed -i 's/^set default=.*/set default=oma-snap-custom-noignore/' "$G"
+sed -i 's/^set default=.*/set default=oma-snap-custom-soccp/' "$G"
+echo "   battery panel: patch omarchy-battery-status for qcom-battmgr (+ pacman hook to re-apply)"
+install -m 755 "$D/fix-omarchy-battery-status.sh" /usr/local/bin/fix-omarchy-battery-status
+install -Dm644 "$D/zz-omarchy-battery-status.hook" /etc/pacman.d/hooks/zz-omarchy-battery-status.hook
+/usr/local/bin/fix-omarchy-battery-status
 echo "== 4/6 Windows Boot Manager GRUB entry (if a Windows ESP exists)"
 WESP=$(blkid -t TYPE=vfat -o device | while read p; do m=$(mktemp -d); mount -o ro "$p" "$m" 2>/dev/null && { [ -d "$m/EFI/Microsoft" ] && echo "$p"; umount "$m"; }; rmdir "$m"; done | head -1)
 if [ -n "$WESP" ]; then WU=$(blkid -s UUID -o value "$WESP"); grep -q win-ssd "$G" || cat >> "$G" <<EOG

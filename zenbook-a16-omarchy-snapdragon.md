@@ -27,7 +27,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Fan | **Controlled from Linux** through the EC mailbox (section 7); `a16-fan-daemon` keeps it at **0 rpm at idle** with a Mac-style whisper policy (section 11) |
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
 | Bluetooth | No adapter: needs a device-tree patch (serdev node + regulators + `w-disable2` polarity, see jc372 patch 0001). Firmware is already in the image. Not done yet |
-| Battery percentage | Empty (`qcom-battmgr` cannot link to `a600000.usb`/`a800000.usb`, so the PMIC GLINK battery manager never comes up). Charging works. The USB-PHY DT patch that fixes this on FixItFoundry's kernel breaks the panel here (section 12) |
+| Battery percentage | **Works** after enabling the SoCCP remoteproc in the DTB (section 13): %, Wh, charge cycles, time left, 75–80 % charge limit all read. Power panel needs a small `omarchy-battery-status` patch |
 | Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 4.45 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Remainder is hardware (section 8) |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
 | Camera | Not tested |
@@ -225,7 +225,7 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
 - **Bluetooth:** needs the `wcn7850-bt` serdev node + regulators + `w-disable2` polarity from jc372's
   patch 0001 in the DTB. The in-place patcher only has ~169 bytes of slack in the PE section, so a bigger
   DTB means rebuilding the section (or a proper kernel package).
-- **Battery telemetry:** see section 12 for what not to do; needs the USB-controller/SoCCP side of the DT.
+- **Battery telemetry:** fixed 2026-09-26 (section 13).
 - **Suspend is broken (found 2026-09-26):** the idle timer put the machine into `suspend (deep)` and it never
   resumed; the firmware reset it instead, which looked like a random reboot (journal ends at `PM: suspend entry
   (deep)`, no crash record). Sleep is now disabled: `systemctl mask sleep.target suspend.target hibernate.target
@@ -447,8 +447,47 @@ the ceraluminum chassis stays cool to the touch.
   and `phy@fde000`, FixItFoundry's UCSI fix): built as `vmlinuz-scmipoll-usbphy.efi`, booted twice, black
   screen both times with a new `msm_dp_display_host_phy_init` WARNING and eDP link training failed;
   `qcom-battmgr` was still empty (the device links to `a600000.usb`/`a800000.usb` still fail). Removed from
-  GRUB and `/boot/oma-snap/custom`. The battery fix needs the USB controller / SoCCP side too.
+  GRUB and `/boot/oma-snap/custom`. Not needed: the real battery fix was the SoCCP node (section 13).
 - **Generic Windows ARM ISO on this firmware:** see section 10 item 1.
 - **`0xC9` block engine** for fan curves: dead on Linux and Windows alike; the `0xC4` mailbox is the way.
 - **`pacman` sandbox theory** for the installer mirror error: a no-op (no `DownloadUser` in the image); it was
   the clock.
+
+## 13. Battery: enable the SoCCP remoteproc (2026-09-26)
+
+**Symptom:** no battery in the bar. `/sys/class/power_supply/qcom-battmgr-bat` exists but every read
+(`status`, `present`, …) returns `Resource temporarily unavailable` (EAGAIN): `qcom-battmgr` is bound but the
+charger service behind PMIC GLINK never comes up.
+
+**Cause:** on Glymur the battery/charger firmware runs on the **SoCCP**, which UEFI starts (Windows'
+`qcsubsys_ext_soccp8480.inf` uses "LiveHandoff": it attaches, never loads). The Ubuntu A16 DTB ships
+`/soc@0/remoteproc-soccp@d00000` with `status = "disabled"`, so nothing brings up its GLINK edge. The
+7.2.0-18 `qcom_q6v5_pas` has the `kaanapali-soccp` early-boot path (`qcom_pas_attach`), so enabling the node
+is enough: it attaches to the running SoCCP without requesting `soccp.mbn` (which isn't installed anywhere,
+only a generic Kaanapali one). Same model FixItFoundry uses on 7.3-rc3.
+
+**Fix:** [patch-vmlinuz-soccp.py](assets/zenbook-a16/patch-vmlinuz-soccp.py) rewrites that `status` to
+`"okay"` in the embedded DTB (same size; 4 spare bytes become an FDT_NOP), applied on top of the SCMI image:
+```
+python3 patch-vmlinuz-soccp.py /boot/oma-snap/custom/vmlinuz-scmipoll.efi vmlinuz-scmipoll-soccp.efi
+sudo cp vmlinuz-scmipoll-soccp.efi /boot/oma-snap/custom/
+# GRUB entry 'oma-snap-custom-soccp' = the noignore entry with this image; now the default.
+```
+`grub.cfg` also got a `load_env` / `next_entry` one-shot block after `set default`, so
+`sudo grub-editenv /boot/oma-snap/grub/grubenv set next_entry=<id>` boots a test entry once.
+Backup of the pre-change cfg: `grub.cfg.bak-20260926-soccp`.
+
+**Verify:** `cat /sys/class/remoteproc/*/name` lists `soccp` with state `attached`;
+`upower -i /org/freedesktop/UPower/devices/battery_qcom_battmgr_bat` shows %, energy-full 70.28 Wh
+(design 70.0), charge-cycles, time to empty, thresholds 75/80 %. First boot: display, Wi-Fi, audio fine.
+There is no `capacity` sysfs file (UPower computes % from energy).
+
+**Power panel (Omarchy bug):** `omarchy-battery-status` picks the battery with `upower -e | grep BAT` and reads
+cycles/thresholds from `/sys/class/power_supply/BAT*`, so on Snapdragon the panel showed no %, size, cycles
+or time. [fix-omarchy-battery-status.sh](assets/zenbook-a16/fix-omarchy-battery-status.sh) (installed as
+`/usr/local/bin/fix-omarchy-battery-status`) patches `/usr/bin/omarchy-battery-status` in place: match
+`BAT|_bat$`, use the found battery's sysfs path, and take `abs(power_now)` (qcom-battmgr reports it negative
+while discharging). A `/usr/local/bin` override doesn't work: quickshell's PATH starts with
+`/usr/share/omarchy/bin`, which symlinks to `/usr/bin`. The pacman hook
+[zz-omarchy-battery-status.hook](assets/zenbook-a16/zz-omarchy-battery-status.hook) re-applies it after every
+`omarchy` upgrade. Worth upstreaming. Right-click the bar battery icon to toggle the % next to it.
