@@ -316,7 +316,10 @@ floor and reading the kernel trips (95 °C passive / 115 °C critical, so the So
   than it would be with the fan doing the work; raise `HOT`/`COOL` in `a16-quiet-thermal` to trade noise for
   speed).
 
-Edit the conf and `systemctl restart a16-fan-daemon`; watch with `journalctl -fu a16-fan-daemon`.
+Edit the conf and `systemctl restart a16-fan-daemon`; watch with `journalctl -fu a16-fan-daemon`. `IDLE_PWM=25` (or 30)
+keeps an always-on ~700-800 rpm floor instead of stopping the fan, Mac-style; harmless for the bearing, a taste call. Tried
+as whine masking on 2026-09-26: neither 700 nor 1250 rpm covered the coil whine (a constant tone from an always-on rail,
+unchanged by CPU load, clocks, Wi-Fi, audio or display; only audible with an ear at the chassis), so the default stays 0.
 
 **How it compares to a MacBook Pro (honest assessment):** at idle and in bursty everyday use it is level or
 better: 0 rpm idle, bursts tolerated by policy, and a first stage (~800 rpm) below Apple's ~1200–1500 rpm
