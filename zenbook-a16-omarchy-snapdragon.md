@@ -232,6 +232,12 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   (deep)`, no crash record). Sleep is now disabled: `systemctl mask sleep.target suspend.target hibernate.target
   hybrid-sleep.target suspend-then-hibernate.target` (also step 5b of `apply-a16-fixes.sh`), so idle only locks the
   screen and the lid does not sleep. Unmask the same targets to retry after a kernel update. Camera untested.
+- **Hard resets at the idle lock screen (seen several times, 2026-09-26):** with sleep masked, the machine still
+  resets while idle with the screensaver animation up. In the one journaled case, the log ends at
+  `omarchy idle … process-start: lock omarchy-system-lock`, 150 s after the screensaver (ttfx) started, with no
+  pstore record and no fan ramp. The workaround is Omarchy's stay-awake (`omarchy toggle idle`, or the bar
+  toggle), which disables the screensaver and the auto-lock, so lock by hand. Untested: whether a manual lock alone
+  triggers it.
 - **Black screen after LUKS unlock:** intermittent eDP link-training failure on any entry (seen again on the boot
   after that reset); hold power ~10 s and boot again.
 - **Coil whine (2026-09-26), solved as far as software can: it is the NVMe SSD's PCIe link power state.**
