@@ -241,7 +241,9 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   Both ears hear it at the chassis; it localises to the middle of the keyboard. **Present under factory Windows
   too** (checked 2026-09-26), so it is the board's parts, not anything Linux configures. The powered-off charging
   whine noticed on day one is the same power stage. Verdict: hardware; placement (not next to an ear) and
-  habituation, or exchange the unit (a replacement may or may not be quieter). Do not re-investigate. The XPS
+  habituation, or exchange the unit (a replacement may or may not be quieter). BIOS 312 (section 10) seemed to
+  reduce it a little. Left ear hears it more than the right at the deck: ear sensitivity at that frequency, not
+  the laptop. With the laptop in front of the owner it is not an issue. Do not re-investigate. The XPS
   machines' silence is inductor selection, not CPU vendor.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
   Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
@@ -324,7 +326,9 @@ board file came from) as a Windows firmware-class driver (`UX3607OA_312.inf`, "A
 (Windows' boot path hands the capsule to the firmware, progress screen, restart). Booting Omarchy after the
 installer does nothing, and Linux keeps reading the old version (ESRT `entry0 ver=773` = 0x305). Verified
 after the Windows boot: BIOS 312, Secure Boot still off, "Omarchy (GRUB)" still first in the firmware boot
-order. Windows also rolled the Secure Boot CA/keys (event 1808) at the same time. No change to the coil whine.
+order. Windows also rolled the Secure Boot CA/keys (event 1808) at the same time. Owner's impression afterwards: the
+coil whine is **somewhat quieter than before** (still audible with the left ear at the deck, less with the
+right; inaudible with the laptop in front of them). Subjective, but the only lever that moved it at all.
 
 ## 11. Fan daemon: 0 rpm at idle, Mac-style behaviour under load
 
