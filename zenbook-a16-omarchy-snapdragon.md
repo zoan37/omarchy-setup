@@ -274,7 +274,10 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   `scaling_max_freq`: one clock, one voltage, no regulator transitions). By ear on the 3.6 GHz cluster (cpu0-5):
   3.6 steadiest, 2.5 "oscillates more", 1.5 "a bit more static"; then A/B/A/B against the first 4.45 GHz
   cluster (cpu6-11, its own rail) at a fixed 4.45 GHz: "4.45 seems better". Final: **cpu0-5 and cpu12-17
-  offline, cpu6-11 at 4.45 GHz** (cpu0 can be hot-unplugged on this kernel),
+  offline, cpu6-11 at 4.45 GHz** (cpu0 can be hot-unplugged on this kernel). Caution: the first version of the
+  script only re-onlined the *configured* set on stop, so `systemctl restart` after changing `OFFLINE_CPUS`
+  stranded the machine on cpu17 alone and it hard-reset seconds later (journal ends mid-start, not a suspend);
+  the script now onlines every CPU before applying or removing the set,
   plus a second batch the owner rated as the bigger win ("less piercing pitch, more like a normal buzz"):
   `cpu-sleep-0` idle state disabled again (`a16-cpuidle-nosleep.service`, now enabled: the mic saw nothing, the
   ear does), **runtime PM forced `on`** for every USB/PCI/platform device except the GPU, and the unused
