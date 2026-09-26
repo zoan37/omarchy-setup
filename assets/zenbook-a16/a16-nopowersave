@@ -10,6 +10,6 @@ esac
 echo $pol > /sys/module/pcie_aspm/parameters/policy 2>/dev/null
 for d in /sys/bus/pci/devices/*/power/control /sys/bus/usb/devices/*/power/control \
          /sys/bus/platform/devices/*/power/control /sys/bus/i2c/devices/*/power/control \
-         /sys/bus/spmi/devices/*/power/control; do echo $ctl > "$d" 2>/dev/null; done
+         /sys/bus/spmi/devices/*/power/control; do case "$d" in *gpu*) continue;; esac; echo $ctl > "$d" 2>/dev/null; done   # GPU left to its own PM (pinning it warmed the chip 6 C)
 echo 0 > /sys/module/nvme_core/parameters/default_ps_max_latency_us 2>/dev/null   # no NVMe APST for new probes
 logger -t a16-nopowersave "$mode (pcie_aspm=$pol, runtime pm=$ctl)"
