@@ -8,7 +8,7 @@ boot; the laptop-side user is `napdivad`, hostname `zenbook`. Image: community b
 installer). Full test report filed upstream as
 [issue #2](https://github.com/bprendie/omarchy-snapdragon/issues/2)
 (copy in [assets/zenbook-a16/upstream-issue-2-report.md](assets/zenbook-a16/upstream-issue-2-report.md)).
-Identify the machine with `cat /proc/device-tree/model` → `ASUS Zenbook A16 (UX3607OA)`.
+Identify the machine with `cat /proc/device-tree/model` → `ASUS Zenbook A16 (UX3607OA)`. BIOS 312 (section 10).
 
 Other A16 Linux work worth knowing: [FixItFoundry/zenbook-a16-linux](https://github.com/FixItFoundry/zenbook-a16-linux)
 (Fedora, most complete hardware bring-up; source of the cpufreq fix and the EC/fan research),
@@ -314,6 +314,17 @@ Resulting layout of `nvme0n1` (476.9 GB): p1–p11 Qualcomm/ASUS firmware partit
 p15 `RECOVERY`, p16 `MYASUS`, p17 `OMARCHY_EFI` (2 GB, uuid `6212-AA9B`, `/boot`), p18 `OMARCHY_ROOT` (198 GB
 LUKS, uuid `43b1e5d2-…`, btrfs). GRUB menu: legacy entry, installer kernel entry, Firmware settings, Windows
 Boot Manager, **SCMI polling / no clk-pd-ignore (default)**, SCMI polling / stock flags. Never touch p12–p16.
+
+### BIOS updates on this Snapdragon model (done 2026-09-26: 305 → 312)
+
+There is no separate BIOS download. The firmware ships inside ASUS's **Qualcomm Board Support Package**
+(`SOCPackage_forWebSite_Qualcomm_Z_V1.312.4500.0_50616.exe`, 2026-07-23, "CRITICAL"; the same file the Wi-Fi
+board file came from) as a Windows firmware-class driver (`UX3607OA_312.inf`, "ASUS UEFI BIOS", resource
+`RES_{E2BB821E-…}`). Running the installer only stages it; **the flash happens on the next boot of Windows**
+(Windows' boot path hands the capsule to the firmware, progress screen, restart). Booting Omarchy after the
+installer does nothing, and Linux keeps reading the old version (ESRT `entry0 ver=773` = 0x305). Verified
+after the Windows boot: BIOS 312, Secure Boot still off, "Omarchy (GRUB)" still first in the firmware boot
+order. Windows also rolled the Secure Boot CA/keys (event 1808) at the same time. No change to the coil whine.
 
 ## 11. Fan daemon: 0 rpm at idle, Mac-style behaviour under load
 
