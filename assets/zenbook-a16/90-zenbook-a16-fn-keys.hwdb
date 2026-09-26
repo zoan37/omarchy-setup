@@ -1,0 +1,29 @@
+# Zenbook A16 (UX3607OA) internal keyboard: hotkey-first F-row, like Windows' default.
+# Fn-lock (Fn+Esc, and the hid-asus 0x5a d0 4e feature report) does nothing on Linux, so swap in the keymap:
+# bare F-keys send the hotkey, Fn+F-key sends the plain F-key. F7 is left alone: its hotkey is a real
+# Super+P chord (two ordinary scancodes), indistinguishable from typing Super+P.
+# Scancodes captured 2026-09-26 (MSC_SCAN on "Asus Keyboard", 0B05:4B42). Apply:
+#   sudo systemd-hwdb update && sudo udevadm trigger --subsystem-match=input --action=change
+evdev:input:b0018v0B05p4B42*
+ KEYBOARD_KEY_7003a=mute
+ KEYBOARD_KEY_7003b=volumedown
+ KEYBOARD_KEY_7003c=volumeup
+ KEYBOARD_KEY_7003d=kbdillumtoggle
+ KEYBOARD_KEY_7003e=brightnessdown
+ KEYBOARD_KEY_7003f=brightnessup
+ KEYBOARD_KEY_70041=sysrq
+ KEYBOARD_KEY_70042=f21
+ KEYBOARD_KEY_70043=micmute
+ KEYBOARD_KEY_70044=camera
+ KEYBOARD_KEY_70045=prog1
+ KEYBOARD_KEY_c00e2=f1
+ KEYBOARD_KEY_c00ea=f2
+ KEYBOARD_KEY_c00e9=f3
+ KEYBOARD_KEY_ff3100c7=f4
+ KEYBOARD_KEY_ff310010=f5
+ KEYBOARD_KEY_ff310020=f6
+ KEYBOARD_KEY_70046=f8
+ KEYBOARD_KEY_ff31006b=f9
+ KEYBOARD_KEY_ff31007c=f10
+ KEYBOARD_KEY_ff310085=f11
+ KEYBOARD_KEY_ff310086=f12

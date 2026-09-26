@@ -320,14 +320,19 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   three cores instead of six. **Do not stop `adsp` at runtime:** after `start` the q6apm buffer allocation times
   out, `clk_q6dsp_prepare` warns and the sound card never re-registers (driver rebind fails with -22); only a
   reboot brings audio back. Stopping `cdsp` is fine.
-- **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
-  Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
-  0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
-  nothing. Captured scan codes (bare F1-F12 = KEY_F1..F12; Fn+F row = 149 113 114 115 228 224 225 Meta+P 99 191
-  248 212 148, i.e. vendor key, mute, vol-, vol+, kbd backlight, bright-, bright+, display, PrtSc, touchpad
-  toggle, mic mute, camera, vendor key). Plan if resumed: swap in Hyprland (`bindings.lua`: bare F-keys →
-  the `media.lua` commands, XF86 keys → synthesized F-keys with `send_key_state`). **Fn+F10 toggles the touchpad**
-  (`omarchy-toggle-touchpad`), which is easy to hit by accident; `omarchy-toggle-touchpad on` restores it.
+- **Fn-lock / hotkey mode: solved with a keymap swap (2026-09-26).** On Windows the F-row is in hotkey mode; here
+  it boots in F-key mode and Fn+Esc does nothing. Neither the DSDT's EC switch `ECCW(2,0x84, 0x04|0x08 [|KFSK
+  0x80])` (WMI `0x00100023`, with or without the `ECCW(2,0x83,1)` handshake) nor hid-asus's Fn-lock feature report
+  (`0x5a d0 4e 01` on `/dev/hidraw1`, as `QUIRK_HID_FN_LOCK` sends; accepted, no effect) changes it. Fix: swap the
+  scancodes in the keymap with [90-zenbook-a16-fn-keys.hwdb](assets/zenbook-a16/90-zenbook-a16-fn-keys.hwdb)
+  → `/etc/udev/hwdb.d/`, then `sudo systemd-hwdb update && sudo udevadm trigger --subsystem-match=input
+  --action=change`. Bare F-keys now send the hotkey and Fn+F-key the plain F-key, in every app and the console, and
+  it persists across reboots. Captured layout (MSC_SCAN on `Asus Keyboard` 0B05:4B42): Fn+F1..F12 = mute `c00e2`,
+  vol- `c00ea`, vol+ `c00e9`, kbd backlight `ff3100c7`, bright- `ff310010`, bright+ `ff310020`, **Super+P chord**
+  (display switch; left unswapped, since it's two ordinary scancodes), Print `70046`, touchpad toggle (F21)
+  `ff31006b`, mic mute `ff31007c`, camera `ff310085`, MyASUS (PROG1) `ff310086`; bare F1..F12 = `7003a..70045`.
+  **Fn+F9 / bare F9 now toggles the touchpad** (`omarchy-toggle-touchpad`), which is easy to hit by accident;
+  `omarchy-toggle-touchpad on` restores it. Revert: delete the hwdb file and rerun the two commands.
 - **Keyboard backlight:** `ECCW(1,0x81,4)` makes the host own the backlight (the EC then ignores the backlight
   key); `ECCW(1,0x87,level)` with the DSDT's table values 0x00/0x55/0xAA/0xFF sets it; `ECCW(1,0x81,0)` hands it
   back to the EC. There is no `/sys/class/leds/*kbd_backlight*`, so `omarchy-brightness-keyboard` has nothing to
