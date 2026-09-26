@@ -1,0 +1,11 @@
+[Unit]
+Description=Zenbook A16 custom fan curve (EC manual mode; auto fallback on trip/error)
+After=multi-user.target
+[Service]
+ExecStart=/usr/local/bin/a16-fan-daemon
+ExecStopPost=/bin/bash -c '/usr/local/bin/a16-fan.sh auto || true'
+Restart=always
+RestartSec=10
+Nice=-5
+[Install]
+WantedBy=multi-user.target
