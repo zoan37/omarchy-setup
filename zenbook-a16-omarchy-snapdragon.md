@@ -184,3 +184,11 @@ Applied over SSH, all user-level, backups as `~/.config/hypr/*.bak-20260925`:
 - `git config --global user.name/email` set to zoan37; `gh auth login` still to do.
 - Not ported: Chrome Vulkan/ANGLE flags (x86 GPU specific), hypr-momentum (needs cmake +
   Hyprland headers via hyprpm; untried on this kernel/arch), Cyberspace theme.
+
+### Fan daemon v2 (2026-09-26): Whisper-style smoothing
+
+Bursts (an app install, a page load) no longer spin the fan. The daemon smooths the hottest CPU zone with an
+exponential average (~50 s), turns on only above 60 °C smoothed, holds on ≥ 2 min, turns off after 60 s below
+50 °C, slew-limits duty changes (+6/−3 per 3 s), and bypasses smoothing above 78 °C instantaneous. All
+knobs live in [`/etc/default/a16-fan`](assets/zenbook-a16/a16-fan.conf) (`systemctl restart a16-fan-daemon`
+after editing). Idle result unchanged: 0 rpm.

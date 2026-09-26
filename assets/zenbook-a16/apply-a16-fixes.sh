@@ -52,6 +52,7 @@ echo "== 5/6 quiet thermal service, fan control script + daemon, EC scripts"
 install -m 755 "$D/a16-fan.sh" /usr/local/bin/a16-fan.sh
 install -m 755 "$D/a16-fan-daemon" /usr/local/bin/a16-fan-daemon
 install -m 644 "$D/a16-fan-daemon.service" /etc/systemd/system/a16-fan-daemon.service
+[ -e /etc/default/a16-fan ] || install -m 644 "$D/a16-fan.conf" /etc/default/a16-fan
 install -m 755 "$D/a16-quiet-thermal" /usr/local/bin/a16-quiet-thermal
 install -m 644 "$D/a16-quiet-thermal.service" /etc/systemd/system/a16-quiet-thermal.service
 install -m 755 "$D/glymur-ec-read.sh" "$D/glymur-ec-block.sh" /usr/local/bin/
