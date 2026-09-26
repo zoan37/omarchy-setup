@@ -119,6 +119,25 @@ towel; it never cures, so there is no clock.
   screws, fan connectors, battery connector (push down, slide the cap back), cover, 10 screws.
 - Full cure is 7 days; use the laptop normally, avoid a sustained heavy load on day one.
 
+## Step 6b: the USB-C charging whine (laptop off, charger plugged in)
+
+A separate circuit, so a separate plan. Diagnose before touching anything, all with the laptop **off**:
+
+1. **Brick or board?** Ear on the charger brick, then ear on the chassis near the charging port. Then plug the
+   brick into the wall with nothing attached: some bricks whine at no load. If it is the brick, nothing on the
+   board helps; a different or lower-wattage USB-C PD brick (30–65 W) is the fix, and no 65–100 W GaN model has
+   a "never whines" record.
+2. **Which charge stage?** Plug in at ~40 % and listen (bulk charge), then at ~95 % (trickle / constant-voltage).
+   Whine only near full = the charger IC in light-load mode at the end of charge (a ROG G16 owner reports the
+   same, appearing exactly at the 80 % battery cap). Cheap answers: unplug once full, or a charge limit if the
+   battery driver ever exposes one (the `charge_control_end_threshold` node exists on this kernel but the
+   battery manager does not answer yet).
+3. **Board it is?** With the cover off and the laptop off, plug in and press the chopstick on the big inductor(s)
+   next to the charging port. Pitch changes ⇒ damp it: a fillet of the **silicone** around its base (a lone part
+   at the board edge, not confined, so silicone rather than putty), nothing on the charger IC.
+
+Only audible with the lid closed and the machine off, so priority is below the VRM work.
+
 ## Step 7: judge it
 
 - Same test as before: ear at the keyboard, laptop on the left, fan at the 700 rpm floor.
