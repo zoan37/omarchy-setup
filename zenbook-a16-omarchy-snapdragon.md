@@ -237,9 +237,12 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   by the charger (unplugged), display brightness, screen off, CPU load, clocks pinned to max or min, Wi-Fi off, or
   audio off (`~/whine-test.sh` on the laptop steps through those), so it is a fixed-frequency regulator on an
   always-on rail (battery-to-system power stage or a standby rail), not the SoC regulators and not something
-  software can reach. Fan masking at 700 and 1250 rpm did not cover it. The powered-off charging whine noticed on
-  day one is the same power stage. Verdict: hardware/parts choice on this board; placement (not next to an ear) and
-  habituation. The XPS machines' silence is inductor selection, not CPU vendor.
+  software can reach. Fan masking at 700 and 1250 rpm did not cover it. Keyboard backlight off vs full: no change.
+  Both ears hear it at the chassis; it localises to the middle of the keyboard. **Present under factory Windows
+  too** (checked 2026-09-26), so it is the board's parts, not anything Linux configures. The powered-off charging
+  whine noticed on day one is the same power stage. Verdict: hardware; placement (not next to an ear) and
+  habituation, or exchange the unit (a replacement may or may not be quieter). Do not re-investigate. The XPS
+  machines' silence is inductor selection, not CPU vendor.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
   Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
   0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
