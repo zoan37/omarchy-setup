@@ -297,7 +297,8 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   mW). Not mic-verified: if a quiet room comes back, run `whine-round8.sh` (in `whine-mic/`) to see which knobs
   actually move the tones, then drop the others. `a16-whine-tweaks off` or `systemctl disable --now
   a16-whine-tweaks a16-cpuidle-nosleep` restores stock without a reboot.
-  **Hardware damping (planned, 2026-09-26):** the TechPowerUp teardown (review page 5) shows the VRM: a cluster
+  **Hardware damping (planned, 2026-09-26; full step-by-step in
+  [silicone-damping-plan.md](assets/zenbook-a16/silicone-damping-plan.md)):** the TechPowerUp teardown (review page 5) shows the VRM: a cluster
   of ~15 dark cube inductors around a putty-covered PMIC to one side of the SoC (CPU/GPU rails, the likely singer)
   and a smaller cluster of ~8 on the other side next to the Wi-Fi card. They face the **bottom cover**, under the
   fans and heatpipe assembly (10 Torx T5 on the cover, 6 around the fans, 4 on the CPU plate), and the cooler has
