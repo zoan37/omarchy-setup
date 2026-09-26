@@ -1,0 +1,33 @@
+#!/bin/bash
+# a16-fan-daemon: custom fan curve for the ASUS Zenbook A16 via the EC mailbox (manual fan mode).
+# Curve on the hottest CPU zone (millidegrees): off below OFF_C, on again above ON_C, then ramps.
+# Safety: any I2C failure or temp >= TRIP_C -> controller back to automatic and exit (systemd restarts it).
+OFF_C=${OFF_C:-45000}; ON_C=${ON_C:-48000}; TRIP_C=${TRIP_C:-85000}
+BUS=${BUS:-9}
+rb(){ i2ctransfer -y $BUS w3@0x5b 0x10 $1 $2 >/dev/null 2>&1 || return 1; v=$(i2ctransfer -y $BUS w1@0x5b 0x11 r1@0x5b 2>/dev/null) || return 1; echo $((v)); }
+wb(){ i2ctransfer -y $BUS w3@0x5b 0x10 $1 $2 >/dev/null 2>&1 || return 1; i2ctransfer -y $BUS w2@0x5b 0x11 $3 >/dev/null 2>&1; }
+settle(){ local i; for i in $(seq 1 75); do [ "$(rb 0xc4 0x30)" = 0 ] && return 0; sleep 0.02; done; return 1; }
+eccw(){ settle && wb 0xc4 0x31 $2 && wb 0xc4 0x32 $3 && wb 0xc4 0x30 $1 && settle; }
+set_auto(){ eccw 0x01 0x82 0x00; }
+set_pwm(){ local p=$(printf 0x%02x $1); eccw 0x01 0x8c 0x00 && eccw 0x01 0x8a $p && eccw 0x01 0x8c 0x01 && eccw 0x01 0x8a $p; }
+maxtemp(){ local m=0 z t; for z in /sys/class/thermal/thermal_zone*; do case "$(cat $z/type 2>/dev/null)" in cpu*) t=$(cat $z/temp 2>/dev/null) || continue; [ "$t" -gt "$m" ] && m=$t;; esac; done; echo $m; }
+curve(){ # temp(mC) -> pwm
+  local t=$1
+  if   [ $t -lt 55000 ]; then echo 75
+  elif [ $t -lt 70000 ]; then echo $(( 75 + (t-55000)*65/15000 ))    # 75..140
+  else                        echo $(( 140 + (t-70000)*80/15000 )); fi  # 140..220 by 85C
+}
+cleanup(){ set_auto; logger -t a16-fan "released to automatic"; exit 0; }
+trap cleanup TERM INT
+eccw 0x01 0x82 0x02 || { logger -t a16-fan "cannot enter manual mode"; set_auto; exit 1; }
+logger -t a16-fan "manual mode on (off<${OFF_C} on>${ON_C} trip>=${TRIP_C})"
+fan_on=0; last=-1
+while :; do
+  t=$(maxtemp)
+  if [ "$t" -ge "$TRIP_C" ]; then logger -t a16-fan "trip $t: releasing to automatic"; set_auto; exit 1; fi
+  if [ $fan_on -eq 0 ] && [ "$t" -gt "$ON_C" ]; then fan_on=1; fi
+  if [ $fan_on -eq 1 ] && [ "$t" -lt "$OFF_C" ]; then fan_on=0; fi
+  if [ $fan_on -eq 1 ]; then p=$(curve $t); else p=0; fi
+  if [ "$p" != "$last" ]; then set_pwm $p || { logger -t a16-fan "I2C write failed: releasing"; set_auto; exit 1; }; last=$p; logger -t a16-fan "temp $t -> pwm $p"; fi
+  sleep 3
+done
