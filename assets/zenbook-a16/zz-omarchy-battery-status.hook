@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = omarchy
+
+[Action]
+Description = Patching omarchy-battery-status for qcom-battmgr batteries
+When = PostTransaction
+Exec = /usr/local/bin/fix-omarchy-battery-status
