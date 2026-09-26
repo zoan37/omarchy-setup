@@ -100,6 +100,11 @@ Google Maps webapp) is the one that bites — verify with
 `dell-xps-2026` tuning auto-matches and is already on. Confirm with
 `omarchy audio tuning status`, then skip to the next section.
 
+### Zenbook A16 (UX3607OA) only
+
+After the UCM fix, run `bash assets/zenbook-a16/speaker-boost/install-speaker-boost.sh` as the user. Without it
+the tweeters stay silent. Details: [section 14 of the Zenbook notes](zenbook-a16-omarchy-snapdragon.md#14-speakers-tweeters-were-silent-plus-a-limited-6-db-boost-2026-09-26).
+
 ### XPS 13 only (SKU `0E53`)
 
 1. `sudo pacman -S lsp-plugins-lv2`
