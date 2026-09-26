@@ -1,0 +1,13 @@
+#!/bin/bash
+# a16-nvme-aspm: disable PCIe ASPM L1 on the NVMe SSD's link only (Samsung 144d:a80d on 0005:01:00.0).
+# Mic-measured 2026-09-26: the SSD's link power state drives the coil whine. With L1 on, an 8.9 kHz tone
+# (-84 dBFS at the keyboard); with the whole system's ASPM forced off, a 6.8 kHz tone instead (-87 dBFS).
+# Disabling L1 on the SSD link alone leaves both tones near the noise floor (-94 / -99 dBFS), and keeps
+# Wi-Fi and everything else in their normal power-saving states. "off" restores L1 until the next boot.
+mode=${1:-on}
+for d in /sys/bus/pci/devices/*; do
+  [ "$(cat $d/class 2>/dev/null)" = 0x010802 ] || continue        # NVMe controller
+  [ -e $d/link/l1_aspm ] || continue
+  case $mode in on) echo 0 > $d/link/l1_aspm ;; off) echo 1 > $d/link/l1_aspm ;; esac
+  logger -t a16-nvme-aspm "$(basename $d) l1_aspm=$(cat $d/link/l1_aspm) ($mode)"
+done

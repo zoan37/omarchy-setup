@@ -1,0 +1,12 @@
+[Unit]
+Description=Zenbook A16: disable PCIe ASPM L1 on the NVMe link (coil whine source, mic-verified)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/a16-nvme-aspm on
+ExecStop=/usr/local/bin/a16-nvme-aspm off
+
+[Install]
+WantedBy=multi-user.target
