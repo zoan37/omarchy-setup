@@ -1,0 +1,12 @@
+[Unit]
+Description=Beelink SER8: coil-whine reduction (PCIe links out of L1, C3 idle off)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/ser8-whine-tweaks on
+ExecStop=/usr/local/bin/ser8-whine-tweaks off
+
+[Install]
+WantedBy=multi-user.target
