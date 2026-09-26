@@ -39,7 +39,7 @@ sudo mv -T --no-clobber \
 google-chrome-stable --refresh-platform-policy --no-startup-window
 ```
 
-The backup name above is the actual backup made on 2026-09-18. For a later
+The backup name above is the actual backup made on 2026-09-18. The same fix was applied on the Zenbook A16 on 2026-09-26, where `color.json` was again the only file (backup `managed.omarchy-theme-backup-20260926`). For a later
 repair, use a new, unused backup name; `--no-clobber` deliberately prevents
 overwriting an earlier backup. When an agent runs the move without an
 interactive terminal, use `pkexec` in place of `sudo` so authentication can
