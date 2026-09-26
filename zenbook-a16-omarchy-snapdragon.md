@@ -247,7 +247,12 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   [`a16-cpuidle-nosleep.service`](assets/zenbook-a16/a16-cpuidle-nosleep.service) writes 1 to
   `/sys/devices/system/cpu/cpu*/cpuidle/state1/disable` at boot (`systemctl stop` re-enables it), installed by
   `apply-a16-fixes.sh`. Cost: somewhat higher idle power (unmeasurable here while battery telemetry is broken);
-  idle temperature unchanged. Left ear hears the remainder more than the right at the deck: ear sensitivity at
+  idle temperature unchanged. **A second, clearly audible reduction** came from keeping the peripheral power
+  domains awake: PCIe ASPM policy `performance`, runtime PM forced `on` for all PCI, USB, platform, I2C and SPMI
+  devices, NVMe APST latency 0 ([`a16-nopowersave`](assets/zenbook-a16/a16-nopowersave) +
+  [`.service`](assets/zenbook-a16/a16-nopowersave.service), `a16-nopowersave off` restores defaults). Pinning
+  the GPU (devfreq `performance`, runtime PM on) was part of the first test but was reverted: it raised idle
+  temperature 6 °C and the owner asked to keep it on-demand. Left ear hears the remainder more than the right at the deck: ear sensitivity at
   that frequency, not the laptop. With the laptop in front of the owner it is not an issue. The XPS machines'
   silence is inductor selection, not CPU vendor.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and

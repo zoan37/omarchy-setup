@@ -1,0 +1,12 @@
+[Unit]
+Description=Zenbook A16: keep PCIe/USB/platform power domains awake at idle (reduces coil whine)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/a16-nopowersave on
+ExecStop=/usr/local/bin/a16-nopowersave off
+
+[Install]
+WantedBy=multi-user.target

@@ -57,7 +57,9 @@ install -m 755 "$D/a16-quiet-thermal" /usr/local/bin/a16-quiet-thermal
 install -m 644 "$D/a16-quiet-thermal.service" /etc/systemd/system/a16-quiet-thermal.service
 install -m 755 "$D/glymur-ec-read.sh" "$D/glymur-ec-block.sh" /usr/local/bin/
 install -m 644 "$D/a16-cpuidle-nosleep.service" /etc/systemd/system/a16-cpuidle-nosleep.service
-systemctl daemon-reload; systemctl enable a16-quiet-thermal.service a16-fan-daemon.service a16-cpuidle-nosleep.service >/dev/null 2>&1 || true
+install -m 755 "$D/a16-nopowersave" /usr/local/bin/a16-nopowersave
+install -m 644 "$D/a16-nopowersave.service" /etc/systemd/system/a16-nopowersave.service
+systemctl daemon-reload; systemctl enable a16-quiet-thermal.service a16-fan-daemon.service a16-cpuidle-nosleep.service a16-nopowersave.service >/dev/null 2>&1 || true
 echo "== 5b/6 suspend is broken on this kernel (never resumes, resets instead): mask the sleep targets"
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target >/dev/null 2>&1 || true
 echo "== 6/6 Wi-Fi power save (applies to any saved wireless connection)"
