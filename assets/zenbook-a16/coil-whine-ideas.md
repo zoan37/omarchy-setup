@@ -59,17 +59,20 @@ self-refresh (not active anyway).
   (AOSS system sleep, 10 ms min residency). This kernel exposes only state0/state1 per core, so with state1
   disabled the cluster and AOSS domains should never be entered; verify with `/sys/kernel/debug/qcom_stats/`
   (`aosd`, `cxsd`, `ddr` counters: if they stop increasing, the SoC never sleeps) and
-  `/sys/kernel/debug/pm_genpd/*/idle_states`.
+  `/sys/kernel/debug/pm_genpd/*/idle_states`. Checked 2026-09-26: `aosd`, `cxsd`, `ddr` counters are 0 and
+  `apss` does not move with `cpu-sleep-0` disabled: the SoC never enters any deep domain. Nothing deeper to block.
 - **GPU rail on at minimum clock.** The rejected "GPU thing" raised the clock (+6 °C). The cheaper variant keeps
   the GPU's power domain from collapsing (runtime PM `on`, autosuspend off) while clamping devfreq `max_freq` to
   the lowest OPP (310 MHz): rail stays up, clock stays low, cost a few hundred mW. The GPU idles into CX/GX
   collapse 66 ms after every frame, i.e. a power-domain toggle many times a second at the desktop, which is
-  exactly the kind of periodic load step that rings parts. Untested in this form.
+  exactly the kind of periodic load step that rings parts. Tried: with the GPU device and the GMU held
+  `on` at 310 MHz the `gx_clkctl_gx_gdsc` domain still reads off between frames, i.e. the GMU firmware collapses
+  the graphics rail on its own and Linux cannot hold it. Dead end.
 - **`adreno.disable_acd=1`.** Turns off Adaptive Clock Distribution, a GX-rail droop feature that modulates the
   GPU rail. Boot parameter / module option; untested.
 - **Unbind the CPU bandwidth monitors** (`icc-bwmon`, three of them, one per cluster). They re-vote memory
   bandwidth with CPU load, so the DDR/LLCC frequency and the memory rail follow load. Unbinding freezes the
-  vote (memory may sit at a low frequency: slower, but steady). Reversible by re-binding. Untested.
+  vote (memory may sit at a low frequency: slower, but steady). Tried 2026-09-26 13:05 by ear: no change; rebound.
 - **Constant DDR bandwidth vote** from userspace via the interconnect debugfs test client if the kernel has
   `CONFIG_INTERCONNECT_DEBUGFS_CLIENT`; otherwise no userspace knob (memlat devfreq is still an RFC series).
 - **Regulator modes, clarified by the research:** modes are chosen in-kernel only (no sysfs/debugfs override);
@@ -126,8 +129,7 @@ self-refresh (not active anyway).
 
 ## F. Order I would do them in
 
-Software first, since they are free and reversible: GPU rail on at min clock, icc-bwmon unbind, and a look at
-the AOSS sleep counters. Then:
+The free software ideas are exhausted (GPU rail, bwmon, sleep domains: all checked, see C). Then:
 
 1. Foam or 1.5 mm thermal pad inside the bottom cover over the VRM plate (cover off only, 15 minutes, reversible).
 2. Press test on both clusters, then silicone if the press test says yes.
