@@ -337,8 +337,8 @@ floor and reading the kernel trips (95 °C passive / 115 °C critical, so the So
 
 Edit the conf and `systemctl restart a16-fan-daemon`; watch with `journalctl -fu a16-fan-daemon`.
 
-**Idle floor (chosen 2026-09-26): `IDLE_PWM=30`, ~800 rpm always on.** Instead of stopping, the fan idles at the
-whisper duty and ramps from there; after a load it decays back to 800 rpm. This is the Mac behaviour (MacBook Pro
+**Idle floor (chosen 2026-09-26): `IDLE_PWM=25`, ~700 rpm always on (the slowest speed the fan holds).** Instead of stopping, the fan idles at the
+whisper duty and ramps from there; after a load it decays back to the floor. This is the Mac behaviour (MacBook Pro
 fans never stop, they sit at their minimum), it is harmless for the bearing (continuous slow running wears less
 than stop/start), draws a fraction of a watt, and the owner preferred the feel of it. `IDLE_PWM=0` gives a fully
 stopped fan at idle, which was the state for the first day.
