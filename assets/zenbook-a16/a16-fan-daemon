@@ -1,52 +1,64 @@
 #!/bin/bash
-# a16-fan-daemon v2: smooth custom fan curve for the ASUS Zenbook A16 via the EC mailbox (manual mode).
-# Input: hottest CPU zone, exponentially smoothed (time constant ~20 s at a 3 s period), so short bursts
-# are absorbed. Turn-on needs the smoothed value above ON_C; once on, stays on MIN_ON_S and turns off only
-# after the smoothed value has been below OFF_C for OFF_HOLD_S. Duty changes are slew-limited (UP_STEP /
-# DOWN_STEP per period) for a gradual rise and a slow fade. FAST_C bypasses smoothing (instant ramp).
+# a16-fan-daemon v3.1 "whisper": Mac-style fan policy for the ASUS Zenbook A16 via the EC mailbox (manual mode).
+# Input: hottest CPU/GPU zone, exponentially smoothed (ALPHA_PCT per PERIOD; 5%/3 s = ~60 s time constant),
+# so bursts (installs, page loads, compiles under a minute) never touch the fan. The SoC is rated for 95 C
+# (kernel passive trip) / 115 C (critical), so the fan only starts when the *smoothed* temperature is high.
+# Stages: off -> whisper (PWM_MIN, ~800 rpm, inaudible) -> gentle ramp along CURVE (1 count per period) ->
+# a faster (still smoothed, ~10 s) ramp only while a short-window average is above FAST_C (with 5 C of
+# hysteresis so it cannot hunt). Once on, it stays on MIN_ON_S and turns off only after the smoothed value
+# has been below OFF_C for OFF_HOLD_S; duty decays proportionally (DOWN_DIV) so spin-down feels exponential.
 # Safety: temp >= TRIP_C or any I2C failure -> controller back to automatic and exit (systemd restarts).
-ON_C=${ON_C:-50000}; OFF_C=${OFF_C:-45000}; FAST_C=${FAST_C:-70000}; TRIP_C=${TRIP_C:-85000}
-MIN_ON_S=${MIN_ON_S:-90}; OFF_HOLD_S=${OFF_HOLD_S:-60}; PERIOD=${PERIOD:-3}
-UP_STEP=${UP_STEP:-6}; DOWN_STEP=${DOWN_STEP:-3}; ALPHA_PCT=${ALPHA_PCT:-15}   # EMA weight of the new sample, percent
-PWM_MIN=${PWM_MIN:-75}; BUS=${BUS:-9}
+ON_C=${ON_C:-68000}; OFF_C=${OFF_C:-58000}; FAST_C=${FAST_C:-88000}; TRIP_C=${TRIP_C:-97000}
+MIN_ON_S=${MIN_ON_S:-180}; OFF_HOLD_S=${OFF_HOLD_S:-120}; PERIOD=${PERIOD:-3}
+UP_STEP=${UP_STEP:-1}; UP_STEP_HOT=${UP_STEP_HOT:-4}; HOT_C=${HOT_C:-82000}; UP_STEP_FAST=${UP_STEP_FAST:-8}
+DOWN_DIV=${DOWN_DIV:-25}   # per period the duty may fall by pwm/DOWN_DIV (at least 1): 6 counts at 160, 1 at 30
+ALPHA_PCT=${ALPHA_PCT:-5}; FAST_ALPHA_PCT=${FAST_ALPHA_PCT:-25}; FAST_HYST=${FAST_HYST:-5000}
+PWM_MIN=${PWM_MIN:-30}; BUS=${BUS:-9}; LOCK=/run/lock/a16-fan.lock
+# CURVE: "temp_mC:pwm" knots, smoothed temp -> target duty (linear between knots, clamped at the ends).
+CURVE=${CURVE:-"68000:30 78000:45 85000:90 90000:150 95000:220"}
 rb(){ i2ctransfer -y $BUS w3@0x5b 0x10 $1 $2 >/dev/null 2>&1 || return 1; v=$(i2ctransfer -y $BUS w1@0x5b 0x11 r1@0x5b 2>/dev/null) || return 1; echo $((v)); }
 wb(){ i2ctransfer -y $BUS w3@0x5b 0x10 $1 $2 >/dev/null 2>&1 || return 1; i2ctransfer -y $BUS w2@0x5b 0x11 $3 >/dev/null 2>&1; }
 settle(){ local i; for i in $(seq 1 75); do [ "$(rb 0xc4 0x30)" = 0 ] && return 0; sleep 0.02; done; return 1; }
-eccw(){ settle && wb 0xc4 0x31 $2 && wb 0xc4 0x32 $3 && wb 0xc4 0x30 $1 && settle; }
+exec 9>$LOCK
+eccw(){ local r; flock 9; settle && wb 0xc4 0x31 $2 && wb 0xc4 0x32 $3 && wb 0xc4 0x30 $1 && settle; r=$?; flock -u 9; return $r; }
 set_auto(){ eccw 0x01 0x82 0x00; }
 set_pwm(){ local p=$(printf 0x%02x $1); eccw 0x01 0x8c 0x00 && eccw 0x01 0x8a $p && eccw 0x01 0x8c 0x01 && eccw 0x01 0x8a $p; }
-maxtemp(){ local m=0 z t; for z in /sys/class/thermal/thermal_zone*; do case "$(cat $z/type 2>/dev/null)" in cpu*) t=$(cat $z/temp 2>/dev/null) || continue; [ "$t" -gt "$m" ] && m=$t;; esac; done; echo $m; }
-curve(){ # smoothed temp (mC) -> target pwm: PWM_MIN at ON_C, 120 at 65C, 200 at 80C, 220 at TRIP
-  local t=$1
-  if   [ $t -le $ON_C ];  then echo $PWM_MIN
-  elif [ $t -lt 65000 ];  then echo $(( PWM_MIN + (t-ON_C)*(120-PWM_MIN)/(65000-ON_C) ))
-  elif [ $t -lt 80000 ];  then echo $(( 120 + (t-65000)*80/15000 ))
-  else                          echo $(( 200 + (t-80000)*20/5000 )); fi
-}
+maxtemp(){ local m=0 z t; for z in /sys/class/thermal/thermal_zone*; do case "$(cat $z/type 2>/dev/null)" in cpu*|gpu*) t=$(cat $z/temp 2>/dev/null) || continue; [ "$t" -gt "$m" ] && m=$t;; esac; done; echo $m; }
+curve(){ # smoothed temp (mC) -> target pwm along CURVE
+  local t=$1 k pt pp lt= lp= ; for k in $CURVE; do pt=${k%%:*}; pp=${k##*:}
+    if [ $t -le $pt ]; then if [ -z "$lt" ]; then echo $pp; else echo $(( lp + (t-lt)*(pp-lp)/(pt-lt) )); fi; return; fi
+    lt=$pt; lp=$pp; done; echo $lp; }
 release(){ set_auto; logger -t a16-fan "released to automatic ($1)"; exit ${2:-0}; }
 trap 'release stop 0' TERM INT
 eccw 0x01 0x82 0x02 || { logger -t a16-fan "cannot enter manual mode"; set_auto; exit 1; }
-logger -t a16-fan "v2 manual mode on: on>${ON_C} off<${OFF_C} fast>${FAST_C} trip>=${TRIP_C} minon=${MIN_ON_S}s offhold=${OFF_HOLD_S}s"
-ema=$(maxtemp); fan_on=0; pwm=0; on_since=0; below_since=0; now=0
+logger -t a16-fan "v3.1 whisper: on>${ON_C} off<${OFF_C} hot>${HOT_C} fast>${FAST_C}(-${FAST_HYST}) trip>=${TRIP_C} alpha=${ALPHA_PCT}%/${FAST_ALPHA_PCT}% minon=${MIN_ON_S}s offhold=${OFF_HOLD_S}s pwm_min=${PWM_MIN} down=/${DOWN_DIV} curve='${CURVE}'"
+ema=$(maxtemp); emaf=$ema; fan_on=0; fast=0; pwm=0; on_since=0; below_since=0; now=0
 set_pwm 0 || release "i2c" 1
 while :; do
   t=$(maxtemp); now=$((now+PERIOD))
   [ "$t" -ge "$TRIP_C" ] && release "trip $t" 1
   ema=$(( (ema*(100-ALPHA_PCT) + t*ALPHA_PCT) / 100 ))
+  emaf=$(( (emaf*(100-FAST_ALPHA_PCT) + t*FAST_ALPHA_PCT) / 100 ))
+  if [ $fast -eq 0 ] && [ "$emaf" -ge "$FAST_C" ]; then fast=1; logger -t a16-fan "fast ramp (t=$t emaf=$emaf)"
+  elif [ $fast -eq 1 ] && [ "$emaf" -lt $((FAST_C-FAST_HYST)) ]; then fast=0; logger -t a16-fan "fast ramp over (emaf=$emaf)"; fi
   if [ $fan_on -eq 0 ]; then
-    if [ "$ema" -gt "$ON_C" ] || [ "$t" -ge "$FAST_C" ]; then fan_on=1; on_since=$now; below_since=0; logger -t a16-fan "on (t=$t ema=$ema)"; fi
+    if [ "$ema" -gt "$ON_C" ] || [ $fast -eq 1 ]; then fan_on=1; on_since=$now; below_since=0; logger -t a16-fan "on (t=$t ema=$ema)"; fi
   else
     if [ "$ema" -lt "$OFF_C" ]; then [ $below_since -eq 0 ] && below_since=$now; else below_since=0; fi
     if [ $below_since -ne 0 ] && [ $((now-below_since)) -ge $OFF_HOLD_S ] && [ $((now-on_since)) -ge $MIN_ON_S ]; then fan_on=0; logger -t a16-fan "off (t=$t ema=$ema)"; fi
   fi
   if [ $fan_on -eq 1 ]; then
-    if [ "$t" -ge "$FAST_C" ]; then target=$(curve $t); else target=$(curve $ema); fi
-    if [ $target -gt $pwm ]; then step=$UP_STEP; [ "$t" -ge "$FAST_C" ] && step=40; new=$((pwm+step)); [ $new -gt $target ] && new=$target; [ $new -lt $PWM_MIN ] && new=$PWM_MIN
-    elif [ $target -lt $pwm ]; then new=$((pwm-DOWN_STEP)); [ $new -lt $target ] && new=$target
+    target=$(curve $ema); step=$UP_STEP; [ "$ema" -ge "$HOT_C" ] && step=$UP_STEP_HOT
+    if [ $fast -eq 1 ]; then tf=$(curve $emaf); [ $tf -gt $target ] && target=$tf; step=$UP_STEP_FAST; fi
+    down=$((pwm/DOWN_DIV)); [ $down -lt 1 ] && down=1
+    if [ $pwm -lt $PWM_MIN ]; then new=$PWM_MIN                       # start from rest at the whisper duty
+    elif [ $target -gt $pwm ]; then new=$((pwm+step)); [ $new -gt $target ] && new=$target
+    elif [ $target -lt $pwm ]; then new=$((pwm-down)); [ $new -lt $target ] && new=$target
     else new=$pwm; fi
   else
-    if [ $pwm -gt $PWM_MIN ]; then new=$((pwm-DOWN_STEP)); [ $new -lt $PWM_MIN ] && new=$PWM_MIN; else new=0; fi   # fade to minimum, then off
+    down=$((pwm/DOWN_DIV)); [ $down -lt 1 ] && down=1
+    if [ $pwm -gt $PWM_MIN ]; then new=$((pwm-down)); [ $new -lt $PWM_MIN ] && new=$PWM_MIN; else new=0; fi   # fade to the whisper duty, then off
   fi
-  if [ "$new" != "$pwm" ]; then set_pwm $new || release "i2c write failed" 1; pwm=$new; logger -t a16-fan "t=$t ema=$ema pwm=$pwm"; fi
+  if [ "$new" != "$pwm" ]; then set_pwm $new || release "i2c write failed" 1; pwm=$new; logger -t a16-fan "t=$t ema=$ema emaf=$emaf pwm=$pwm"; fi
   sleep $PERIOD
 done
