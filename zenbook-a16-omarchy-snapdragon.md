@@ -691,3 +691,62 @@ update; the GPU cap may become unnecessary once IFPC/idle-clamp land for X2-85.
 
 **Not measured yet:** the panel at 60 Hz instead of 120 Hz (fewer redraws; typical saving 0.5–1 W on OLED), and USB
 controller runtime PM one controller at a time (~0.25 W on X1E; all four at once shut an X1E down).
+
+### 16.1 Doing it ourselves: what the research found (2026-09-26)
+
+Two research passes (the Windows driver side and the Linux patch side), plus checks on this machine.
+
+**On this machine:**
+- **The panel supports self refresh.** DPCD over `/dev/drm_dp_aux2` (the eDP link) reports PSR `0x070 = 0x3`
+  (PSR2 with Y-coordinates) and Panel Replay `0x0B0 = 0x7`, eDP rev `0x6`. The 7.2 msm driver has
+  `psr_enabled` ("enable PSR for eDP and DP displays", default off; `modinfo msm`). It isn't visible under
+  `/sys/module/msm/parameters`, so it needs `msm.psr_enabled=1` on the kernel command line. It was switched off
+  upstream in 2023 after test failures ([thread](https://lists.openwall.net/linux-kernel/2023/05/24/1213)) and is
+  untested on X1E or Glymur, so the risk is a frozen or garbled screen. Recovery: remove the flag in the GRUB
+  editor, or over SSH. **Not tried yet.**
+- **The AOSS debug knobs exist** at `/sys/kernel/debug/qcom_aoss/{ddr_frequency_mhz,prevent_*_collapse}`.
+  Pinning DDR low is a way to measure the ceiling on what always-fast memory costs; it's not a fix. Too low and
+  2880×1800 at 120 Hz may underrun. Not tried yet.
+- **SCMI raw mode is a dead end on `scmi/0`.** `CONFIG_ARM_SCMI_RAW_MODE_SUPPORT_COEX=y` exposes
+  `/sys/kernel/debug/scmi/0/raw/`, but even a read-only BASE query (via `message` and via `message_poll`)
+  got `shmem_tx_prepare` WARN / "Timeout waiting for a free TX channel", and the `message` variant left an
+  unkillable reader. cpufreq over the same instance kept working afterwards. Don't retry. FixItFoundry reports the
+  same instance lists protocols `[0x13, 0x80]`, and 0x80 answers version 1.0 but DENIES its attribute
+  queries.
+
+**memlat (DDR/LLCC scaling by the CPUCP firmware):** Qualcomm's branch
+[qualcomm-linux/kernel `qcom-7.2`](https://github.com/qualcomm-linux/kernel) carries
+`scmi-qcom-memlat-devfreq.c` with Glymur tables (DDR 547–4761 MHz). The firmware "ships no built-in config": the
+driver sends monitors, event maps and CPU-to-DDR frequency maps (vendor protocol 0x80, `SET_PARAM` 0x10 /
+`START_ACTIVITY` 0x12, algo "MEMLAT"), and after that CPUCP scales on its own
+([v7 series](https://lore.kernel.org/all/20260610-rfc_v7_scmi_memlat-v7-0-f3f68c608f25@oss.qualcomm.com/)). On
+Glymur it lives on a **second** SCMI instance (its own CPUCP mailbox and SRAM shmem) that the Ubuntu DTB doesn't
+describe. It only *raises* DDR/LLCC for memory-bound CPU work, so it helps performance per watt under load, **not
+idle**. Low priority.
+
+**The Windows side** (from X1E reference drivers: [WOA-Project mirror](https://github.com/WOA-Project/Qualcomm-Reference-Drivers),
+`8380_CRD`). The power engine is `qcpep8380.sys`, with its tables in the INF as undocumented "AeoB" blobs
+(clocks, GDSCs, bus votes, bwmon config, idle vetoes). The registry names confirm Windows uses both bwmon and
+firmware memlat for DDR (`EnableBusDcvsMemlatFeature`, `BamonThresholdScalingFactorAC/DC`, `DDRFrequencyFloor/Ceil`).
+The display driver has eDP PSR and dynamic-refresh keys (`EDPMaxPsrVersion`, `EDPDynamicRefreshRates`,
+`DisplayPowerSavingMinRefreshRate`), so **Windows runs this panel with PSR and drops the refresh rate when idle**.
+There's no public AeoB decoder, and the blobs are proprietary: extract them from our own Windows partition for
+personal study, publish findings, never the files.
+
+**Other kernels and trees:**
+- [linux-msm/laptops-kernel](https://github.com/linux-msm/laptops-kernel) `topic/glymur-laptops` (Konrad Dybcio:
+  A16 EC, cameras) has no power features.
+- Ubuntu Concept `7.3.0-15` is already in the PPA.
+- GPU IFPC for X2-85: nothing posted (the catalog entry lacks `ADRENO_QUIRK_IFPC`; enabling it is a one-line
+  patch, but unvalidated and liable to hang the GPU).
+- Qualcomm's official X2 Linux early developer preview: [blog](https://www.qualcomm.com/developer/blog/2026/09/announcing-linux-on-snapdragon-x2-series-early-developer-preview),
+  [docs](https://docs.qualcomm.com/doc/SP80-A0399-4/topic/snapdragon-x2-linux-software-overview.html). Production
+  readiness end of November 2026, Debian by end of 2026, HP/ASUS Linux support H1 2027. No power docs yet.
+
+**Ranked next steps:**
+1. `msm.psr_enabled=1` (one reboot; watch for display glitches). The panel supports it and Windows uses it.
+   Probably the biggest screen-on win.
+2. 60 Hz on battery. Windows lowers the refresh rate itself.
+3. A `ddr_frequency_mhz` experiment, to size the always-fast-DDR cost.
+4. Trim the top of the DT `cpu_bwmon_opp_table` (it votes up to 21.3 GB/s at idle), using the same embedded-DTB patching as sections 5/13.
+5. Ubuntu Concept 7.3 when it lands in the image; re-measure.
