@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+# a16-palm-filter: behavioral palm rejection for the Zenbook A16 touchpad (PixArt 093A:3012).
+#
+# The pad reports positions and a hardware palm flag (ABS_MT_TOOL_TYPE) but no contact size or
+# pressure, so palms are recognized by *behavior*: when a contact lands relative to typing, where
+# it lands, and whether it moves like a finger. The daemon grabs the real touchpad, classifies
+# every contact and re-emits only the accepted ones on a virtual touchpad (uinput), which
+# libinput/Hyprland then use as normal. If this process dies the grab is released and the raw
+# touchpad works again, so a bug can't leave you without a pointer.
+#
+# Per contact, at touch-down:
+#   hardware palm flag                         -> palm (hidden for its lifetime)
+#   Ctrl/Alt/Super held                        -> finger (deliberate modifier+pointer use)
+#   typing active (>=2 quick keystrokes in the
+#     last TYPING_SPAN s, newest < TYPING_GAP s) -> pending, becomes a finger after TYPING_MOVE_MM mm
+#                                                 (palms creep, a hand reaching for the pad sweeps)
+#   within SESSION s of typing:
+#     lands in a side/top edge strip           -> pending, becomes a finger after EDGE_MOVE mm
+#     lands within RECENT s of a keystroke     -> pending, becomes a finger after MOVE mm
+#   otherwise                                  -> finger
+# A pending contact is dropped on the next keystroke and swallowed if lifted without moving (so
+# palm taps never click); a physical click promotes it. A finger that sits still while typing
+# goes on (a hand resting on the pad before typing) is hidden until it travels REST_MOVE mm.
+# Keys held longer than HOLD s (WASD in games) are not keystrokes, so a held key never mutes
+# the pad: this is what libinput's disable-while-typing gets wrong for games.
+#
+# Keystrokes are counted by timing only; key codes are never logged or stored.
+import os, selectors, sys, syslog, time
+from collections import deque
+import evdev
+from evdev import ecodes as e
+
+def env(name, default):
+    return float(os.environ.get(name, default))
+
+TYPING_SPAN = env("TYPING_SPAN", 1.2)    # s: window for counting keystrokes
+TYPING_GAP = env("TYPING_GAP", 0.5)      # s: newest keystroke must be this recent
+MIN_STROKES = int(env("MIN_STROKES", 2))
+HOLD = env("HOLD", 0.3)                  # s: longer key holds are not keystrokes
+RECENT = env("RECENT", 1.2)              # s: contacts landing this soon after typing must move
+SESSION = env("SESSION", 3.0)            # s: edge zones only apply this long after typing
+EDGE_MM = env("EDGE_MM", 10)             # side strips
+TOP_MM = env("TOP_MM", 8)                # strip next to the keyboard
+MOVE_MM = env("MOVE_MM", 4)
+TYPING_MOVE_MM = env("TYPING_MOVE_MM", 10)  # a contact landing mid-typing must travel this far, keystroke-free
+EDGE_MOVE_MM = env("EDGE_MOVE_MM", 8)
+REST_MOVE_MM = env("REST_MOVE_MM", 5)
+REST_STILL_MM = env("REST_STILL_MM", 1.5)  # finger counts as resting if it moved less than this
+REST_STILL_S = env("REST_STILL_S", 0.8)    # ... over this long
+GROUP_S = env("GROUP_S", 0.2)            # pending contacts landing this close together promote together
+DEBUG = os.environ.get("DEBUG", "0") == "1"
+DRY = "--dry" in sys.argv                # classify and log only; don't grab or emit
+
+MT_TOOL_PALM = 2               # linux/input.h; not exported by python-evdev
+MODS = {e.KEY_LEFTSHIFT, e.KEY_RIGHTSHIFT, e.KEY_LEFTCTRL, e.KEY_RIGHTCTRL, e.KEY_LEFTALT,
+        e.KEY_RIGHTALT, e.KEY_LEFTMETA, e.KEY_RIGHTMETA, e.KEY_CAPSLOCK, e.KEY_FN}
+POINTER_MODS = {e.KEY_LEFTCTRL, e.KEY_RIGHTCTRL, e.KEY_LEFTALT, e.KEY_RIGHTALT,
+                e.KEY_LEFTMETA, e.KEY_RIGHTMETA}
+TOOL_BTNS = [e.BTN_TOOL_FINGER, e.BTN_TOOL_DOUBLETAP, e.BTN_TOOL_TRIPLETAP,
+             e.BTN_TOOL_QUADTAP, e.BTN_TOOL_QUINTTAP]
+
+def log(msg):
+    syslog.syslog(syslog.LOG_INFO, msg)
+    if DEBUG or DRY:
+        print(msg, flush=True)
+
+def find(pred):
+    for p in evdev.list_devices():
+        d = evdev.InputDevice(p)
+        if pred(d):
+            return d
+        d.close()
+    return None
+
+RES, XMAX, YMAX, NSLOTS = 31, 4645, 3023, 5      # overwritten from the device in main()
+mm = lambda units: units / RES
+ui = None
+
+# ---- keyboard timing ----
+down = {}                  # keycode -> press time (non-modifiers)
+strokes = deque()          # release times of quick keystrokes
+mods_down = set()
+last_stroke = -1e9         # release time of the newest quick keystroke
+
+def key_event(code, val, t):
+    global last_stroke
+    if code in MODS:
+        (mods_down.add if val else mods_down.discard)(code)
+        return
+    if val == 1:
+        down[code] = t
+    elif val == 0 and code in down:
+        if t - down.pop(code) < HOLD:     # a quick press+release: typing, not a held game key
+            strokes.append(t)
+            last_stroke = t
+            for c in contacts.values():
+                c.on_keystroke(t)
+
+def recent_strokes(t):
+    while strokes and t - strokes[0] > TYPING_SPAN:
+        strokes.popleft()
+    # a key that is down right now and still young is a keystroke in progress
+    return len(strokes) + sum(1 for p in down.values() if t - p < HOLD)
+
+def typing_active(t):
+    young = [p for p in down.values() if t - p < HOLD]
+    newest = max([last_stroke] + young)
+    return recent_strokes(t) >= MIN_STROKES and t - newest < TYPING_GAP
+
+# ---- contacts ----
+class Contact:
+    def __init__(self, slot, tid, t):
+        self.slot, self.tid, self.t0 = slot, tid, t
+        self.x = self.y = None
+        self.tool = 0
+        self.state = None          # "finger" | "pending" | "palm" | "rest"
+        self.reason = ""
+        self.need = 0.0            # mm of travel needed to promote
+        self.ax = self.ay = 0      # anchor for travel measurement
+        self.sx = self.sy = 0      # touch-down point
+        self.travel = 0.0          # max distance from the touch-down point, mm
+        self.hist = deque()        # (t, x, y) for rest detection
+        self.promoted = False
+        self.out_tid = None
+
+    def classify(self, t):
+        self.ax, self.ay, self.sx, self.sy = self.x, self.y, self.x, self.y
+        edge = (mm(self.x) < EDGE_MM or mm(XMAX - self.x) < EDGE_MM or mm(self.y) < TOP_MM)
+        others = [c for c in contacts.values() if c is not self and c.state == "finger"]
+        if self.tool == MT_TOOL_PALM:
+            self.set("palm", "hw-palm")
+        elif mods_down & POINTER_MODS:
+            self.set("finger", "modifier")
+        elif typing_active(t):
+            self.set("pending", "typing", TYPING_MOVE_MM)
+        elif others and not edge:
+            self.set("finger", "with-finger")
+        elif t - last_stroke < SESSION and edge:
+            self.set("pending", "edge", EDGE_MOVE_MM)
+        elif t - last_stroke < RECENT:
+            self.set("pending", "recent", MOVE_MM)
+        else:
+            self.set("finger", "")
+
+    def set(self, state, reason="", need=0.0):
+        self.state, self.reason, self.need = state, reason or self.reason, need
+        if state in ("pending", "rest"):
+            self.ax, self.ay = self.x, self.y
+
+    def on_keystroke(self, t):
+        if self.state == "pending":
+            self.set("palm", self.reason + "+key")
+
+    def update(self, t):
+        d = mm(((self.x - self.sx) ** 2 + (self.y - self.sy) ** 2) ** 0.5)
+        self.travel = max(self.travel, d)
+        if self.tool == MT_TOOL_PALM and self.state != "palm":
+            self.set("palm", "hw-palm")
+            return
+        if self.state in ("pending", "rest"):
+            if mm(((self.x - self.ax) ** 2 + (self.y - self.ay) ** 2) ** 0.5) >= self.need:
+                self.promote(t)
+        elif self.state == "finger" and not btn_left:
+            self.hist.append((t, self.x, self.y))
+            while self.hist and t - self.hist[0][0] > REST_STILL_S:
+                self.hist.popleft()
+            if typing_active(t) and t - self.t0 > REST_STILL_S:
+                xs = [h[1] for h in self.hist]; ys = [h[2] for h in self.hist]
+                if mm(max(xs) - min(xs)) < REST_STILL_MM and mm(max(ys) - min(ys)) < REST_STILL_MM:
+                    self.set("rest", "resting", REST_MOVE_MM)
+                    self.hist.clear()
+
+    def promote(self, t):
+        self.state, self.promoted = "finger", True
+        if DEBUG:
+            log(f"promote slot{self.slot} {self.reason} after {t - self.t0:.2f}s")
+        for c in contacts.values():   # fingers that landed together (two-finger scroll)
+            if c is not self and c.state == "pending" and c.reason != "edge" \
+                    and abs(c.t0 - self.t0) < GROUP_S:
+                c.state, c.promoted = "finger", True
+
+    def end(self, t):
+        if self.state is None:
+            return
+        if self.state != "finger" or self.promoted or self.reason not in ("", "with-finger"):
+            nx, ny = 100 * self.sx / XMAX, 100 * self.sy / YMAX
+            log(f"contact {self.state}{' (promoted)' if self.promoted else ''} reason={self.reason or '-'} "
+                f"dur={t - self.t0:.2f}s travel={self.travel:.1f}mm start=({nx:.0f}%,{ny:.0f}%)")
+
+contacts = {}      # slot -> Contact
+slot_last = {}     # slot -> (x, y, tool) as last reported, survives between contacts
+cur = 0
+btn_left = 0
+
+# ---- output ----
+out = {}           # slot -> (out_tid, x, y, tool)
+out_slot = None
+out_btn = {}
+out_xy = (None, None)
+next_tid = 1
+dropping = False
+
+def emit_frame():
+    global out_slot, out_xy, next_tid
+    evs = []
+    def w(t, c, v):
+        evs.append((t, c, v))
+    def sel(s):
+        global out_slot
+        if out_slot != s:
+            w(e.EV_ABS, e.ABS_MT_SLOT, s)
+            out_slot = s
+    visible = []
+    for s in range(NSLOTS):
+        c = contacts.get(s)
+        vis = c is not None and c.state == "finger" and c.x is not None
+        prev = out.get(s)
+        if vis:
+            if prev is None:
+                c.out_tid = next_tid; next_tid = next_tid % 65535 + 1
+                sel(s)
+                w(e.EV_ABS, e.ABS_MT_TRACKING_ID, c.out_tid)
+                w(e.EV_ABS, e.ABS_MT_POSITION_X, c.x)
+                w(e.EV_ABS, e.ABS_MT_POSITION_Y, c.y)
+                w(e.EV_ABS, e.ABS_MT_TOOL_TYPE, c.tool)
+            else:
+                _, px, py, pt = prev
+                if c.x != px or c.y != py or c.tool != pt:
+                    sel(s)
+                    if c.x != px: w(e.EV_ABS, e.ABS_MT_POSITION_X, c.x)
+                    if c.y != py: w(e.EV_ABS, e.ABS_MT_POSITION_Y, c.y)
+                    if c.tool != pt: w(e.EV_ABS, e.ABS_MT_TOOL_TYPE, c.tool)
+            out[s] = (c.out_tid, c.x, c.y, c.tool)
+            visible.append(c)
+        elif prev is not None:
+            sel(s)
+            w(e.EV_ABS, e.ABS_MT_TRACKING_ID, -1)
+            del out[s]
+    n = len(visible)
+    want = {e.BTN_TOUCH: int(n > 0), e.BTN_LEFT: btn_left}
+    for i, b in enumerate(TOOL_BTNS):
+        want[b] = int(n == i + 1)
+    for b, v in want.items():
+        if out_btn.get(b, 0) != v:
+            w(e.EV_KEY, b, v)
+            out_btn[b] = v
+    if visible and (visible[0].x, visible[0].y) != out_xy:
+        out_xy = (visible[0].x, visible[0].y)
+        w(e.EV_ABS, e.ABS_X, out_xy[0])
+        w(e.EV_ABS, e.ABS_Y, out_xy[1])
+    if evs and ui:
+        for ev in evs:
+            ui.write(*ev)
+        ui.syn()
+
+def pad_event(ev):
+    global cur, btn_left, dropping
+    t = ev.timestamp()
+    if ev.type == e.EV_SYN:
+        if ev.code == e.SYN_DROPPED:
+            dropping = True
+            return
+        if ev.code != e.SYN_REPORT:
+            return
+        if dropping:            # state is unreliable after an overflow: end every contact
+            dropping = False
+            for c in contacts.values():
+                c.end(t)
+            contacts.clear()
+            emit_frame()
+            return
+        for c in contacts.values():
+            if c.state is None and c.tid != -1 and c.x is not None and c.y is not None:
+                c.classify(t)
+        for s, c in list(contacts.items()):
+            if c.tid == -1:
+                c.end(t)
+                del contacts[s]
+            elif c.state:
+                c.update(t)
+        emit_frame()
+        return
+    if dropping:
+        return
+    if ev.type == e.EV_KEY and ev.code == e.BTN_LEFT:
+        btn_left = ev.value
+        if btn_left and not any(c.state == "finger" for c in contacts.values()):
+            for c in contacts.values():      # a physical click is deliberate
+                if c.state in ("pending", "rest"):
+                    c.reason += "+click"; c.promote(t)
+        return
+    if ev.type != e.EV_ABS:
+        return
+    if ev.code == e.ABS_MT_SLOT:
+        cur = ev.value
+    elif ev.code == e.ABS_MT_TRACKING_ID:
+        old = contacts.get(cur)
+        if ev.value == -1:
+            if old:
+                old.tid = -1
+        else:
+            if old and old.tid != -1:
+                old.end(t)
+            c = Contact(cur, ev.value, t)
+            # the kernel only sends values that changed since the slot's previous contact
+            c.x, c.y, c.tool = slot_last.get(cur, (None, None, 0))
+            contacts[cur] = c
+    elif ev.code in (e.ABS_MT_POSITION_X, e.ABS_MT_POSITION_Y, e.ABS_MT_TOOL_TYPE):
+        lx, ly, lt = slot_last.get(cur, (None, None, 0))
+        if ev.code == e.ABS_MT_POSITION_X: lx = ev.value
+        elif ev.code == e.ABS_MT_POSITION_Y: ly = ev.value
+        else: lt = ev.value
+        slot_last[cur] = (lx, ly, lt)
+        c = contacts.get(cur)
+        if c:
+            c.x, c.y, c.tool = lx, ly, lt
+
+def main():
+    global RES, XMAX, YMAX, NSLOTS, ui
+    pad = find(lambda d: "093A:3012 Touchpad" in d.name)
+    if not pad:
+        sys.exit("touchpad 093A:3012 not found")
+    kbds = []
+    for p in evdev.list_devices():
+        d = evdev.InputDevice(p)
+        keys = d.capabilities().get(e.EV_KEY, [])
+        if d.name == "Asus Keyboard" and e.KEY_A in keys:
+            kbds.append(d)
+        else:
+            d.close()
+    if not kbds:
+        sys.exit("internal keyboard not found")
+
+    ai = {c: pad.absinfo(c) for c in (e.ABS_X, e.ABS_Y, e.ABS_MT_SLOT, e.ABS_MT_POSITION_X,
+                                      e.ABS_MT_POSITION_Y, e.ABS_MT_TOOL_TYPE, e.ABS_MT_TRACKING_ID)}
+    RES = ai[e.ABS_MT_POSITION_X].resolution or 31
+    XMAX = ai[e.ABS_MT_POSITION_X].max
+    YMAX = ai[e.ABS_MT_POSITION_Y].max
+    NSLOTS = ai[e.ABS_MT_SLOT].max + 1
+
+    if not DRY:
+        caps = {e.EV_KEY: [e.BTN_LEFT, e.BTN_TOUCH] + TOOL_BTNS,
+                e.EV_ABS: [(c, a) for c, a in ai.items()]}
+        ui = evdev.UInput(caps, name=pad.name + " (palm filter)", vendor=pad.info.vendor,
+                          product=pad.info.product, version=pad.info.version, bustype=pad.info.bustype,
+                          input_props=[e.INPUT_PROP_POINTER, e.INPUT_PROP_BUTTONPAD])
+        pad.grab()
+
+    syslog.openlog("a16-palm-filter")
+    log(f"started{' (dry run)' if DRY else ''}: pad={pad.path} keyboards={[k.path for k in kbds]} "
+        f"slots={NSLOTS} res={RES}/mm typing={MIN_STROKES}x/{TYPING_SPAN}s gap={TYPING_GAP}s hold={HOLD}s "
+        f"recent={RECENT}s session={SESSION}s edge={EDGE_MM}mm top={TOP_MM}mm move={MOVE_MM}/{TYPING_MOVE_MM}/{EDGE_MOVE_MM}/{REST_MOVE_MM}mm")
+
+    sel_ = selectors.DefaultSelector()
+    sel_.register(pad, selectors.EVENT_READ, "pad")
+    for k in kbds:
+        sel_.register(k, selectors.EVENT_READ, "kbd")
+    try:
+        while True:
+            for key, _ in sel_.select():
+                dev = key.fileobj
+                for ev in dev.read():
+                    if key.data == "kbd":
+                        if ev.type == e.EV_KEY and ev.value in (0, 1):
+                            key_event(ev.code, ev.value, ev.timestamp())
+                    else:
+                        pad_event(ev)
+    finally:
+        if ui:
+            try: pad.ungrab()
+            except OSError: pass
+            ui.close()
+
+if __name__ == "__main__":
+    main()
