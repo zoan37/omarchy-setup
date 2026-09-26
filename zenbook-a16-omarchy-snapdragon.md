@@ -257,7 +257,12 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   [`a16-nvme-aspm`](assets/zenbook-a16/a16-nvme-aspm) + [`.service`](assets/zenbook-a16/a16-nvme-aspm.service)
   write `0` to the NVMe controller's `link/l1_aspm` at boot (`a16-nvme-aspm off` restores it); Wi-Fi and
   everything else keep their normal power saving. Cost: the SSD link never enters L1 (tens of mW). The remaining
-  6.8 kHz tone is the board's parts; the owner hears it with the left ear more than the right (ear sensitivity),
+  6.8 kHz tone was chased further with the mic (`whine-round6.sh`, `whine-round7.sh`): display 60 Hz, screen
+  off, brightness min/max and the audio stack change nothing; it is tied to the **Wi-Fi card's power path** but
+  in the wrong direction for a fix: Wi-Fi radio off makes it 9 dB louder, Wi-Fi link L1 off 6 dB louder, traffic
+  and `power_save` no change. The stock Wi-Fi state (connected, L1 on) is already its quietest, so the current
+  configuration is the measured optimum: ≈ −93 dBFS at 6.8 kHz, ≈ −100 at 8.9 kHz, versus −83 stock. The
+  remainder is the board's parts; the owner hears it with the left ear more than the right (ear sensitivity),
   and not at all with the laptop in front of them. The XPS machines' silence is inductor selection, not CPU
   vendor. Do not re-investigate beyond this.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
