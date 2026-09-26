@@ -1,0 +1,13 @@
+[Unit]
+Description=Zenbook A16: coil-whine reductions (PCIe links at Gen1, prime clusters offline, CPU clock floor)
+After=multi-user.target a16-nvme-aspm.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/default/a16-whine
+ExecStart=/usr/local/bin/a16-whine-tweaks on
+ExecStop=/usr/local/bin/a16-whine-tweaks off
+
+[Install]
+WantedBy=multi-user.target

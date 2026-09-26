@@ -28,7 +28,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
 | Bluetooth | No adapter: needs a device-tree patch (serdev node + regulators + `w-disable2` polarity, see jc372 patch 0001). Firmware is already in the image. Not done yet |
 | Battery percentage | Empty (`qcom-battmgr` cannot link to `a600000.usb`/`a800000.usb`, so the PMIC GLINK battery manager never comes up). Charging works. The USB-PHY DT patch that fixes this on FixItFoundry's kernel breaks the panel here (section 12) |
-| Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Faint 6.8 kHz remainder is hardware (section 8) |
+| Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` (PCIe links Gen1, cpu6-17 offline, 1.5 GHz floor; costs performance). Remainder is hardware (section 8) |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
 | Camera | Not tested |
 | Black screen after LUKS unlock | Intermittent eDP link-training failure (`link training on sink failed. ret=-110`), any entry. Power-cycle. Also the backlight boots at 5 %, which looks black on the OLED |
@@ -265,6 +265,20 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   remainder is the board's parts; the owner hears it with the left ear more than the right (ear sensitivity),
   and not at all with the laptop in front of them. The XPS machines' silence is inductor selection, not CPU
   vendor. Do not re-investigate beyond this.
+  **Round 8 (2026-09-26 morning, ear-judged, room too noisy for the mic):** the untested knobs were applied all
+  at once and the owner judged it "helps more, if not the same", so they stay on as
+  [`a16-whine-tweaks`](assets/zenbook-a16/a16-whine-tweaks) + [`.service`](assets/zenbook-a16/a16-whine-tweaks.service)
+  with values in [`/etc/default/a16-whine`](assets/zenbook-a16/a16-whine.conf): NVMe PCIe link retrained at
+  **Gen1** (root port LnkCtl2 target speed + LnkCtl retrain via `setpci`; stock Gen4 x4), Wi-Fi link at **Gen1**
+  (stock Gen3 x1), the two 4.4 GHz clusters **cpu6-17 offline**, and `scaling_min_freq` **1.5 GHz** on the remaining
+  3.6 GHz cluster. GPU devfreq pinned to max was tried too and reverted (power, +6 °C). Costs, in order of pain:
+  multi-thread CPU performance drops to roughly a third and the fastest cores are gone (single-thread ≈ 20 %
+  slower); SSD sequential throughput is capped near 0.9 GB/s instead of ~6 (random-IO latency barely changes,
+  desktop use does not notice); Wi-Fi is capped near 2 Gbit/s over the link (no home connection reaches that);
+  light loads run at ≥ 1.5 GHz, a small battery cost since idle cores still clock-gate. Not mic-verified: if a
+  quiet room comes back, run `whine-round8.sh` (in `whine-mic/`) to see which of the four actually moves the
+  tones, then drop the others. `a16-whine-tweaks off` or `systemctl disable --now a16-whine-tweaks` restores
+  stock without a reboot.
 - **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
   Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
   0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
