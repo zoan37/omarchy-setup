@@ -35,7 +35,16 @@ chassis), any other glue.
    when charging with the machine off.
 
 Everything else (SSD, panel, ports) is left alone. The inductors face the **bottom cover**, under the fans and the
-heatpipe assembly; the cooler has a VRM plate resting on cluster 1 through a pad.
+heatpipe assembly.
+
+**What the cooler looks like from underneath** (TechPowerUp "cooling-bottom" photo): a copper block with a grey
+pad on the SoC die and two putty patties on the memory dies, and on each side a **thin black sheet-metal plate**
+(with square cut-outs) that extends over the VRM clusters. Those plates carry round black putty blobs that land
+on the **PMICs only**; the inductor cubes get nothing, they sit in an air gap under the plate whose height is set
+by the squashed PMIC blobs (roughly 0.5–1.5 mm). Consequences: (1) the thin plate is an obvious resonator and is
+exactly what the cover-side pad should press on; (2) putty packed between the cubes is confined by that plate,
+so it stays put; (3) do **not** pile putty above the inductor tops: the PMIC blobs set the plate height, and
+extra height there would lift the plate off the PMICs.
 
 ## Before opening
 
