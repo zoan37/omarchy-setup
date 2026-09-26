@@ -13,8 +13,10 @@ The gaps track activity (it was busier while background jobs ran). Not the case 
 - Wi-Fi link out of L1
 - CPU C3 idle state disabled (`cpuidle/state3/disable = 1` on all cores)
 
-With them on the buzz faded into the background; turning them off brought it back within a minute. Cost: a few
-watts at idle on a plugged-in box, nothing else. Not bisected (too faint to bother).
+With them on the buzz faded into the background; turning them off brought it back within a minute. **But the C3
+part is not free:** at similar load the CPU went from 41 °C to 47–48 °C and the case fan from a steady 755 rpm to
+870–1170 rpm, hunting, i.e. audible from the chair. That is a worse noise than the buzz it hides, so the service
+keeps only the two PCIe link changes by default; `C3_OFF=1` in `/etc/default/ser8-whine` adds the C3 part.
 
 **Permanent:** [`assets/ser8/ser8-whine-tweaks`](assets/ser8/ser8-whine-tweaks) +
 [`.service`](assets/ser8/ser8-whine-tweaks.service), installed by

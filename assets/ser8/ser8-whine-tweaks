@@ -1,12 +1,14 @@
 #!/bin/bash
 # ser8-whine-tweaks on|off: Beelink SER8 coil-whine reduction (2026-09-26, ear-judged: buzz returns with "off").
-#   NVMe and Wi-Fi PCIe links kept out of ASPM L1, CPU C3 idle state disabled. Cost: a few watts at idle.
-mode=${1:-on}
+#   NVMe and Wi-Fi PCIe links kept out of ASPM L1; optionally the CPU C3 idle state disabled.
+#   C3 off cost +6 °C idle and fan 755 -> ~1000 rpm (audible), so it is OFF by default: set C3_OFF=1 in
+#   /etc/default/ser8-whine to enable it.
+mode=${1:-on}; C3_OFF=${C3_OFF:-0}
 for d in /sys/bus/pci/devices/*; do
   case "$(cat $d/class 2>/dev/null)" in 0x010802|0x028000) [ -e $d/link/l1_aspm ] || continue
     case $mode in on) echo 0 > $d/link/l1_aspm ;; off) echo 1 > $d/link/l1_aspm ;; esac
     logger -t ser8-whine-tweaks "$(basename $d) l1_aspm=$(cat $d/link/l1_aspm)";; esac
 done
-v=1; [ "$mode" = off ] && v=0
+v=0; [ "$mode" = on ] && [ "$C3_OFF" = 1 ] && v=1
 for c in /sys/devices/system/cpu/cpu*/cpuidle/state3/disable; do echo $v > $c; done
 logger -t ser8-whine-tweaks "C3 disable=$v ($mode)"
