@@ -1,0 +1,13 @@
+[Unit]
+Description=Zenbook A16: cap the GPU clock so desktop redraws don't boost it to max (battery)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/default/a16-gpu-cap
+ExecStart=/usr/local/bin/a16-gpu-cap on
+ExecStop=/usr/local/bin/a16-gpu-cap off
+
+[Install]
+WantedBy=multi-user.target

@@ -30,6 +30,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Battery percentage | **Works** after enabling the SoCCP remoteproc in the DTB (section 13): %, Wh, charge cycles, time left, 75–80 % charge limit all read. Power panel needs a small `omarchy-battery-status` patch |
 | Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 4.45 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Remainder is hardware (section 8) |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
+| Battery life | ~13–15 W at light use (~5 h). GPU boost to max on trivial redraws costs 2–3 W, capped by `a16-gpu-cap.service`; the rest is missing platform power management (section 16) |
 | Touchpad palm rejection | Custom behavioral filter `a16-palm-filter.service` (section 15); libinput's disable-while-typing stays off for games |
 | Camera | Not tested |
 | Black screen after LUKS unlock | Intermittent eDP link-training failure (`link training on sink failed. ret=-110`), any entry. Power-cycle. Also the backlight boots at 5 %, which looks black on the OLED |
@@ -629,3 +630,64 @@ now held back and let through after 10 mm instead.
 
 **Revert:** `sudo systemctl disable --now a16-palm-filter`. The virtual pad disappears and the real one is
 used again straight away.
+
+## 16. Battery drain: ~13–15 W at light use (investigated 2026-09-26)
+
+**Symptom:** 70 Wh lasts about 5 hours at light desktop use. The battery drew **13–15 W** with ~2 % CPU load,
+the OLED at 50 % and a dark theme. Snapdragon X machines idle at roughly 3–6 W on Windows.
+
+**Measuring is the hard part.** `qcom-battmgr`'s `power_now` and `energy_now` update only every 1–5 minutes, in
+uneven steps (one step implied 26 W). Short A/B tests are meaningless, and so were my first ones. It only
+became usable below ~10 %, where it updated every 5 s. Useful measurements need windows of 5–10 minutes, or
+proxy metrics that move instantly (GPU frequency residency in `/sys/class/devfreq/3d00000.gpu/trans_stat`,
+bandwidth votes in `/sys/kernel/debug/interconnect/interconnect_summary`). Note also that a busy terminal is not
+idle. A Claude Code session redrawing its spinner was the "idle" load throughout.
+
+**Findings:**
+
+| Suspect | Result |
+|---|---|
+| **GPU boosting to 1.85 GHz on trivial redraws** | **The biggest item, 2–3 W.** Since boot, 26 % of GPU time was at the 1850 MHz top step; a 30 s window with a terminal spinner at 120 Hz spent 11.7 s there (avg 1789 MHz). Capping `max_freq` at 760 MHz left it at 310 MHz. Battery, same activity: **15.7 W uncapped vs 12.8 W capped** (5 and 10 min windows, `power_now` 13.5–14.7 → 11.0–11.4 W) |
+| Coil-whine tweaks (section 8: cpu-sleep-0 off, 4.45 GHz floor, runtime PM forced on, NVMe L1 off) | **≤ ~1–2 W, not resolved by the gauge**: tweaks off read 11.5–12.8 W against 12.3–14.7 W on, in 5 min windows. Each tweak alone was lost in the noise. Kept, by choice |
+| Screen brightness 50 % → 15 % | No visible change (dark theme on OLED) |
+| CPU cluster bandwidth monitor (`100d400.pmu`) | Votes 11–21 GB/s peak DDR bandwidth (the max is 21.3) with the clock pinned or free. Probably keeps DDR fast; not fixable from userspace (memlat scaling for Glymur is an unmerged RFC). Unbinding bwmon was tried earlier for whine: no change by ear, power not measured |
+| SoC deep sleep (`qcom_stats` `aosd`/`cxsd`/`ddr`) | 0 entries with the screen on, as on X1E. `power-domain-system` idle states are entered only when cpu-sleep-0 is enabled |
+
+**Why the GPU boosts (from the research, msm source):** `msm_gpu_devfreq.c` polls every 50 ms with
+`upthreshold=50`, boosts 2× after any idle gap over 50 ms (`msm_devfreq_active`), and `msm_fence.c` boosts again
+when a frame is not done 3 ms before its vblank deadline. The idle clamp is on only for A618/7c3, so the X2-85
+keeps the boosted clock through idle and ratchets up. Qualcomm proposed `upthreshold=90` in 2025 because 50
+"causes very frequent gpu frequency spikes to FMAX even with … UI scrolling" (not in mainline). The debugfs knobs
+exist here (`/sys/kernel/debug/dri/1/devfreq/{upthreshold,idle_clamp}`), **but neither helped**: 90, and
+90 + `idle_clamp=Y`, still spent ~13 of 30 s at ≥ 1.5 GHz. Only a `max_freq` cap works. Caps tested:
+**1070 MHz ratchets to the cap and stays there; 915 and 760 MHz stay at 310 MHz.**
+
+**Fix: [a16-gpu-cap](assets/zenbook-a16/a16-gpu-cap)** caps the GPU at 915 MHz at boot
+([service](assets/zenbook-a16/a16-gpu-cap.service), [config](assets/zenbook-a16/a16-gpu-cap.conf)
+→ `/etc/default/a16-gpu-cap`). That's about half the top clock, so heavy 3D is slower. `sudo a16-gpu-cap off`
+gives the full 1850 MHz for a game, and `sudo a16-gpu-cap on` restores the cap; `a16-gpu-cap status` shows it.
+```
+sudo install -m755 assets/zenbook-a16/a16-gpu-cap /usr/local/bin/
+sudo install -m644 assets/zenbook-a16/a16-gpu-cap.service /etc/systemd/system/
+sudo install -m644 assets/zenbook-a16/a16-gpu-cap.conf /etc/default/a16-gpu-cap
+sudo systemctl daemon-reload && sudo systemctl enable --now a16-gpu-cap
+```
+
+**What's left is the platform** (web research, 2026-09-26). No screen-on Linux power figures are published for
+X1E or X2. On X1E, screen-off idle is ~2.5 W on Linux vs ~0.5 W on Windows
+([LKML, Feb 2026](https://lkml.iu.edu/hypermail/linux/kernel/2602.2/07307.html)). Missing or unmerged for Glymur
+as of September 2026:
+- firmware-side DDR/LLCC scaling (memlat over SCMI, RFC: [arm-scmi](https://ratatoskr.run/arm-scmi/2026/07/17313450/t));
+  until then the memory buses sit at fixed or max frequency;
+- GPU power collapse between frames (IFPC) for X2-85 ([dri-devel](https://ratatoskr.run/dri-devel/2026/03/3475953/t));
+- panel self refresh on these eDP panels (not confirmed either way);
+- the SS3 system-sleep and genpd fixes (X1E; landing in 7.3+:
+  [genpd fix](https://ratatoskr.run/linux-arm-msm/2026/08/17394853/t));
+- the ASUS Glymur EC driver ([Phoronix](https://www.phoronix.com/news/ASUS-Zenbook-Snapdragon-X2-EC)).
+
+The Glymur deep states themselves are defined: cpu_c4 is "cpu-sleep-0", with cluster_cl5 and domain_ss3 as genpd
+states ([LKML](https://lkml.iu.edu/hypermail/linux/kernel/2510.1/04662.html)). Re-measure after a kernel
+update; the GPU cap may become unnecessary once IFPC/idle-clamp land for X2-85.
+
+**Not measured yet:** the panel at 60 Hz instead of 120 Hz (fewer redraws; typical saving 0.5–1 W on OLED), and USB
+controller runtime PM one controller at a time (~0.25 W on X1E; all four at once shut an X1E down).
