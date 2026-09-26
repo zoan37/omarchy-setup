@@ -226,7 +226,26 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
 - **Battery telemetry:** see section 12 for what not to do; needs the USB-controller/SoCCP side of the DT.
 - **Camera, suspend:** untested. **Black screen after LUKS unlock:** intermittent eDP link-training failure
   on any entry; power-cycle. Not seen since the reinstall (0 occurrences in the current dmesg).
-- Coil whine while charging powered-off (stops once booted): not investigated.
+- **Coil whine (2026-09-26):** with the fan stopped, a constant high tone ("eeee") is audible with an ear at the
+  chassis, not at desk distance; the owner noticed it because the laptop sat beside their left ear. It is unchanged
+  by the charger (unplugged), display brightness, screen off, CPU load, clocks pinned to max or min, Wi-Fi off, or
+  audio off (`~/whine-test.sh` on the laptop steps through those), so it is a fixed-frequency regulator on an
+  always-on rail (battery-to-system power stage or a standby rail), not the SoC regulators and not something
+  software can reach. Fan masking at 700 and 1250 rpm did not cover it. The powered-off charging whine noticed on
+  day one is the same power stage. Verdict: hardware/parts choice on this board; placement (not next to an ear) and
+  habituation. The XPS machines' silence is inductor selection, not CPU vendor.
+- **Fn-lock / hotkey mode (paused):** on Windows the F-row is in hotkey mode; here it boots in F-key mode and
+  Fn+Esc does nothing. The DSDT's Fn switch is `ECCW(2,0x84, 0x04|0x08 [|KFSK 0x80])` (WMI `0x00100023`); writing
+  0x04 or 0x08, with or without the `ECCW(2,0x83,1)` "OS present" handshake the driver sends at load, changed
+  nothing. Captured scan codes (bare F1-F12 = KEY_F1..F12; Fn+F row = 149 113 114 115 228 224 225 Meta+P 99 191
+  248 212 148, i.e. vendor key, mute, vol-, vol+, kbd backlight, bright-, bright+, display, PrtSc, touchpad
+  toggle, mic mute, camera, vendor key). Plan if resumed: swap in Hyprland (`bindings.lua`: bare F-keys →
+  the `media.lua` commands, XF86 keys → synthesized F-keys with `send_key_state`). **Fn+F10 toggles the touchpad**
+  (`omarchy-toggle-touchpad`), which is easy to hit by accident; `omarchy-toggle-touchpad on` restores it.
+- **Keyboard backlight:** `ECCW(1,0x81,4)` makes the host own the backlight (the EC then ignores the backlight
+  key); `ECCW(1,0x87,level)` with the DSDT's table values 0x00/0x55/0xAA/0xFF sets it; `ECCW(1,0x81,0)` hands it
+  back to the EC. There is no `/sys/class/leds/*kbd_backlight*`, so `omarchy-brightness-keyboard` has nothing to
+  drive; the EC handles the key itself (and runs a slow breathing effect by default).
 - The `oma-snap` kernel-update tooling may regenerate `grub.cfg`; keep the install stick and
   [`apply-a16-fixes.sh`](assets/zenbook-a16/apply-a16-fixes.sh).
 
@@ -316,10 +335,13 @@ floor and reading the kernel trips (95 °C passive / 115 °C critical, so the So
   than it would be with the fan doing the work; raise `HOT`/`COOL` in `a16-quiet-thermal` to trade noise for
   speed).
 
-Edit the conf and `systemctl restart a16-fan-daemon`; watch with `journalctl -fu a16-fan-daemon`. `IDLE_PWM=25` (or 30)
-keeps an always-on ~700-800 rpm floor instead of stopping the fan, Mac-style; harmless for the bearing, a taste call. Tried
-as whine masking on 2026-09-26: neither 700 nor 1250 rpm covered the coil whine (a constant tone from an always-on rail,
-unchanged by CPU load, clocks, Wi-Fi, audio or display; only audible with an ear at the chassis), so the default stays 0.
+Edit the conf and `systemctl restart a16-fan-daemon`; watch with `journalctl -fu a16-fan-daemon`.
+
+**Idle floor (chosen 2026-09-26): `IDLE_PWM=30`, ~800 rpm always on.** Instead of stopping, the fan idles at the
+whisper duty and ramps from there; after a load it decays back to 800 rpm. This is the Mac behaviour (MacBook Pro
+fans never stop, they sit at their minimum), it is harmless for the bearing (continuous slow running wears less
+than stop/start), draws a fraction of a watt, and the owner preferred the feel of it. `IDLE_PWM=0` gives a fully
+stopped fan at idle, which was the state for the first day.
 
 **How it compares to a MacBook Pro (honest assessment):** at idle and in bursty everyday use it is level or
 better: 0 rpm idle, bursts tolerated by policy, and a first stage (~800 rpm) below Apple's ~1200–1500 rpm
