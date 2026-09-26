@@ -1,0 +1,19 @@
+#!/bin/bash
+# a16-gpu-cap on|off|status: cap the Adreno GPU's max clock so desktop redraws stop boosting it to 1.85 GHz.
+# The msm devfreq code boosts 2x after every idle gap and before vblank deadlines; on this X2-85 there is no
+# idle clamp, so the clock ratchets up and trivial redraws (a terminal spinner at 120 Hz) spend ~40 % of the
+# time at 1850 MHz. Measured 2026-09-26 (30 s windows): uncapped avg 1789 MHz; cap 1070 still sits at the cap;
+# cap 915 or 760 keeps it at 310 MHz. Battery: ~15.7 W -> ~12.8 W over 5-10 min windows (coarse gauge).
+# upthreshold=90 / idle_clamp=Y in debugfs did not help. Config: /etc/default/a16-gpu-cap (GPU_MAX_HZ).
+GPU_MAX_HZ=${GPU_MAX_HZ:-915000000}
+G=/sys/class/devfreq/3d00000.gpu
+for i in $(seq 30); do [ -w $G/max_freq ] && break; sleep 1; done
+[ -e $G/max_freq ] || { echo "no GPU devfreq at $G" >&2; exit 1; }
+top=$(tr ' ' '\n' < $G/available_frequencies | sort -n | tail -1)
+case ${1:-status} in
+  on)  echo "$GPU_MAX_HZ" > $G/max_freq; logger -t a16-gpu-cap "max_freq=$(cat $G/max_freq) (on)" ;;
+  off) echo "$top" > $G/max_freq; logger -t a16-gpu-cap "max_freq=$(cat $G/max_freq) (off)" ;;
+  status) ;;
+  *) echo "usage: a16-gpu-cap on|off|status" >&2; exit 2 ;;
+esac
+echo "GPU max $(( $(cat $G/max_freq) / 1000000 )) MHz (top $(( top / 1000000 )) MHz), now $(( $(cat $G/cur_freq) / 1000000 )) MHz"
