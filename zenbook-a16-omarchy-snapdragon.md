@@ -750,3 +750,31 @@ personal study, publish findings, never the files.
 3. A `ddr_frequency_mhz` experiment, to size the always-fast-DDR cost.
 4. Trim the top of the DT `cpu_bwmon_opp_table` (it votes up to 21.3 GB/s at idle), using the same embedded-DTB patching as sections 5/13.
 5. Ubuntu Concept 7.3 when it lands in the image; re-measure.
+
+### 16.2 eDP PSR tried: black flicker, two driver bugs found (2026-09-26)
+
+**Test:** a one-shot GRUB entry, `oma-snap-custom-soccp-psr` (the default entry plus `msm.psr_enabled=1`,
+armed via `grub-editenv … set next_entry=…`; backup `grub.cfg.bak-20260926-psr`). Self refresh engaged, and
+the screen **flickered black a lot, especially while typing**. The next boot went back to the normal entry
+automatically. The entry is still in `grub.cfg` for retesting after kernel updates, but it is not the default.
+
+**Two bugs in the 7.2 msm PSR path** (upstream `drivers/gpu/drm/msm`, unchanged in master):
+1. **The link isn't retrained on PSR exit, although the panel requires it.** This panel's DPCD `0x071` (PSR
+   capabilities) is `0x76`: bit 0 `DP_PSR_NO_TRAIN_ON_EXIT` = 0, meaning "link training required on exit".
+   `msm_dp_panel_read_psr_cap()` stores that byte, but nothing reads it. `msm_dp_ctrl_set_psr(…, false)` only
+   re-enables the mainlink, sends the exit SDP and restarts video, with no training. The sc7280 Chromebook panels
+   the code was written for presumably didn't need it. An untrained link after every exit fits black frames on
+   each keystroke. **This is the likely flicker cause.**
+2. **vblank is switched off on PSR entry.** `dpu_crtc_disable()` calls `drm_crtc_vblank_off()` even when the new
+   state is `self_refresh_active`. The helper warns at boot: `driver disabled vblank in self-refresh`
+   (`drm_atomic_helper_commit_crtc_disable`, called from `drm_self_refresh_helper_entry_work`).
+
+**What a fix would take:**
+- Rebuild `msm.ko` from the exact source, with a link-training call in the PSR exit path when bit 0 is clear,
+  plus the vblank change. Everything needed is published in the Ubuntu Concept PPA:
+  `linux-qcom-x1e_7.2.0-18.18.tar.gz` (source), plus `linux-headers-7.2.0-18-qcom-x1e` and
+  `linux-qcom-x1e-headers-7.2.0-18` (`Module.symvers`; `CONFIG_MODVERSIONS=y`).
+- Module signing isn't enforced. `msm.ko.zst` is in the initramfs, so testing needs a separate initramfs and GRUB entry.
+- Downloads are kept in `~/src/a16-psr`. **Paused:** the estimated payoff is 0.3–1 W average (0.5–1.5 W only while
+  the screen is completely static, and the CPU cluster's own 11–21 GB/s DDR votes probably stop DDR from
+  dropping anyway), against hours of driver work. Worth reporting upstream.
