@@ -55,7 +55,30 @@ self-refresh (not active anyway).
   `regulator-allowed-modes`, which pins an LDO/SMPS out of its low-power mode. On this board the Linux-managed
   rails already report `fast` (HPM), and the CPU rails are run by the OSM/CPR hardware, not Linux. Dead end
   unless a specific rail (e.g. the Wi-Fi card's) is found in `auto`.
-- **Interconnect / DDR bandwidth vote.** No userspace knob on this kernel (icc debugfs is read-only).
+- **Deeper idle domains.** On glymur the idle hierarchy is cpu-sleep-0 → cluster-sleep-0 → domain-sleep-0
+  (AOSS system sleep, 10 ms min residency). This kernel exposes only state0/state1 per core, so with state1
+  disabled the cluster and AOSS domains should never be entered; verify with `/sys/kernel/debug/qcom_stats/`
+  (`aosd`, `cxsd`, `ddr` counters: if they stop increasing, the SoC never sleeps) and
+  `/sys/kernel/debug/pm_genpd/*/idle_states`.
+- **GPU rail on at minimum clock.** The rejected "GPU thing" raised the clock (+6 °C). The cheaper variant keeps
+  the GPU's power domain from collapsing (runtime PM `on`, autosuspend off) while clamping devfreq `max_freq` to
+  the lowest OPP (310 MHz): rail stays up, clock stays low, cost a few hundred mW. The GPU idles into CX/GX
+  collapse 66 ms after every frame, i.e. a power-domain toggle many times a second at the desktop, which is
+  exactly the kind of periodic load step that rings parts. Untested in this form.
+- **`adreno.disable_acd=1`.** Turns off Adaptive Clock Distribution, a GX-rail droop feature that modulates the
+  GPU rail. Boot parameter / module option; untested.
+- **Unbind the CPU bandwidth monitors** (`icc-bwmon`, three of them, one per cluster). They re-vote memory
+  bandwidth with CPU load, so the DDR/LLCC frequency and the memory rail follow load. Unbinding freezes the
+  vote (memory may sit at a low frequency: slower, but steady). Reversible by re-binding. Untested.
+- **Constant DDR bandwidth vote** from userspace via the interconnect debugfs test client if the kernel has
+  `CONFIG_INTERCONNECT_DEBUGFS_CLIENT`; otherwise no userspace knob (memlat devfreq is still an RFC series).
+- **Regulator modes, clarified by the research:** modes are chosen in-kernel only (no sysfs/debugfs override);
+  a DT overlay can raise a rail to HPM but RPMh max-aggregates across all voters so nothing can force LPM; the
+  CPU rails are run by CPUCP firmware over SCMI and Linux never touches their voltage. Only a DT overlay per
+  rail, and only worth it for a rail found in `auto`.
+- **Wi-Fi card:** ath12k has no power-save or runtime-PM module parameters; its MHI runtime hooks are no-ops,
+  so the card never runtime-suspends. What we control is 802.11 power save (`iw`), the PCIe link states and the
+  link speed, all already tried.
 - **Wi-Fi 2.4 GHz band.** Changes the card's load pattern, not fixed like a clock. Owner uses 5 GHz; declined.
 - **Windows-side comparison.** Does the whine change with Windows "Best performance" power mode? Would tell
   whether Qualcomm's firmware DCVS behaves differently from ours. Curiosity only.
@@ -102,6 +125,9 @@ self-refresh (not active anyway).
   sensitive ear at the desk is silly and effective. A hearing test is worth it given the old injury.
 
 ## F. Order I would do them in
+
+Software first, since they are free and reversible: GPU rail on at min clock, icc-bwmon unbind, and a look at
+the AOSS sleep counters. Then:
 
 1. Foam or 1.5 mm thermal pad inside the bottom cover over the VRM plate (cover off only, 15 minutes, reversible).
 2. Press test on both clusters, then silicone if the press test says yes.
