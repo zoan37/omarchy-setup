@@ -190,5 +190,7 @@ The cover came off (pry order: hinge corners, both sides, front, hinge edge last
 - **Not touched:** heatpipes, cold plate, bracket, grey foam strips, the blue rubber support cubes, SSD, Wi-Fi.
 - **Silicone:** not used.
 
-Result by ear: high pitch clearly fainter; a buzz remains at the port side, louder while fast-charging
+Later the same day more went in: pads on the SSD (controller end), the USB-A board and the power cluster left of
+the upper cooler bracket (putty in its gaps), thin pads on top of the putty blobs. Final result by ear with the cover
+closed: **coil whine "much less now"**. Earlier interim result: high pitch clearly fainter; a buzz remains at the port side, louder while fast-charging
 (~80 W at 32 %). CPU tweaks re-tuned afterwards (guide section 8: cpu6-11 at 3.63 GHz, deep idle off).
