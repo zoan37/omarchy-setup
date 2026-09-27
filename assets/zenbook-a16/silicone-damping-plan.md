@@ -194,3 +194,31 @@ Later the same day more went in: pads on the SSD (controller end), the USB-A boa
 the upper cooler bracket (putty in its gaps), thin pads on top of the putty blobs. Final result by ear with the cover
 closed: **coil whine "much less now"**. Earlier interim result: high pitch clearly fainter; a buzz remains at the port side, louder while fast-charging
 (~80 W at 32 %). CPU tweaks re-tuned afterwards (guide section 8: cpu6-11 at 3.63 GHz, deep idle off).
+
+### Photos
+
+Owner's photos from 2026-09-27 in [`teardown/`](teardown/) (SSD label blurred; TechPowerUp's own teardown photos are
+not copied here, see techpowerup.com/review/asus-zenbook-a16-ux3607oa/5.html).
+
+Progress: [cover off](teardown/01-cover-off.jpg) ·
+[board centre](teardown/02-board-center-closeup.jpg) ·
+[port side](teardown/03-port-side-closeup.jpg) ·
+[first pads, port side](teardown/04-first-pads-port-side.jpg) ·
+[first pads, cooler plates](teardown/05-first-pads-cooler-plates.jpg) ·
+[putty around the fan tab](teardown/06-putty-around-fan-tab.jpg) ·
+[putty on coils](teardown/07-putty-on-coils.jpg) ·
+[big pad over the port side](teardown/08-big-pad-port-side.jpg) ·
+[final, before the cover went on](teardown/09-final-before-cover.jpg)
+
+Annotated guides (green = pad or putty, red = keep clear):
+[press-test spots](teardown/guide-press-test-spots.jpg) ·
+[pads on the cooler plates](teardown/guide-pads-cooler-plates.jpg) ·
+[USB-C chips + fan tab](teardown/guide-pads-usbc-chips.jpg) ·
+[one big pad, port side](teardown/guide-big-pad-port-side.jpg) ·
+[USB-A board](teardown/guide-pad-usba-board.jpg) ·
+[coils next to the fan tab](teardown/guide-putty-coils-fan-tab.jpg) ·
+["3R3" coil](teardown/guide-putty-3r3-coil.jpg) ·
+[USB-C area putty](teardown/guide-putty-usbc-area.jpg) ·
+[L10550](teardown/guide-putty-l10550.jpg) ·
+[SSD pad](teardown/guide-pad-ssd.jpg) ·
+[battery connector](teardown/guide-battery-connector.jpg)
