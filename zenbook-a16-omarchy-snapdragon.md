@@ -28,7 +28,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
 | Bluetooth | No adapter: needs a device-tree patch (serdev node + regulators + `w-disable2` polarity, see jc372 patch 0001). Firmware is already in the image. Not done yet |
 | Battery percentage | **Works** after enabling the SoCCP remoteproc in the DTB (section 13): %, Wh, charge cycles, time left, 75–80 % charge limit all read. Power panel needs a small `omarchy-battery-status` patch |
-| Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 4.45 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Remainder is hardware (section 8) |
+| Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 3.63 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Pads + putty inside (2026-09-27) made the rest "manageable" (section 8) |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
 | Battery life | ~13–15 W at light use (~5 h). GPU boost to max on trivial redraws costs 2–3 W, capped by `a16-gpu-cap.service`; the rest is missing platform power management (section 16) |
 | Touchpad palm rejection | Custom behavioral filter `a16-palm-filter.service` (section 15); libinput's disable-while-typing stays off for games |
@@ -305,10 +305,9 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   mW). Not mic-verified: if a quiet room comes back, run `whine-round8.sh` (in `whine-mic/`) to see which knobs
   actually move the tones, then drop the others. `a16-whine-tweaks off` or `systemctl disable --now
   a16-whine-tweaks a16-cpuidle-nosleep` restores stock without a reboot.
-  **2026-09-27: `a16-whine-tweaks` disabled on the laptop** (owner's choice after the pads went in: all 18 cores,
-  normal clock scaling, PCIe links back at full speed). `a16-cpuidle-nosleep` (no `cpu-sleep-0`) and `a16-nvme-aspm`
-  stay enabled. `apply-a16-fixes.sh` still enables all three; `systemctl disable a16-whine-tweaks` after a reinstall
-  to match.
+  **2026-09-27, after the pad/putty mod (below):** by ear, stock clocks and the 4.45 GHz pin sounded the same;
+  deep idle allowed sounded "more staticky". Final: `a16-whine-tweaks` with cpu6-11 pinned at **3.63 GHz**
+  (`a16-whine.conf`), `a16-cpuidle-nosleep` and `a16-nvme-aspm` all enabled.
   **Every remaining lever, with odds and research:** [coil-whine-ideas.md](assets/zenbook-a16/coil-whine-ideas.md).
   **Hardware damping (planned, 2026-09-26; full step-by-step in
   [silicone-damping-plan.md](assets/zenbook-a16/silicone-damping-plan.md)):** the TechPowerUp teardown (review page 5) shows the VRM: a cluster
@@ -321,6 +320,10 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   tops or non-curing putty between the cubes (chosen from photos), ASI 388 silicone on the charger inductor only,
   and a small pad on the SSD/Wi-Fi card if the press test pointed there. Expectation: softer, not silent;
   capacitor/board-flex noise is untouched. Ends any exchange option.
+  **Done 2026-09-27** (step by step in the plan's "What was actually done"): ARCTIC TP-3 pads on the three
+  cooler VRM plates and on the port-side fan's metal tab, one large pad over the USB-C/HDMI section, UPSIREN
+  putty around the fan tab and on the visible coils L61800/L61801, L9801-L9805, L10550 and the "3R3" L60200. Owner:
+  high pitch clearly fainter, residual now "manageable". Cooler not removed; no putty under the cooler plates.
   Also tried by ear, no change: the audio DSP (`adsp`) stopped, display 60 Hz, Wi-Fi TX power limited to 5 dBm,
   three cores instead of six. **Do not stop `adsp` at runtime:** after `start` the q6apm buffer allocation times
   out, `clk_q6dsp_prepare` warns and the sound card never re-registers (driver rebind fails with -22); only a

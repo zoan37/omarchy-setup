@@ -170,3 +170,25 @@ A separate circuit. All with the laptop **off**:
   and again after the cluster pads/putty so each earns its place.
 - Quiet room + webcam: `whine-round8.sh` from `whine-mic/` gives numbers at 6.8 / 8.9 kHz; take a "before" the
   day the parts arrive if possible.
+
+## What was actually done (2026-09-27)
+
+The cover came off (pry order: hinge corners, both sides, front, hinge edge last). Findings and choices:
+
+- **Press test / chopstick stethoscope:** no audible change anywhere, with the fan stopped over SSH
+  (`a16-fan.sh manual 0` with a timed restore of `a16-fan-daemon`). Fan motor ruled out: the whine stays at 0 rpm.
+- **Nothing under the fans:** the board is cut around both fans (TechPowerUp's no-cooling photo, saved as
+  `~/Pictures/a16-teardown/tpu-*.jpg` on the SER8). The port-side fan's metal tab (the stepped black block next to
+  the fan) carries factory pads onto the two largest port-side coils (likely charging / system power); it is part of
+  the fan and cannot be lifted alone.
+- **Pads (TP-3, stacked where the gap needed it), no cooler removal:** the three cooler VRM plates (above the upper
+  bracket, the plate with the white window, the plate below the lower bracket), the fan tab, and one large pad over
+  the whole USB-C/HDMI section (ports, USB-C controller chips, the coils next to `L62300`).
+- **Putty (UPSIREN, pink):** packed around the fan tab's edges, and one blob each on the exposed coils L61800/L61801,
+  L9801-L9805 (around U7901 by the keyboard connector), L10550 (by the audio jack) and the "3R3" coil L60200 near the
+  TP connector. Kept flat, off connectors and the fan.
+- **Not touched:** heatpipes, cold plate, bracket, grey foam strips, the blue rubber support cubes, SSD, Wi-Fi.
+- **Silicone:** not used.
+
+Result by ear: high pitch clearly fainter; a buzz remains at the port side, louder while fast-charging
+(~80 W at 32 %). CPU tweaks re-tuned afterwards (guide section 8: cpu6-11 at 3.63 GHz, deep idle off).
