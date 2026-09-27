@@ -305,6 +305,10 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   mW). Not mic-verified: if a quiet room comes back, run `whine-round8.sh` (in `whine-mic/`) to see which knobs
   actually move the tones, then drop the others. `a16-whine-tweaks off` or `systemctl disable --now
   a16-whine-tweaks a16-cpuidle-nosleep` restores stock without a reboot.
+  **2026-09-27: `a16-whine-tweaks` disabled on the laptop** (owner's choice after the pads went in: all 18 cores,
+  normal clock scaling, PCIe links back at full speed). `a16-cpuidle-nosleep` (no `cpu-sleep-0`) and `a16-nvme-aspm`
+  stay enabled. `apply-a16-fixes.sh` still enables all three; `systemctl disable a16-whine-tweaks` after a reinstall
+  to match.
   **Every remaining lever, with odds and research:** [coil-whine-ideas.md](assets/zenbook-a16/coil-whine-ideas.md).
   **Hardware damping (planned, 2026-09-26; full step-by-step in
   [silicone-damping-plan.md](assets/zenbook-a16/silicone-damping-plan.md)):** the TechPowerUp teardown (review page 5) shows the VRM: a cluster
