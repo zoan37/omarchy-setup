@@ -88,7 +88,10 @@ self-refresh (not active anyway).
 
 ## D. Hardware on the board
 
-- **Silicone on the VRM inductors** (plan: `silicone-damping-plan.md`). Works on parts that physically move.
+- **Pads, putty or silicone on the VRM inductors** (plan: `silicone-damping-plan.md`). Outside reports
+  (2026-09-27 read): NovaCustom (Clevo-based laptops) says thermal pads over the noisy parts cut whine 50–80 %;
+  desktop-GPU users report pads between/around chokes "a fair bit", putty "a little"; TechPowerUp's thin
+  super-glue wick is for open GPU chokes, one laptop report "did not work", not used here. Works on parts that physically move.
   Caveat from the research: laptop VRMs use molded/shielded inductors, on which coatings help less than on the
   open toroidal chokes of desktop GPUs; and a coating traps a little heat. Expect softer, not silent.
 - **Foam strip inside the bottom cover over the VRM plate.** The cover then presses on the plate and damps it,

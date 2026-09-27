@@ -1,8 +1,10 @@
-# Zenbook A16 (UX3607OA): coil-whine damping, step by step (pad + putty + silicone)
+# Zenbook A16 (UX3607OA): coil-whine damping, step by step (pad + pads-or-putty + silicone)
 
 Goal: soften the residual VRM whine mechanically: a soft pad that couples the bottom cover to the cooler's VRM
-plate, thermal putty packed between the VRM inductors, silicone on the charger inductor. Expectation: softer,
-not silent; capacitor / board-flex noise is untouched. Opening the machine ends any exchange option. Photos of
+plate; on the VRM inductor clusters either **thermal pads on the cube tops or thermal putty between the cubes**
+(decided with the cooler out, from photos: step 6); silicone on the charger inductor; a small pad on the SSD or
+Wi-Fi card only if the press test points at them. Expectation: softer, not silent; capacitor / board-flex noise
+is untouched. Opening the machine ends any exchange option. Photos of
 every step: TechPowerUp review, "Disassembly" page (techpowerup.com/review/asus-zenbook-a16-ux3607oa/5.html);
 local copies of the two useful ones in `~/Pictures/a16-teardown/` on the SER8.
 
@@ -21,11 +23,16 @@ local copies of the two useful ones in `~/Pictures/a16-teardown/` on the SER8.
   magnetic dish for screws (lengths differ); a pea of Blu-Tack / modelling clay for the gap measurement.
 - Optional: isopropyl alcohol + cotton buds (only for removing putty later).
 
+Maybe, once the gap is measured (step 6): **soft thermal pad 0.5 mm and/or 1.0 mm** (ARCTIC TP-3 comes in
+both) for the pad option on the clusters, if the gap under the VRM plate is under ~1.2 mm. The 1.5 mm sheet
+above only fits a gap of ~1.2 mm or more.
+
 Do not buy: thermal paste (fluid, gives zero damping, and the SoC pad is not being touched), an ESD strap (touch
 the chassis), any other glue.
 
-**Rule: putty and silicone never on the same part.** Putty needs bare surfaces to fill and wipe; a cured silicone
-skin under it defeats both. Clusters = putty only. Charger inductor = silicone only.
+**Rule: one material per part.** Putty needs bare surfaces to fill and wipe; a cured silicone skin under it
+defeats both, and a pad on top of putty just squeezes it out. Each cluster = pads or putty. Charger inductor =
+silicone only.
 
 ## Where the parts are (board seen from the bottom, cover and cooler removed)
 
@@ -35,8 +42,12 @@ skin under it defeats both. Clusters = putty only. Charger inductor = silicone o
    rubber foot, next to the Wi-Fi card (under the black rubber block). Putty.
 3. **Charger**: one or two visibly larger inductors near the USB-C port used for charging, reachable with the
    cover off (not under the cooler). Silicone. Only audible when charging with the machine off.
+4. **SSD and Wi-Fi card** (M.2 cards, cover off, not under the cooler; the Wi-Fi card sits under a black rubber
+   block). Each card has its own small regulator and inductor. Suspects because the mic tied the 8.9 kHz tone to
+   the SSD's PCIe link power state and the 6.8 kHz tone to the Wi-Fi card's power path (guide section 8), so the
+   sound may come from the card itself rather than the board. Press test only; a small pad if it says so (step 3b).
 
-Everything else (SSD, panel, ports, PMICs, SoC, memory) is left alone. The inductors face the **bottom cover**,
+Everything else (panel, ports, PMICs, SoC, memory) is left alone. The inductors face the **bottom cover**,
 under the fans and the heatpipe assembly.
 
 **The cooler from underneath** (TechPowerUp "cooling-bottom" photo): a copper block with a grey pad on the SoC
@@ -62,8 +73,10 @@ plate height and a mound would lift the plate off the PMICs.
 ## Step 2: look and measure (optional but cheap)
 
 - **Press test:** power on with the cover off (battery connected, lid open enough to see it boot), idle a minute,
-  ear at the board, chopstick on the black VRM plate and on the visible edges of each cluster. Pitch drops or
-  dulls under pressure ⇒ damping will do roughly the same. Never run the machine with the heatsink removed.
+  ear at the board, chopstick on the black VRM plate and on the visible edges of each cluster, then **on the SSD
+  (its small inductor if one is visible, else the middle of the card) and on the Wi-Fi card / its rubber block**.
+  Press one spot at a time and note which ones change the tone. Pitch drops or dulls under pressure ⇒ damping
+  there will do roughly the same. Never run the machine with the heatsink removed.
 - **Gap:** a pea of Blu-Tack on the VRM plate, cover on with two screws, cover off, measure the squashed
   thickness. Under ~1.5 mm ⇒ one layer of TP-3; more ⇒ two layers.
 - **Charger:** laptop off, brick plugged in: ear on the brick, then on the chassis by the port, chopstick on the
@@ -75,6 +88,13 @@ Cut TP-3 to the size of each black VRM plate (both sides of the SoC), peel one f
 the cover** where it will land on the plate, peel the other film. Stack two if the gap said so. Keep it off the
 fan intakes and vents. Cover on with four screws, power up, listen. If this is enough, finish the screws and stop
 here; the cooler never comes out.
+
+## Step 3b: SSD / Wi-Fi card pad (only if the press test changed the tone there)
+
+Close-up photo of the card first (both sides are not needed; the top faces the cover). Then a piece of TP-3 cut
+to the card's inductor or the noisy area, thick enough to touch the inside of the cover lightly (Blu-Tack gap
+check as in step 2). Keep it off the M.2 connector and the antenna connectors on the Wi-Fi card; the SSD label
+can stay on. A pad from SSD to cover also cools the SSD a little, which is harmless.
 
 ## Step 4: power down and disconnect the battery (only if going on to putty)
 
@@ -88,7 +108,25 @@ here; the cooler never comes out.
 - 4 screws on the CPU block: loosen in a cross pattern, half a turn each, then remove. Lift the heatpipe assembly
   gently, it is stuck to the pads. Set it aside **face up**. Do not touch the grey SoC pad or the memory patties.
 
-## Step 6: putty on the clusters
+## Step 6: pads or putty on the clusters (decide here)
+
+**Photos first:** each cluster straight down and at a low angle (to see the cube heights), and the underside of
+the cooler's VRM plates. Then **measure the real gap**: a small pea of Blu-Tack on the cube tops of each
+cluster, cooler back on with the four CPU screws snug, cooler off, measure the squashed thickness. Send photos +
+gap to Claude to choose.
+
+Both damp by contact, not by blocking sound: a 1 mm pad is too thin and light to stop a 7–9 kHz tone passing
+through it; it works by pressing on the parts and turning their vibration into heat. What matters is firm
+contact over as much of each part as possible.
+
+**Option A: pads on the cube tops** (cleaner, removes in one piece; NovaCustom reports 50–80 % on its laptops
+this way). Pick a pad **0.25–0.5 mm thicker than the measured gap** (soft pads compress 20–30 %). Cut to cover
+the cube tops of the cluster, **not the PMIC** in the middle (the plate's own putty blob must land on bare chip).
+Uneven cube heights ⇒ separate pieces per height or putty instead. Too thick lifts the plate off the PMICs and
+can change the cooler's pressure on the SoC; step 9 checks for that.
+
+**Option B: putty between the cubes** (fits any gap and uneven heights, couples the cubes to each other and the
+board, messier). As follows.
 
 Pinch a pea of UTP-6, press it into the gaps between the cubes of cluster 1 and around their bases with a
 toothpick or fingertip, until the cluster is one filled block **level with the cube tops, no higher**. Same for
@@ -126,7 +164,9 @@ A separate circuit. All with the laptop **off**:
 
 ## Step 9: judge it
 
-- Same test as before: ear at the keyboard, laptop on the left, fan at the 700 rpm floor. Listen after the pad
-  and again after the putty so each earns its place.
+- If pads went on the clusters: compare SoC temperature under a sustained load against a "before" run (same
+  load, same fan setting). Clearly hotter ⇒ the pad is holding the cooler off; go one size thinner.
+- Same test as before: ear at the keyboard, laptop on the left, fan at the 700 rpm floor. Listen after the cover pad
+  and again after the cluster pads/putty so each earns its place.
 - Quiet room + webcam: `whine-round8.sh` from `whine-mic/` gives numbers at 6.8 / 8.9 kHz; take a "before" the
   day the parts arrive if possible.

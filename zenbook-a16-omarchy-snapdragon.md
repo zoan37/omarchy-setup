@@ -311,11 +311,12 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
   of ~15 dark cube inductors around a putty-covered PMIC to one side of the SoC (CPU/GPU rails, the likely singer)
   and a smaller cluster of ~8 on the other side next to the Wi-Fi card. They face the **bottom cover**, under the
   fans and heatpipe assembly (10 Torx T5 on the cover, 6 around the fans, 4 on the CPU plate), and the cooler has
-  a VRM plate resting on them. Plan: battery connector off, chopstick press test on the cluster with the machine
-  running (pitch change ⇒ damping will help), then ASI 388 neutral-cure electronics silicone applied by toothpick
-  as a thin fillet around each inductor base and a bridge between neighbours, nothing on the tops (heatsink pad)
-  or on the PMICs. Skins in ~20 min, reassemble after a few hours, full cure 7 days. Expectation: softer, not
-  silent; capacitor/board-flex noise is untouched. Ends any exchange option.
+  a VRM plate over them. Plan (revised 2026-09-27): soft pad inside the bottom cover over the VRM plate first;
+  chopstick press test on the clusters, the SSD and the Wi-Fi card with the machine running (pitch change ⇒ damping
+  will help); then, with the cooler out and the gap under the plate measured, either soft thermal pads on the cube
+  tops or non-curing putty between the cubes (chosen from photos), ASI 388 silicone on the charger inductor only,
+  and a small pad on the SSD/Wi-Fi card if the press test pointed there. Expectation: softer, not silent;
+  capacitor/board-flex noise is untouched. Ends any exchange option.
   Also tried by ear, no change: the audio DSP (`adsp`) stopped, display 60 Hz, Wi-Fi TX power limited to 5 dBm,
   three cores instead of six. **Do not stop `adsp` at runtime:** after `start` the q6apm buffer allocation times
   out, `clk_q6dsp_prepare` warns and the sound card never re-registers (driver rebind fails with -22); only a
