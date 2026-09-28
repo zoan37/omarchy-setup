@@ -1,0 +1,93 @@
+#!/bin/bash
+# Zenbook A16: MyASUS-style "OLED flicker-free dimming".
+# The panel stays at a fixed high brightness, where its ~1 kHz PWM is shallowest,
+# and the brightness keys dim the image in software through hyprsunset's gamma.
+#
+#   a16-dim              print the level (percent)
+#   a16-dim +5 | -5      step the level
+#   a16-dim 45           set the level
+#   a16-dim restore      at login: panel to $PANEL, start hyprsunset, reapply the saved level
+set -uo pipefail
+
+PANEL=80   # fixed panel brightness, percent
+MIN=10     # lowest software level, percent
+
+state=${XDG_STATE_HOME:-$HOME/.local/state}/a16-dim/level
+device=$(omarchy-hw-display 2>/dev/null || echo dp_aux_backlight)
+
+saved_level() {
+  local level
+  level=$(cat "$state" 2>/dev/null)
+  [[ $level =~ ^[0-9]+$ ]] && echo "$level" || echo 45
+}
+
+ensure_hyprsunset() {
+  # -i: no tint. The config has no profiles, so nothing scheduled resets the gamma.
+  pgrep -x hyprsunset >/dev/null || setsid uwsm-app -- hyprsunset -i >/dev/null 2>&1 &
+  for _ in {1..25}; do
+    hyprctl hyprsunset gamma >/dev/null 2>&1 && return 0
+    sleep 0.2
+  done
+  return 1
+}
+
+apply() {
+  # A freshly started hyprsunset resets the matrix at the end of its boot, so resend until it sticks.
+  # The readback is a float for some levels (15 -> "15.000001"), so compare it rounded.
+  local now
+  for _ in {1..10}; do
+    hyprctl hyprsunset gamma "$1" >/dev/null 2>&1
+    now=$(hyprctl hyprsunset gamma 2>/dev/null)
+    [[ $now =~ ^[0-9.]+$ && $(printf '%.0f' "$now") == "$1" ]] && return 0
+    sleep 0.2
+  done
+  return 1
+}
+
+set_panel() {
+  brightnessctl -q -d "$device" set "$PANEL%"
+}
+
+arg=${1:-}
+case $arg in
+  "")
+    saved_level
+    exit 0
+    ;;
+  restore)
+    level=$(saved_level)
+    ensure_hyprsunset || exit 1
+    set_panel
+    apply "$level"
+    sleep 1
+    apply "$level"
+    exit
+    ;;
+  +[0-9]* | -[0-9]* | [0-9]*) ;;
+  *)
+    echo "Usage: a16-dim [+N|-N|N|restore]" >&2
+    exit 1
+    ;;
+esac
+
+# Before the lock, so a hyprsunset started here doesn't inherit it.
+ensure_hyprsunset || exit 1
+
+# Serialize held-key repeats.
+exec {lock_fd}>"${XDG_RUNTIME_DIR:-/tmp}/a16-dim.lock"
+flock -n "$lock_fd" || exit 0
+
+case $arg in
+  +* | -*) level=$(( $(saved_level) + arg )) ;;
+  *) level=$arg ;;
+esac
+(( level < MIN )) && level=$MIN
+(( level > 100 )) && level=100
+
+mkdir -p "$(dirname "$state")"
+echo "$level" >"$state"
+apply "$level"
+
+# Release before the OSD: its shell helper can outlive this script and would hold the lock.
+exec {lock_fd}>&-
+omarchy-osd -i brightness -p "$level" 2>/dev/null
