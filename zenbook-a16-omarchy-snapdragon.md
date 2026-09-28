@@ -22,7 +22,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 |---|---|
 | Install, encrypted root, GRUB, 120 Hz OLED, GPU, keyboard, touchpad, brightness keys, keyboard backlight, USB-C charging | Works |
 | Wi-Fi 7 (QCC2072) | Works after the board-file fix below |
-| Speakers, microphone | Work after the UCM fix below. The tweeters stay silent until the speaker filter in section 14 routes them (also +6 dB limited boost) |
+| Speakers, microphone | Work after the UCM fix below. The tweeters stay silent until the speaker filter in section 14 routes them (also +6 dB limited boost, and an EQ ported from ASUS's Windows Dolby tuning) |
 | CPU frequency scaling | Works after the device-tree patch below (355 MHz – 3.6/4.45 GHz, 3 policies) |
 | Fan | **Controlled from Linux** through the EC mailbox (section 7); `a16-fan-daemon` keeps it at **0 rpm at idle** with a Mac-style whisper policy (section 11) |
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
@@ -559,7 +559,7 @@ keys and the audio panel resolve through it to the physical sink (`omarchy-audio
 `omarchy audio tuning off` removes it cleanly. `omarchy audio tuning on` finds no match for this laptop and
 leaves it alone.
 
-**Install** (as the user, needs the UCM fix from section 4):
+**Install** (as the user, needs the UCM fix from section 4; `A16_TUNING=soft|flat` picks another default voicing):
 ```
 bash assets/zenbook-a16/speaker-boost/install-speaker-boost.sh
 ```
@@ -578,8 +578,60 @@ short), the tweeter `Freq` and trim `Mult`. After editing, run
 `systemctl --user restart omarchy-speaker-tuning.service`. **Revert:** `omarchy audio tuning off`, which also
 resets the default sink to the speakers. The tweeters go silent again.
 
-**Not done:** there's no EQ voicing (the Windows side has Dolby). The current voicing is flat apart from the
+**EQ voicing from ASUS's own Dolby tuning (2026-09-27).** No measurement rig was needed, because the Windows
+partition already has the model-specific correction. The Dolby DAX3 extension package
+(`DriverStore\FileRepository\dax3_ext_qc.inf_arm64_*`) ships one XML per audio subsystem ID. This machine's ID
+is `16D41043` (from `devlist.txt`: `QCASD\VEN_QCOM&DEV_0FCD&SUBSYS_16D41043`), so the file is
+`QCASD_DEV_0FCD_SUBSYS_16D41043_AUCD_SUBSYS_16D41043.xml` (tuning v115, 12/04/2025). Every profile except
+"off" carries the same speaker correction:
+
+- `audio-optimizer-bands`: a 20-band curve in 1/16 dB. It lifts 141–234 Hz by about 4–5 dB and cuts
+  0.8–7 kHz by 4–7 dB;
+- `speaker-peq-filters`: narrow peaking filters at −9.3 dB @ 495 Hz Q 5, −4 dB @ 380 Hz Q 5, +4 dB @ 1450 Hz
+  Q 4 and −5 dB @ 7.9 kHz Q 6. These look like driver/chassis resonances. A −4.5 dB @ 2.6 kHz filter is
+  present but disabled;
+- the "voice" profiles swap in a different optimizer curve, with about half the bass lift and a treble
+  roll-off (−3.3 / −6.6 / −9.9 dB at 11 / 14 / 20 kHz).
+
+Windows also runs `volmax-boost 96` (+6 dB), which matches the +6 dB limiter drive here. The content-adaptive
+parts (IEQ, dialog enhancer, volume leveler) were not ported.
+
+[build-variants.py](assets/zenbook-a16/speaker-boost/build-variants.py) turns this into biquads. Each band
+gets one peaking filter at its centre, with Q spanning neighbour to neighbour and a high shelf for the top
+band. The gains are solved iteratively to hit each band's target (error < 0.02 dB, within about 1 dB between
+bands), and the PEQ filters are appended. The EQ sits after the 80 Hz highpass and **before** the limiter, the
+same place Dolby sits on Windows (ahead of the woofer/tweeter split). The output is three fragments in
+`variants/`, switched with [a16-tuning](assets/zenbook-a16/speaker-boost/a16-tuning):
+
+| Variant | What it is |
+|---|---|
+| `asus` (default) | Dolby music/movie/dynamic speaker correction |
+| `soft` | Dolby voice-profile curve: less bass lift, treble rolled off above 10 kHz |
+| `flat` | no EQ, the original routing + boost |
+
+Net EQ in dB, before the limiter:
+
+| Hz | 141 | 234 | 380 | 495 | 1000 | 1450 | 3000 | 7900 | 14000 |
+|---|---|---|---|---|---|---|---|---|---|
+| asus | +4.9 | +3.9 | −8.8 | −12.6 | −6.6 | −1.0 | −5.7 | −7.2 | +0.4 |
+| soft | +2.6 | +2.3 | −8.6 | −12.5 | −6.6 | −1.4 | −5.3 | −7.0 | −6.7 |
+
+This was verified at the sink with −30 dBFS tones (physical sink muted, capturing its monitor). The `asus`
+levels matched the table to within 0.4 dB on the woofers, and the tweeters showed the expected −3 dB trim and
 crossover.
+
+**Caveats.** On Windows, Qualcomm's ACDB runs on the ADSP after Dolby and does the woofer/tweeter split and
+possibly its own EQ. The Dolby curve corrects *that* chain, and our 2 kHz LR4 crossover isn't ASUS's. The narrow
+resonance notches should carry over, because they're physical, but the broad tilt might be off by a few dB.
+The mids come down 4–7 dB, so at 100 % volume the result is quieter than `flat`. Judge it by ear.
+
+```
+a16-tuning            # list, mark active
+a16-tuning asus|soft|flat
+```
+
+Variants live in `~/.local/share/a16-speaker-tuning/variants/`. Re-run `build-variants.py` after editing
+`90-tuning.conf` (the template) or the ASUS values.
 
 ## 15. Touchpad palm rejection: a behavioral filter (2026-09-26)
 

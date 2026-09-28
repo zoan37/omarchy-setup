@@ -1,0 +1,37 @@
+#!/bin/bash
+# Switch the Zenbook A16 speaker voicing. Every variant keeps the tweeter
+# routing, the 80 Hz highpass and the +6 dB limited boost; only the EQ differs.
+#
+#   a16-tuning          list variants, marking the active one
+#   a16-tuning asus     apply a variant and reload
+set -euo pipefail
+export OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
+
+variants=~/.local/share/a16-speaker-tuning/variants
+target=${XDG_CONFIG_HOME:-$HOME/.config}/pipewire/omarchy-speaker-tuning.conf.d/90-tuning.conf
+
+usage() {
+  echo "Usage: a16-tuning [<variant>|list]" >&2
+  echo >&2
+  for f in "$variants"/*.conf; do
+    name="$(basename "$f" .conf)"
+    if [[ -r $target ]] && cmp -s "$f" "$target"; then echo "  $name (active)" >&2; else echo "  $name" >&2; fi
+  done
+  echo >&2
+  echo "  asus  = ASUS's Windows Dolby speaker correction for this model (music/movie/dynamic)" >&2
+  echo "  soft  = ASUS's voice-profile curve: less bass lift, treble rolled off above 10 kHz" >&2
+  echo "  flat  = no EQ, just routing + boost" >&2
+}
+
+case "${1:-list}" in
+  list | -h | --help) usage ;;
+  *)
+    src="$variants/$1.conf"
+    [[ -r $src ]] || { usage; exit 1; }
+    install -Dm644 "$src" "$target"
+    systemctl --user restart omarchy-speaker-tuning.service
+    for _ in {1..20}; do pactl list sinks short | grep -q omarchy_speaker_tuning && break; sleep 0.25; done
+    pactl set-default-sink omarchy_speaker_tuning
+    echo "a16-tuning: $1 active"
+    ;;
+esac

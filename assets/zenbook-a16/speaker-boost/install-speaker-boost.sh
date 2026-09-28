@@ -6,7 +6,10 @@ set -euo pipefail
 D=$(cd "$(dirname "$0")" && pwd); C=${XDG_CONFIG_HOME:-$HOME/.config}
 pacman -Q lsp-plugins-lv2 >/dev/null 2>&1 || sudo pacman -S --needed --noconfirm lsp-plugins-lv2
 install -Dm644 /usr/share/omarchy/default/audio/filter-chain-host.conf "$C/pipewire/omarchy-speaker-tuning.conf"
-install -Dm644 "$D/90-tuning.conf" "$C/pipewire/omarchy-speaker-tuning.conf.d/90-tuning.conf"
+# EQ variants (build-variants.py) and the switcher; `asus` is the default voicing
+mkdir -p ~/.local/share/a16-speaker-tuning && cp -r "$D/variants" ~/.local/share/a16-speaker-tuning/
+install -Dm755 "$D/a16-tuning" ~/.local/bin/a16-tuning
+install -Dm644 "$D/variants/${A16_TUNING:-asus}.conf" "$C/pipewire/omarchy-speaker-tuning.conf.d/90-tuning.conf"
 install -Dm644 /usr/share/omarchy/default/systemd/user/omarchy-speaker-tuning.service "$C/systemd/user/omarchy-speaker-tuning.service"
 systemctl --user daemon-reload
 systemctl --user enable omarchy-speaker-tuning.service
