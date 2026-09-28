@@ -86,6 +86,37 @@ slightly more fluid. Firefox on Wayland has the same class of complaint
 (mozilla bugs 1545927, 1554408). A Chromium feature request to extend
 resampling to wheel-source input would be legitimate — none exists yet.
 
+## Retest on Omarchy 4.0.4 / `linux-omarchy` 7.2.5-4 (2026-09-27): still needed
+
+Spencer Bull said on the PR that Wildcat Lake XPS machines don't show this on
+4.0.4. On this machine they still do. I moved the drop-in to
+`~/dell-xps13-wildcat-display.conf.bak`, ran `limine-update`, rebooted, and
+confirmed `/proc/cmdline` had no `xe.` params. Scrolling in Chrome was juddery
+again and the cursor was laggy. With PSR on, the status showed:
+
+```
+Sink support: PSR = yes [0x04] (Early Transport), Panel Replay = yes, Panel Replay Selective Update = yes
+PSR mode: Panel Replay Selective Update enabled (Early Transport)
+```
+
+Restored the drop-in (`pkexec` does the `mv` and `limine-update` without a
+terminal password prompt) and wrote `1` to `i915_edp_psr_debug` so it was
+smooth again without another reboot.
+
+The source explains why. `linux-omarchy`'s patch
+`0401-drm-i915-psr-exit-panel-replay-for-alpm-lag.patch` (in
+`omacom-io/omarchy-pkgs`) turns the upstream "disable Panel Replay" quirk into
+a Panel Replay ALPM cursor-lag workaround. Its table lists only Dell `0db9` (XPS 14) and
+`0dba` (XPS 16) with sink OUI `00:22:b9`. This machine has the same sink OUI,
+but its subsystem `0e53` isn't in the list, so nothing in the kernel applies
+here. Kernel releases 7.2.5-5 and 7.2.5-6 changed nothing in the display code.
+The likely fix is adding `0e53` to that table, which would keep the power
+savings. Reported on the PR:
+https://github.com/omacom/omarchy/pull/6849#issuecomment-5862460895
+
+Side note: the panel's EDID says manufacturer `SHP`, product `LQ134Z1`
+(Sharp), even though the DPCD sink OUI reads as LGD.
+
 ## Upstream trail (for retiring this workaround later)
 
 - Kernel report: https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/8930
