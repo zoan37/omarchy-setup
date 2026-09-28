@@ -1,20 +1,23 @@
-# Zenbook A16: OLED flicker-free dimming (a16-dim)
+# Zenbook A16: MyASUS-style OLED dimming (a16-dim), and what it does to the PWM (measured)
 
 **Status: applied 2026-09-28; the owner finds the display more comfortable.** It started from headaches after long
 sessions on the Zenbook A16 (Samsung Display `ATNA60HR07-0`, 2880x1800 OLED, 120 Hz), without eye strain.
-Before the change the panel sat at **15 % hardware brightness** (307/2047 on `dp_aux_backlight`), which is where
-OLED PWM is deepest.
+Before the change the panel sat at **15 % hardware brightness** (307/2047 on `dp_aux_backlight`).
 
-## Why
+**Measured result (section "Measured"):** this panel keeps a near-full-depth dark gap of **~35–45 % of every PWM
+cycle at every brightness**. Software dimming shortened it only from **~43 % to ~36 %**. The panel dims mainly by
+current, not by duty cycle, so the MyASUS trick helps a little here, not a lot. The comfort gain most likely comes
+from running the screen dimmer overall, which the keys now make easy.
+
+## Why it was tried
 
 - **The panel flickers (PWM) at about 1 kHz at every brightness level**
-  ([UltrabookReview](https://www.ultrabookreview.com/75005-asus-zenbook-a16-review/)). OLED PWM switches the
-  pixels off for part of each cycle, and the lower the hardware brightness, the longer the off part.
+  ([UltrabookReview](https://www.ultrabookreview.com/75005-asus-zenbook-a16-review/)).
 - **MyASUS "OLED Flicker-Free Dimming"** keeps the hardware brightness high and darkens the image in software;
   G-Helper's maintainers found it's software only, a pre-dimmed ICC profile / gamma
-  ([g-helper #2056](https://github.com/seerge/g-helper/discussions/2056)). Same perceived brightness, shallower
-  flicker. On this panel it reduces the flicker; it can't remove it. Linux has no MyASUS, so the Omarchy
-  brightness keys dimmed the panel itself.
+  ([g-helper #2056](https://github.com/seerge/g-helper/discussions/2056)). On panels that dim by shortening the
+  lit time, that shortens the dark gaps. Linux has no MyASUS, so the Omarchy brightness keys dimmed the panel
+  itself.
 - **A Galaxy S26 (480 Hz PWM, no flicker-free mode) is fine for the owner**
   ([Android Authority](https://www.androidauthority.com/samsung-galaxy-s26-pwm-dimming-3643875/)), but that
   doesn't rule flicker out: flicker is easier to perceive when it fills more of the visual field and when it's
@@ -22,9 +25,9 @@ OLED PWM is deepest.
 
 ## What a16-dim does
 
-[`a16-dim`](assets/zenbook-a16/a16-dim) is the MyASUS model, nothing more: the panel stays fixed at **100 %** (80 % at first), and
-the brightness keys only change hyprsunset's gamma (a color transform: no tint, no day/night schedule, standard
-colors). The level is saved in `~/.local/state/a16-dim/level` and shown on Omarchy's brightness OSD.
+[`a16-dim`](assets/zenbook-a16/a16-dim) is the MyASUS model, nothing more: the panel stays fixed at **100 %** (80 % at
+first), and the brightness keys only change hyprsunset's gamma (a color transform: no tint, no day/night schedule,
+standard colors). The level is saved in `~/.local/state/a16-dim/level` and shown on Omarchy's brightness OSD.
 
 ```
 a16-dim            # print the level
@@ -33,95 +36,78 @@ a16-dim 45         # set it
 a16-dim restore    # login: panel to 100 %, start hyprsunset -i, reapply the saved level
 ```
 
-`PANEL=100` and `MIN=5` sit at the top of the script. Level ~40 at panel 100 % (45 at 80 %) looks about like the old panel 15 %
-(the transform works on encoded values, so luminance falls roughly as level^2.2).
+`PANEL=100` and `MIN=5` sit at the top of the script. Pixel values are gamma-encoded, so light falls roughly as
+level^2.2: level ~40 at panel 100 % looks about like the old panel 15 %, and level 31 is ~7–8 % of full output.
 
 **What ASUS itself asks for** (found 2026-09-28 in the factory Windows install, mounted read-only with `ntfs3`:
 MyASUS 4.4.10.0, `ModuleDll/HWSettings/AsusCustomization.dll`, a .NET assembly): *"please make sure your Windows
 system brightness is set above 60% … then adjust the OLED Flicker-Free Dimming slider on the right-hand side to a
 level that suits your needs."* So there's no fixed ASUS level: panel above 60 %, dimming in software. The same DLL
 calls `SetSplendidDimming` / `-SetDimming`, i.e. ASUS's Splendid color service does the dimming, consistent with
-G-Helper's finding. Both 80 % and the current 100 % sit above ASUS's 60 %; 100 % is shallower still at the cost
-of a few more gamma steps.
+G-Helper's finding.
+
+## Measured (2026-09-28)
+
+Galaxy S26 camera, Pro mode, **1/12000 s** (83 µs, ~8 % of a PWM cycle), ISO 3200, at a white browser page. The
+rolling shutter turns the ~1 ms PWM cycle into stripes; they're diagonal because the panel also emits line by line,
+so the stripe spacing can't give the frequency, but the dark share of each stripe period is the dark share of each
+cycle. [`pwm-stripes.py`](assets/zenbook-a16/pwm-stripes.py) finds the stripe direction with a 2-D FFT, folds the
+image onto one period and thresholds half-way between lit and dark:
+
+| Setup | Photos | Dark share of each cycle | Dark stripe vs black background (8-bit) |
+|---|---|---|---|
+| Old way: panel 5 %, no gamma | 3 | **42–45 %** | 7 vs 5: near full off |
+| a16-dim: panel 100 %, gamma 26 | 3 | **35–38 %** | 7 vs 4–5: near full off |
+
+Photos within a set agree within ~3 points. The panel's eDP DPCD (read-only, `/dev/drm_dp_aux2`) offers no PWM
+frequency control: `0x702` = `0x86` (brightness over AUX, 16-bit; `FREQ_AUX_SET_CAP` and PWM pass-through not
+set), `0x721` = `0x02` (AUX brightness mode), `0x728` (frequency) = 0. Undocumented vendor registers weren't
+touched.
+
+**What that means:** the dark gap barely depends on the brightness setting, and each dip goes almost fully dark.
+The original model here (panel brightness = lit time, so 15 % ≈ 85 % dark and 100 % ≈ 5–15 % dark) was wrong for
+this panel; it lowers the current and keeps most of the gap. a16-dim still helps somewhat: ~15 % less dark time,
+and dimmer light overall, which also makes flicker less perceptible (flicker sensitivity falls with luminance).
 
 ### How it works (physics)
 
 Each pixel is red, green and blue organic LED subpixels (Samsung's PenTile-style layout, extra green) that emit
-light themselves; there's no backlight. A subpixel's light follows its current. Two separate controls set it:
+light themselves; there's no backlight. A subpixel's light follows its current, and perceived brightness is
+current × time lit. Two controls exist:
 
-- **Panel brightness** (`dp_aux_backlight`, 15 % before, 100 % now) sets **how long** each subpixel is lit in every
-  ~1 ms PWM cycle. A timer, not the current.
-- **The pixel value** (what hyprsunset's gamma scales) sets **how much current** flows while it's lit.
+- **Panel brightness** (`dp_aux_backlight`): on this panel it mostly scales the **current**; the lit share of
+  each ~1 ms cycle only moves from ~57 % (at 5 %) to ~64 % (at 100 %).
+- **The pixel value** (what hyprsunset's gamma scales): also sets the **current** while lit.
 
-Perceived brightness is current × time lit. For a white pixel at the same apparent brightness:
-
-| | Current while lit | Lit per cycle (simple model) | Result |
-|---|---|---|---|
-| Before: panel 15 %, no dimming | Full | ~15 % | Short full-strength bursts, long dark gaps |
-| Panel 80 %, gamma ~45 | About a fifth | ~80 % | A dim, nearly continuous glow |
-| Now: panel 100 %, gamma ~40 | About a sixth | Most of it (PWM remains at 100 %) | Dimmer still per pulse, shortest gaps |
-
-Same average light, much lower peak current, much shorter dark gaps: "DC-like dimming", done through the image
-instead of the panel. The PWM frequency (~1 kHz) doesn't change. Pixel values are gamma-encoded, so light falls
-roughly as level^2.2; level 14 at panel 80 % is about 1 % of the panel's full output.
-
-The "lit per cycle" figures assume the panel dims purely by duty cycle. It may also lower the current over part of
-its range, and it PWMs even at 100 %, so none of this is measured. The S26 camera test below or a flicker meter
-(e.g. Opple Light Master) would settle it.
+So both controls mostly do the same thing here, and the PWM gap is built into the panel's emission timing.
 
 ### Why dark shades suffer at low levels
 
 - **Near-black unevenness (mura):** each subpixel's drive transistor differs slightly from its neighbors. At
   normal currents the panel's compensation hides that; at very low currents the same differences are a large
-  share of the total, so dark grays can look blotchy, grainy or tinted green/magenta. This is also why panels
-  PWM at low brightness instead of lowering the current.
-- **Banding:** 256 input levels get squeezed into a smaller output range. At level 14 that's ~36 distinct steps
-  if the link to the panel is 8-bit, ~143 if it's 10-bit (not checked), so smooth dark gradients can step.
+  share of the total, so dark grays can look blotchy, grainy or tinted green/magenta.
+- **Banding:** 256 input levels get squeezed into a smaller output range. At level 31 that's ~80 distinct steps
+  if the link to the panel is 8-bit, more if it's 10-bit (not checked), so smooth dark gradients can step.
 
-Both get worse as the pixel values go lower, which is the cost of a higher `PANEL`.
-
-### 60 vs 80 vs 100 %
-
-Model estimates at the same apparent brightness (level 14 at 80 %):
-
-| Panel | Equivalent level | Dark per cycle (model) | Steps left (8-bit) | Undimmed flash at boot |
-|---|---|---|---|---|
-| 60 % (ASUS's advice) | ~16 | ~40 % | ~41 | 60 % |
-| 80 % (first setting) | 14 | ~20 % | ~36 | 80 % |
-| **100 % (current)** | ~13 | Least possible; guessed 5–15 %, not 0 (PWM at every level) | ~32 | 100 % |
-| *15 %, the old way* | *100 (no dimming)* | *~85 %* | *256* | *15 %* |
-
-- **80 %:** a few more shades for dark content, a gentler boot flash, and if hyprsunset ever dies the screen jumps
-  to 80 %, not full. Slightly more flicker than 100 %.
-- **100 %:** the shallowest flicker this panel can do, but ~10 % fewer shades, a full-brightness flash at boot,
-  and a small gain over 80 % (most of the benefit came from leaving 15 %).
-
-**Switched to 100 % on 2026-09-28** (the level scaled by 0.8^(1/2.2) ≈ 0.9 to keep the same apparent brightness,
-e.g. 29 → 26; `MIN` lowered from 10 to 5 so the floor stays about as dim). Go back to `PANEL=80` if dark video
-bands or dark grays turn blotchy. Power and burn-in are about the same at every setting, since on
-OLED both follow the light actually emitted.
+Both get worse as the pixel values go lower, which is the cost of dimming in software. Given the measurement, the
+choice of `PANEL` (60, 80 or 100) matters little for flicker; 100 gives the shortest measured gap, 80 or 60 keep a
+few more shades. Power and burn-in are about the same either way, since on OLED both follow the light emitted.
 
 ### Compared with MyASUS
 
-Same principle (panel high, where each PWM off-period is short; image dimmed in software), so the flicker benefit
-is the same. The differences are in the details:
+Same principle, so on this panel the same small flicker gain. The differences are in the details:
 
 | | MyASUS (Windows) | a16-dim (Omarchy) |
 |---|---|---|
 | Panel level | Up to the user: ASUS asks for Windows brightness above 60 % | Fixed at `PANEL=100` |
 | Controls | Two: Windows brightness (the panel) + the MyASUS slider (the dimming) | One: the brightness keys drive only the dimming |
-| Brightness keys (F5/F6) | Still change the panel, so one tap can drop it below 60 % and back into deep PWM (why reviewers say to use the slider, not the keys) | Can't lower the panel |
+| Brightness keys (F5/F6) | Still change the panel (why reviewers say to use the slider, not the keys) | Can't lower the panel |
 | Dimming method | ASUS's Splendid color service (per G-Helper, a pre-dimmed ICC profile); ASUS could shape the curve to protect shadows | Hyprland CTM via hyprsunset: every encoded value scaled by the same factor |
 | Where it applies | Windows desktop and apps; can clash with HDR / color management | Whole output, lock screen included |
 | Lowest level | Not known | `MIN=5` |
 
-MyASUS might keep dark shades slightly cleaner at very low levels (its curve isn't decompiled, so unconfirmed);
-a16-dim can't be undone by an accidental key press. For reading text, a16-dim is the better fit.
-
-**Why 60 %?** ASUS doesn't say. Likely its compromise between shallow flicker and keeping more shades for the
-software dimming (older ASUS OLEDs reportedly switched from PWM to DC dimming around 50 %; this panel PWMs at
-every level, so here 60 % is a trade-off, not a threshold). `PANEL` is the equivalent knob: 60 gives cleaner
-shadows at low levels and deeper flicker than 100 (the current setting).
+**Why 60 %?** ASUS doesn't say. Older ASUS OLEDs reportedly switched from PWM to DC dimming around 50 %, where the
+trick removes the flicker outright; this panel PWMs at every level, so here it's a trade-off, not a threshold.
 
 ## Install
 
@@ -174,20 +160,27 @@ Then `hyprctl reload` and `a16-dim restore` from a terminal in the session.
 
 - For a few seconds at boot, before autostart runs, the panel is at 100 % without the dimming (bright in a dark room).
 - Anything that reads the hardware brightness (`omarchy-brightness-display`, the bar) shows 100 %.
-- Very dark grays can band at low levels; dim less or raise `PANEL` if that shows.
+- Very dark grays can band at low levels; dim less or lower `PANEL` if that shows.
 
 ## Revert
 
 Restore the three `~/.config/hypr/*.bak-20260928` files (bindings, autostart, hyprsunset.conf),
 `hyprctl reload`, `pkill hyprsunset`, then set the panel with the brightness keys again.
 
-## Still open
+## Other ways to reduce flicker exposure on this panel
 
-- **Measuring the flicker**, not done (the difference was visible by eye). Free and rough: S26 Pro mode, shutter
-  1/4000 s, at a white page. The rolling shutter turns time into image rows, so dark-stripe width ÷ stripe
-  period ≈ fraction of each cycle spent dark, and fainter stripes = shallower dips; compare panel 15 % against
-  100 % + gamma. Exact: an Opple Light Master (frequency, percent flicker, flicker index, IEEE 1789 rating).
-  DIY: a photodiode or small solar cell into a mic jack recorded at 48–192 kHz shows the waveform and duty cycle
-  (mic inputs are AC-coupled, so not the absolute depth).
+The gap is in the panel's timing and there's no documented control for it, so the remaining levers reduce how much
+flickering light reaches the eye, or how noticeable it is:
+
+- **Run dimmer, with a dark theme.** Less modulated light, and flicker perception falls with luminance.
+- **More room light.** Lower contrast between screen and surroundings and a smaller pupil make flicker less
+  noticeable than in a dark room.
+- **Stay at 120 Hz.** Whether the PWM rate follows the refresh rate isn't tested; 60 Hz could halve it.
+- **A flicker-free external monitor or an LCD laptop for long sessions.** The only way to remove it entirely;
+  check any screen with the same camera test first (no stripes at 1/12000 s = no PWM).
 - **Other factors** worth keeping in mind: session length and breaks, the constant fan (~700 rpm idle floor,
   [section 11](zenbook-a16-omarchy-snapdragon.md); `IDLE_PWM=0` stops it at idle), and screen height.
+
+For exact numbers (frequency, percent flicker, flicker index, IEEE 1789 rating), an Opple Light Master. A
+photodiode or small solar cell into a mic jack recorded at 48–192 kHz shows the waveform and duty cycle (mic
+inputs are AC-coupled, so not the absolute depth).
