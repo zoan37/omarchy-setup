@@ -44,6 +44,28 @@ calls `SetSplendidDimming` / `-SetDimming`, i.e. ASUS's Splendid color service d
 G-Helper's finding. 80 % sits inside ASUS's range; 100 % would be shallower still at the cost of a few more
 gamma steps.
 
+### Compared with MyASUS
+
+Same principle (panel high, where each PWM off-period is short; image dimmed in software), so the flicker benefit
+is the same. The differences are in the details:
+
+| | MyASUS (Windows) | a16-dim (Omarchy) |
+|---|---|---|
+| Panel level | Up to the user: ASUS asks for Windows brightness above 60 % | Fixed at `PANEL=80` |
+| Controls | Two: Windows brightness (the panel) + the MyASUS slider (the dimming) | One: the brightness keys drive only the dimming |
+| Brightness keys (F5/F6) | Still change the panel, so one tap can drop it below 60 % and back into deep PWM (why reviewers say to use the slider, not the keys) | Can't lower the panel |
+| Dimming method | ASUS's Splendid color service (per G-Helper, a pre-dimmed ICC profile); ASUS could shape the curve to protect shadows | Hyprland CTM via hyprsunset: every encoded value scaled by the same factor |
+| Where it applies | Windows desktop and apps; can clash with HDR / color management | Whole output, lock screen included |
+| Lowest level | Not known | `MIN=10` |
+
+MyASUS might keep dark shades slightly cleaner at very low levels (its curve isn't decompiled, so unconfirmed);
+a16-dim can't be undone by an accidental key press. For reading text, a16-dim is the better fit.
+
+**Why 60 %?** ASUS doesn't say. Likely its compromise between shallow flicker and keeping more shades for the
+software dimming (older ASUS OLEDs reportedly switched from PWM to DC dimming around 50 %; this panel PWMs at
+every level, so here 60 % is a trade-off, not a threshold). `PANEL` is the equivalent knob: 60 gives cleaner
+shadows at low levels and deeper flicker than 80; 100 the reverse.
+
 ## Install
 
 ```
