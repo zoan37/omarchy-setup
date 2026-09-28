@@ -64,6 +64,16 @@ frequency control: `0x702` = `0x86` (brightness over AUX, 16-bit; `FREQ_AUX_SET_
 set), `0x721` = `0x02` (AUX brightness mode), `0x728` (frequency) = 0. Undocumented vendor registers weren't
 touched.
 
+**Windows has no hidden PWM control either** (factory install searched read-only, 2026-09-28). The Qualcomm display
+driver (`qcdx8480`, `qcdxkm8480.sys`) knows `BacklightPmicPWMFrequency`, `BacklightPmicWledDimmingMethod` and
+related keys, but those drive a PMIC WLED, the LED backlight of an LCD; this OLED's brightness goes over AUX
+(`BacklightAuxPWMSizeinBits` = the 11-bit field above). Its other backlight keys (`CABL*`, `BacklightReduction*`)
+are content-adaptive power saving. The CRD extension (`qcdxkmext8480_CRD.bin`) only names power/brightness
+controls, the registry has no display PWM or dimming values, and ASUS's `asusoledcare.inf` is the OLED Care
+screensaver. What Windows does run that Linux doesn't is PSR and dynamic refresh (power, see the main notes'
+section 16), not flicker. The per-laptop panel config lives in ACPI, which a device-tree boot can't read, so
+that one spot is unchecked; the panel's own DPCD caps bound what any driver can set.
+
 **What that means:** the dark gap barely depends on the brightness setting, and each dip goes almost fully dark.
 The original model here (panel brightness = lit time, so 15 % ≈ 85 % dark and 100 % ≈ 5–15 % dark) was wrong for
 this panel; it lowers the current and keeps most of the gap. a16-dim still helps somewhat: ~15 % less dark time,
