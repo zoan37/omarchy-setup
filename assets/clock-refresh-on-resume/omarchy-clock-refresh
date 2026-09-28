@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Refresh the Omarchy bar clock right after resume. Quickshell's SystemClock
+# schedules its next tick with a monotonic QTimer, which doesn't count time
+# spent suspended, so the bar keeps the pre-sleep time for up to a minute.
+#
+# systemd (>= 256) keeps user.slice frozen while post hooks run, so calling
+# the shell here directly would block. Hand the call to a transient service
+# instead; it connects now and gets its answer once the session thaws.
+
+[[ $1 == post ]] || exit 0
+
+# Target the shell by PID: qs otherwise only looks on the caller's Wayland
+# display, and a sleep hook has none.
+for pid in $(pgrep -f '^quickshell .*-p /usr/share/omarchy/shell$'); do
+  uid=$(stat -c %u /proc/$pid) || continue
+  systemd-run --quiet --no-block --collect \
+    --unit="omarchy-clock-refresh-$pid" \
+    --uid="$uid" --setenv=XDG_RUNTIME_DIR="/run/user/$uid" \
+    /usr/bin/timeout 20 /usr/bin/qs ipc --pid "$pid" call omarchy.clock refresh
+done
+
+exit 0

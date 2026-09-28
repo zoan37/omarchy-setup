@@ -166,6 +166,18 @@ can write its own format.
   Full writeup, including why two machines each report the other as having no
   services: [syncthing-and-ufw.md](syncthing-and-ufw.md).
 
+### Bar clock after resume
+
+Install the sleep hook that refreshes the bar clock on wake. Without it, the
+clock shows the pre-sleep time for up to a minute:
+
+```sh
+pkexec install -Dm755 assets/clock-refresh-on-resume/omarchy-clock-refresh \
+  /etc/systemd/system-sleep/omarchy-clock-refresh
+```
+
+Why it's needed and how to verify it: [bar-clock-stale-after-resume.md](bar-clock-stale-after-resume.md).
+
 ## Useful references
 
 - Omarchy Quattro plugin directory: <https://omarchyplugins.com>

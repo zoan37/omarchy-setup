@@ -258,6 +258,21 @@ Wi-Fi associates, and the weather widget hides itself when it has no data.
 `omarchy restart shell` fixes it.
 [weather-widget-boot-race.md](weather-widget-boot-race.md)
 
+## 7b. Bar clock refresh on resume — all machines
+
+The sleep hook lives in `/etc`, so updates leave it in place. What can break
+is its target: it matches the process `quickshell ... -p /usr/share/omarchy/shell`
+and calls the IPC command `omarchy.clock refresh`. Check that both still exist:
+
+```sh
+pgrep -af '^quickshell .*-p /usr/share/omarchy/shell$'
+pkexec /etc/systemd/system-sleep/omarchy-clock-refresh post suspend
+journalctl -b --since -1min | grep omarchy-clock-refresh   # Deactivated successfully
+```
+
+If Quickshell's `SystemClock` has started handling resume itself, remove the hook.
+[bar-clock-stale-after-resume.md](bar-clock-stale-after-resume.md)
+
 ## 8. Chrome theme selection — check if the administrator restriction returns
 
 If Chrome was opted out of Omarchy's forced theme, its
