@@ -44,6 +44,61 @@ calls `SetSplendidDimming` / `-SetDimming`, i.e. ASUS's Splendid color service d
 G-Helper's finding. 80 % sits inside ASUS's range; 100 % would be shallower still at the cost of a few more
 gamma steps.
 
+### How it works (physics)
+
+Each pixel is red, green and blue organic LED subpixels (Samsung's PenTile-style layout, extra green) that emit
+light themselves; there's no backlight. A subpixel's light follows its current. Two separate controls set it:
+
+- **Panel brightness** (`dp_aux_backlight`, 15 % before, 80 % now) sets **how long** each subpixel is lit in every
+  ~1 ms PWM cycle. A timer, not the current.
+- **The pixel value** (what hyprsunset's gamma scales) sets **how much current** flows while it's lit.
+
+Perceived brightness is current × time lit. For a white pixel at the same apparent brightness:
+
+| | Current while lit | Lit per cycle (simple model) | Result |
+|---|---|---|---|
+| Before: panel 15 %, no dimming | Full | ~15 % | Short full-strength bursts, long dark gaps |
+| Now: panel 80 %, gamma ~45 | About a fifth | ~80 % | A dim, nearly continuous glow |
+
+Same average light, much lower peak current, much shorter dark gaps: "DC-like dimming", done through the image
+instead of the panel. The PWM frequency (~1 kHz) doesn't change. Pixel values are gamma-encoded, so light falls
+roughly as level^2.2; level 14 at panel 80 % is about 1 % of the panel's full output.
+
+The "lit per cycle" figures assume the panel dims purely by duty cycle. It may also lower the current over part of
+its range, and it PWMs even at 100 %, so none of this is measured. The S26 camera test below or a flicker meter
+(e.g. Opple Light Master) would settle it.
+
+### Why dark shades suffer at low levels
+
+- **Near-black unevenness (mura):** each subpixel's drive transistor differs slightly from its neighbors. At
+  normal currents the panel's compensation hides that; at very low currents the same differences are a large
+  share of the total, so dark grays can look blotchy, grainy or tinted green/magenta. This is also why panels
+  PWM at low brightness instead of lowering the current.
+- **Banding:** 256 input levels get squeezed into a smaller output range. At level 14 that's ~36 distinct steps
+  if the link to the panel is 8-bit, ~143 if it's 10-bit (not checked), so smooth dark gradients can step.
+
+Both get worse as the pixel values go lower, which is the cost of a higher `PANEL`.
+
+### 60 vs 80 vs 100 %
+
+Model estimates at the same apparent brightness (level 14 at 80 %):
+
+| Panel | Equivalent level | Dark per cycle (model) | Steps left (8-bit) | Undimmed flash at boot |
+|---|---|---|---|---|
+| 60 % (ASUS's advice) | ~16 | ~40 % | ~41 | 60 % |
+| **80 % (chosen)** | 14 | ~20 % | ~36 | 80 % |
+| 100 % | ~13 | Least possible; guessed 5–15 %, not 0 (PWM at every level) | ~32 | 100 % |
+| *15 %, the old way* | *100 (no dimming)* | *~85 %* | *256* | *15 %* |
+
+- **80 %:** a few more shades for dark content, a gentler boot flash, and if hyprsunset ever dies the screen jumps
+  to 80 %, not full. Slightly more flicker than 100 %.
+- **100 %:** the shallowest flicker this panel can do, but ~10 % fewer shades, a full-brightness flash at boot,
+  and a small gain over 80 % (most of the benefit came from leaving 15 %).
+
+Kept at 80 %. Try 100 % (`PANEL=100`, `a16-dim restore`, re-adjust the level) if discomfort remains; go back if
+dark video bands or dark grays turn blotchy. Power and burn-in are about the same at every setting, since on
+OLED both follow the light actually emitted.
+
 ### Compared with MyASUS
 
 Same principle (panel high, where each PWM off-period is short; image dimmed in software), so the flicker benefit
