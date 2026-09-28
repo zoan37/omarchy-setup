@@ -36,6 +36,14 @@ a16-dim restore    # login: panel to 80 %, start hyprsunset -i, reapply the save
 `PANEL=80` and `MIN=10` sit at the top of the script. Level 45 at panel 80 % looks about like the old panel 15 %
 (the transform works on encoded values, so luminance falls roughly as level^2.2).
 
+**What ASUS itself asks for** (found 2026-09-28 in the factory Windows install, mounted read-only with `ntfs3`:
+MyASUS 4.4.10.0, `ModuleDll/HWSettings/AsusCustomization.dll`, a .NET assembly): *"please make sure your Windows
+system brightness is set above 60% … then adjust the OLED Flicker-Free Dimming slider on the right-hand side to a
+level that suits your needs."* So there's no fixed ASUS level: panel above 60 %, dimming in software. The same DLL
+calls `SetSplendidDimming` / `-SetDimming`, i.e. ASUS's Splendid color service does the dimming, consistent with
+G-Helper's finding. 80 % sits inside ASUS's range; 100 % would be shallower still at the cost of a few more
+gamma steps.
+
 ## Install
 
 ```
@@ -99,9 +107,5 @@ Restore the three `~/.config/hypr/*.bak-20260928` files (bindings, autostart, hy
 - **Phone-camera check of the flicker depth**, not done (the difference was visible by eye). S26 Pro mode,
   shutter 1/2000 s or faster, at a white screen: compare panel 15 % against panel 80 % + gamma. Fainter stripes
   = shallower flicker.
-- **What MyASUS does on this machine.** Whether it's on by default isn't documented. Boot Windows and look in
-  MyASUS's display settings, or from Linux mount the Windows partition (p14, `ntfs3`, read-only) and search the
-  registry hives and `ProgramData` for the setting, plus `Windows/System32/spool/drivers/color` for ASUS's
-  pre-dimmed ICC profiles (they'd show how far it dims at each step, and whether ASUS's panel level is 80 %).
 - **Other factors** worth keeping in mind: session length and breaks, the constant fan (~700 rpm idle floor,
   [section 11](zenbook-a16-omarchy-snapdragon.md); `IDLE_PWM=0` stops it at idle), and screen height.
