@@ -1,8 +1,8 @@
-# Bar clock shows the old time after opening the lid *(open bug)*
+# Bar clock shows the old time after opening the lid
 
-> **Status 2026-09-27: not fixed.** The cause below is confirmed from source. The
-> hook is installed but hasn't yet been seen working on a real wake; see
-> [Open: where debugging stopped](#open-where-debugging-stopped).
+> **Status 2026-09-28: fixed locally with a sleep hook** (verified on a real
+> wake). The bug itself is still open upstream in both Quickshell and Omarchy;
+> see [Upstream](#upstream).
 
 **Symptom:** open the lid and the bar clock still shows the time from when the
 lid closed. It catches up after a delay, often 10 to 20 seconds and sometimes
@@ -31,7 +31,7 @@ jumps straight to the correct time. Omarchy doesn't correct for the delay
 either: nothing in the shell reacts to resume, and `omarchy-system-wake` only
 restores brightness and the monitor layout.
 
-## Attempted fix: refresh the clock from a systemd sleep hook
+## Fix: refresh the clock from a systemd sleep hook
 
 The widget has an IPC command that sets the display to `new Date()`:
 
@@ -83,38 +83,36 @@ After a real lid close and open, run the same `journalctl` grep. A unit that
 succeeded means the hook ran, and the bar should show the current minute as
 soon as the screen comes on.
 
-## Open: where debugging stopped
+## How it was debugged (2026-09-27, XPS 13)
 
-On 2026-09-27 on the XPS 13:
-
-1. The dry run above passes: the unit starts, the IPC call returns, and the bar refreshes.
-2. On the first real wake (lid closed 22:43:41, opened 22:46:14) the clock was
-   still 3 min behind, and it took about 15 s to catch up. The journal had no
-   `omarchy-clock-refresh` unit at all, so the hook never ran. It was in
+1. The dry run above passed.
+2. The first real wake still lagged: the lid closed 22:43:41 and opened 22:46:14,
+   the clock was 3 min behind, and it took ~15 s to catch up. The journal had no
+   `omarchy-clock-refresh` unit at all. The hook was sitting in
    `/etc/systemd/system-sleep/`, which `systemd-sleep` ignores.
-3. At 22:46 the hook was moved to `/usr/lib/systemd/system-sleep/`. **No real
-   wake has been tested since.**
+3. After moving it to `/usr/lib/systemd/system-sleep/`, and after a reboot, the
+   next wake refreshed immediately:
 
-Next time, close and open the lid, then:
+   ```
+   23:04:26.858 systemd-logind: Lid opened.
+   23:04:26.953 systemd-sleep: System returned from sleep operation 'suspend'.
+   23:04:27.008 systemd-sleep: Successfully thawed unit 'user.slice'.
+   23:04:27.129 systemd[1]: omarchy-clock-refresh-1173.service: Deactivated successfully.
+   ```
 
-```sh
-journalctl -b --since -5min -o short-precise \
-  | grep -E 'omarchy-clock-refresh|thawed unit|returned from sleep'
-```
+   The refresh landed ~270 ms after the lid opened.
 
-- **No `omarchy-clock-refresh` line:** the hook still isn't running. Check
-  that it's executable, and try adding a `logger` call at the top.
-- **The unit ran but the bar still lagged:** the refresh either reached the
-  shell before it redrew, or didn't reach it at all. Check the unit's output
-  (`journalctl -u 'omarchy-clock-refresh-*'`). If the shell hadn't redrawn yet,
-  a short `--on-active=1s` delay on the `systemd-run` call may help.
-- **The unit failed:** read its output. The `--pid` target may be stale if the
-  shell restarted.
+`user.slice` is thawed about 55 ms after the return from sleep, so the
+session may already be unfrozen when `post` hooks run. Keep the
+`systemd-run` handoff anyway: it's harmless and it protects against resume
+hanging.
 
-Note the journal order on wake: `returned from sleep` → `thawed unit
-'user.slice'` about 15 ms later. The session may already be unfrozen when the
-`post` hooks run, so the `systemd-run` handoff might not be needed. Keep it
-anyway: it's harmless and it protects against resume hanging.
+If it stops working, run the `journalctl` grep from [Verify](#verify):
+
+- **No `omarchy-clock-refresh` line:** the hook isn't running. Check
+  that it's still in `/usr/lib/systemd/system-sleep/` and is executable.
+- **The unit failed:** read its output (`journalctl -u 'omarchy-clock-refresh-*'`).
+  The shell's process line may have changed, so the `pgrep` pattern no longer matches.
 
 ## Revert
 
@@ -122,10 +120,23 @@ anyway: it's harmless and it protects against resume hanging.
 pkexec rm /usr/lib/systemd/system-sleep/omarchy-clock-refresh
 ```
 
-## Fix it upstream
+## Upstream
 
-The proper fix belongs in Quickshell: `SystemClock` should re-check the time
-after resume, either by listening for logind's `PrepareForSleep(false)` or by
-using a timer that follows wall-clock time (`timerfd` on `CLOCK_REALTIME` with
-`TFD_TIMER_CANCEL_ON_SET`). Omarchy could also call `omarchy.clock refresh`
-itself on wake. Once either change ships, delete the hook.
+The real fix belongs in Quickshell: `SystemClock` should re-check the time
+after resume. It could arm a `timerfd` on `CLOCK_REALTIME` with
+`TFD_TIMER_ABSTIME | TFD_TIMER_CANCEL_ON_SET` for the minute boundary, use
+`CLOCK_BOOTTIME`, or re-run `update()` on logind `PrepareForSleep(false)`.
+Quickshell master's `clock.cpp` is unchanged since v0.3.1.
+
+- **Quickshell:** [quickshell-mirror/quickshell#1212](https://github.com/quickshell-mirror/quickshell/issues/1212)
+  was filed by another Omarchy user on 2026-09-27. I added the source-level
+  diagnosis there. The earlier
+  [#559](https://github.com/quickshell-mirror/quickshell/issues/559) was
+  closed as unreproducible. The lag is 0 to 60 s and depends on where in the
+  minute the machine slept, so it's easy to miss.
+- **Omarchy:** `omarchy-system-sleep-monitor` already watches
+  `PrepareForSleep`, but only acts on `true` (lock before sleep). Also calling
+  `omarchy.clock refresh` on `false` would fix it for everyone until
+  Quickshell does. Filed as [omacom/omarchy#13504](https://github.com/omacom/omarchy/issues/13504).
+
+Delete the hook once either fix ships.
