@@ -9,8 +9,8 @@
 #   a16-dim restore      at login: panel to $PANEL, start hyprsunset, reapply the saved level
 set -uo pipefail
 
-PANEL=80   # fixed panel brightness, percent
-MIN=10     # lowest software level, percent
+PANEL=100  # fixed panel brightness, percent (80 until 2026-09-28)
+MIN=5      # lowest software level, percent
 
 state=${XDG_STATE_HOME:-$HOME/.local/state}/a16-dim/level
 device=$(omarchy-hw-display 2>/dev/null || echo dp_aux_backlight)
