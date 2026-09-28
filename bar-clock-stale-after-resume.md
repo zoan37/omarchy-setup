@@ -1,4 +1,8 @@
-# Bar clock shows the old time after opening the lid
+# Bar clock shows the old time after opening the lid *(open bug)*
+
+> **Status 2026-09-27: not fixed.** The cause below is confirmed from source. The
+> hook is installed but hasn't yet been seen working on a real wake; see
+> [Open: where debugging stopped](#open-where-debugging-stopped).
 
 **Symptom:** open the lid and the bar clock still shows the time from when the
 lid closed. It catches up after a delay, often 10 to 20 seconds and sometimes
@@ -27,7 +31,7 @@ jumps straight to the correct time. Omarchy doesn't correct for the delay
 either: nothing in the shell reacts to resume, and `omarchy-system-wake` only
 restores brightness and the monitor layout.
 
-## Fix: refresh the clock from a systemd sleep hook
+## Attempted fix: refresh the clock from a systemd sleep hook
 
 The widget has an IPC command that sets the display to `new Date()`:
 
@@ -40,13 +44,17 @@ runs that command on every resume. Install it:
 
 ```sh
 pkexec install -Dm755 assets/clock-refresh-on-resume/omarchy-clock-refresh \
-  /etc/systemd/system-sleep/omarchy-clock-refresh
+  /usr/lib/systemd/system-sleep/omarchy-clock-refresh
 ```
 
-It lives in `/etc`, which Omarchy updates don't touch, and needs no reload:
-`systemd-sleep` runs everything in that directory with `pre`/`post`.
+`systemd-sleep` runs every executable in that directory with `pre`/`post`,
+and no reload is needed. **It must go in `/usr/lib`:** on systemd 261,
+`systemd-sleep` doesn't read `/etc/systemd/system-sleep/` (see `man
+systemd-sleep`; the binary only contains the `/usr/lib` path). The first
+install went to `/etc` and never ran. No package owns this file, so pacman
+won't remove it, but a `systemd` package update is still worth a check.
 
-Two things that are easy to get wrong in the hook:
+Three things that are easy to get wrong in the hook:
 
 - **Don't call the shell directly from the hook.** Since systemd 256,
   `systemd-sleep` keeps `user.slice` frozen while the `post` hooks run, so a
@@ -55,6 +63,7 @@ Two things that are easy to get wrong in the hook:
   `systemd-run --no-block` instead. That transient unit connects right away and
   gets its reply once the session unfreezes. `timeout 20` limits how long it
   can wait.
+- **Install into `/usr/lib/systemd/system-sleep/`, not `/etc`**, as above.
 - **Target the shell by PID, not `-p <path>`.** `qs ipc -p ...` only matches
   instances on the caller's Wayland display, and a root sleep hook has none.
   The first version failed with `No running instances ... present on the
@@ -65,7 +74,7 @@ Two things that are easy to get wrong in the hook:
 A dry run as root (it doesn't need a real suspend):
 
 ```sh
-pkexec /etc/systemd/system-sleep/omarchy-clock-refresh post suspend
+pkexec /usr/lib/systemd/system-sleep/omarchy-clock-refresh post suspend
 journalctl -b --since -1min | grep omarchy-clock-refresh
 # -> omarchy-clock-refresh-<pid>.service: Deactivated successfully.
 ```
@@ -74,13 +83,43 @@ After a real lid close and open, run the same `journalctl` grep. A unit that
 succeeded means the hook ran, and the bar should show the current minute as
 soon as the screen comes on.
 
-**Status 2026-09-27:** the dry run passes on the XPS 13. A real
-suspend/resume, with `user.slice` frozen, hasn't been observed yet.
+## Open: where debugging stopped
+
+On 2026-09-27 on the XPS 13:
+
+1. The dry run above passes: the unit starts, the IPC call returns, and the bar refreshes.
+2. On the first real wake (lid closed 22:43:41, opened 22:46:14) the clock was
+   still 3 min behind, and it took about 15 s to catch up. The journal had no
+   `omarchy-clock-refresh` unit at all, so the hook never ran. It was in
+   `/etc/systemd/system-sleep/`, which `systemd-sleep` ignores.
+3. At 22:46 the hook was moved to `/usr/lib/systemd/system-sleep/`. **No real
+   wake has been tested since.**
+
+Next time, close and open the lid, then:
+
+```sh
+journalctl -b --since -5min -o short-precise \
+  | grep -E 'omarchy-clock-refresh|thawed unit|returned from sleep'
+```
+
+- **No `omarchy-clock-refresh` line:** the hook still isn't running. Check
+  that it's executable, and try adding a `logger` call at the top.
+- **The unit ran but the bar still lagged:** the refresh either reached the
+  shell before it redrew, or didn't reach it at all. Check the unit's output
+  (`journalctl -u 'omarchy-clock-refresh-*'`). If the shell hadn't redrawn yet,
+  a short `--on-active=1s` delay on the `systemd-run` call may help.
+- **The unit failed:** read its output. The `--pid` target may be stale if the
+  shell restarted.
+
+Note the journal order on wake: `returned from sleep` → `thawed unit
+'user.slice'` about 15 ms later. The session may already be unfrozen when the
+`post` hooks run, so the `systemd-run` handoff might not be needed. Keep it
+anyway: it's harmless and it protects against resume hanging.
 
 ## Revert
 
 ```sh
-pkexec rm /etc/systemd/system-sleep/omarchy-clock-refresh
+pkexec rm /usr/lib/systemd/system-sleep/omarchy-clock-refresh
 ```
 
 ## Fix it upstream

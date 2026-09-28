@@ -266,7 +266,7 @@ and calls the IPC command `omarchy.clock refresh`. Check that both still exist:
 
 ```sh
 pgrep -af '^quickshell .*-p /usr/share/omarchy/shell$'
-pkexec /etc/systemd/system-sleep/omarchy-clock-refresh post suspend
+pkexec /usr/lib/systemd/system-sleep/omarchy-clock-refresh post suspend
 journalctl -b --since -1min | grep omarchy-clock-refresh   # Deactivated successfully
 ```
 

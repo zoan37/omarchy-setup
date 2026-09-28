@@ -173,7 +173,7 @@ clock shows the pre-sleep time for up to a minute:
 
 ```sh
 pkexec install -Dm755 assets/clock-refresh-on-resume/omarchy-clock-refresh \
-  /etc/systemd/system-sleep/omarchy-clock-refresh
+  /usr/lib/systemd/system-sleep/omarchy-clock-refresh
 ```
 
 Why it's needed and how to verify it: [bar-clock-stale-after-resume.md](bar-clock-stale-after-resume.md).
