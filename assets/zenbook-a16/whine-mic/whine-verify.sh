@@ -1,4 +1,6 @@
 #!/bin/bash
+# Desktop user whose PipeWire session records the mic: the one who ran sudo, or set ZUSER.
+ZUSER=${ZUSER:-${SUDO_USER:?run with sudo from the desktop user, or set ZUSER}}
 T="6820 8923"
 rec(){ sudo -u $ZUSER XDG_RUNTIME_DIR=/run/user/1000 timeout 6 pw-record --target 70 --rate 48000 --channels 1 /home/$ZUSER/m.wav >/dev/null 2>&1; python3 /home/$ZUSER/whine-tones.py /home/$ZUSER/m.wav $T; }
 avg(){ python3 -c '

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Desktop user whose PipeWire session records the mic: the one who ran sudo, or set ZUSER.
+ZUSER=${ZUSER:-${SUDO_USER:?run with sudo from the desktop user, or set ZUSER}}
 # Round 8: knobs not yet measured. Run as root. Webcam mic at keyboard centre.
 T="6820 8923"
 U="sudo -u $ZUSER XDG_RUNTIME_DIR=/run/user/1000"
