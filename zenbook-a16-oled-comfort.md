@@ -162,6 +162,59 @@ expose test or firmware modes over AUX.
 - **eDP 1.5 luminance mode.** Set `0x721` bit 7 and a millinit target in `0x734–0x736`. It's documented and
   resets at panel power-off, but expect no change: the AMD laptop's nits path measured the same.
 
+## Panel vendor registers, reverse engineered (2026-10-02)
+
+The hunt for a hidden flicker or DC-dimming control. Short answer: none found. Here is what the panel exposes.
+
+**Read-only map.** [dpcdscan.py](assets/zenbook-a16/dpcdscan.py) `/dev/drm_dp_aux2 0x0 0x100000 out.json` reads
+the whole 20-bit DPCD space in 16-byte chunks with `pread`, about 30 s, and never writes. Only these areas are
+non-zero: the standard blocks (0x000–0x0BF, 0x100, 0x200, 0x600, 0x700–0x72F, 0x2000, 0x2200, 0x2260,
+0x4020), plus the vendor area 0x310–0x37F:
+
+| Register | Value | Meaning |
+|---|---|---|
+| 0x314 | 0x1e | unknown |
+| 0x317 | 0x97 | AMD `DP_SOURCE_SINK_CAP`: SDR + HDR AUX backlight, OLED, **emission_output** |
+| 0x330–0x331 | 01 01 | 0x331 = **A-ELP supported** (ASUS reads 3 bytes at 0x331 and checks byte 0 = 1) |
+| 0x332–0x333 | 00 00 | **A-ELP mode / level** (see below) |
+| 0x340–0x344 | 01 77 01 00 10 | Intel HDR TCON interface: PQ decode, BT.2020, tone mapping, brightness in nits, optimization, SDP colorimetry; 0x344 bit 4 (AUX brightness) set |
+| 0x371–0x372 | changes every read | live 16-bit value in AMD's Panel Replay/vtotal area; doesn't follow brightness or refresh rate |
+| 0x379–0x37A | 09 18 | AMD Panel Replay pixel deviation / deviation lines |
+| **0x37E–0x37F** | **c0 03 = 960** | AMD `DP_SINK_EMISSION_RATE`: the panel reports its own 960 Hz PWM. amdgpu only reads it |
+| 0x400–0x40B | `00 12 fb` `60HR07` … | sink OUI 00-12-FB, device ID, HW/FW revision |
+
+Snapshots at panel brightness 2047/1024/205/10 differ only in 0x722–0x723 (the brightness itself) and the
+live 0x371 value. So **no readable register tracks emission duty**. Like Notebookcheck's identical result on
+the AMD S16, this points to a PWM fixed in the panel firmware. A Samsung sibling (ATNA60HR05 in the Galaxy
+Book6 Pro) runs 240 Hz, so the rate is set per customer, not at runtime.
+
+**A-ELP = Samsung Display's Edge Luminance Profile, not a flicker control.** Samsung presented it at Computex
+2025 as power saving that dims the screen's periphery. MyASUS calls it "Adaptive Edge Brightness" (Snapdragon
+models, off by default). Decoded from ASUS's Windows service (`AsusHotkey.exe -AdvancedELPSet <mode> <level>`,
+which uses Qualcomm `qdcmlib.dll` `DPControlLibrary2` AuxRead/AuxWrite):
+- it reads 2 bytes at 0x332 and, if they differ, writes `[mode, level]`;
+- `AsusOptimization.exe` maps its four slider steps to `01 01`, `01 03`, `01 05` and `01 07`, and off to `00 00`;
+- it takes the default level (0–3) from the BIOS through ASUS WMI device `0x00050044`.
+
+Lenovo's Yoga Slim 7x panel XML writes `01 03` ("A-ELP setting for 9%"). Tested here at `01 07` (the panel
+accepted it and read back `01 01 01 07`): no visible dimming on the owner's dark-theme desktop, so it went back to
+`00 00`. To toggle:
+`sudo python3 -c "import os;os.pwrite(os.open('/dev/drm_dp_aux2',os.O_RDWR),bytes([1,7]),0x332)"`
+(use `[0,0]` for off). ASUS re-sends it at every boot, so it is probably volatile.
+
+**All panel traffic ASUS's software sends.** A search of the Windows install for users of Qualcomm's AUX library
+found AsusHotkey (A-ELP only: 0x331/0x332), AsusSplendid (QDCM gamma, no AUX), and AsusSmartBrightnessControl
+/ AsusOneG (ScreenXpert/ScreenPad brightness, keyed on the sink OUI at 0x400). The Qualcomm display driver's
+panel keys include `EDPCustomAuxCmd` and `EDPCustomScenarioCmd`, but this laptop's ACPI panel XML uses
+neither. Windows sends this panel nothing beyond A-ELP that Linux can't.
+
+**Don't:**
+- **Don't switch refresh rate for experiments.** A 120 → 60 Hz switch made msm retrain the link, it failed
+  twice (`link training on sink failed. ret=-110`) and the screen went black until a reboot. This is the same
+  intermittent eDP training failure as the black screen after LUKS unlock.
+- **Don't write blind** to undocumented 0x3xx, 0x4xx or 0x5xx registers, 0x600 (power state) or ≥ 0xF0000
+  (LTTPR). TCONs can expose firmware-update or test modes over AUX.
+
 ## Install
 
 ```
