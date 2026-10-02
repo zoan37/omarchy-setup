@@ -124,6 +124,16 @@ Panel Replay/PSR boot workaround — see
 (check first whether the kernel quirk for DX13260 has landed; then it's
 unnecessary).
 
+## Zenbook A16 display (OLED)
+
+In `~/.config/hypr/monitors.lua`, after the default `hl.monitor` line:
+```lua
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = omarchy_monitor_scale, bitdepth = 10, cm = "edid" })
+```
+Then `hyprctl reload && hyprctl configerrors`. Colors become correct for the wide-gamut panel, and text is sharper
+and easier to focus on. It was a big everyday improvement. Details: [section 17 of the Zenbook notes](zenbook-a16-omarchy-snapdragon.md#17-display-10-bit-composition-and-edid-color-management-2026-10-02).
+Any other wide-gamut screen will probably benefit from `cm = "edid"` too.
+
 ## Services
 
 ### SER8 fan noise

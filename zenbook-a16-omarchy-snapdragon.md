@@ -969,7 +969,7 @@ GPU work, not eDP link bandwidth.
 
 ## 17. Display: 10-bit composition and EDID color management (2026-10-02)
 
-**Result:** two lines of Hyprland config. The owner finds text sharper and colors better.
+**Result:** two lines of Hyprland config, and one of the biggest everyday improvements on this laptop. In the owner's words: color and sharpness improved, text is sharper and more readable, and it's easier for the eyes to focus on. Before, text looked a bit fuzzy. The likely mechanism: with the `srgb` preset, text anti-aliasing and colored UI edges were stretched to the panel's wider gamut, which gives oversaturated fringes. Converted to the real primaries, edges render as intended.
 `~/.config/hypr/monitors.lua`, after Omarchy's catch-all `hl.monitor` line:
 ```lua
 hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = omarchy_monitor_scale, bitdepth = 10, cm = "edid" })
