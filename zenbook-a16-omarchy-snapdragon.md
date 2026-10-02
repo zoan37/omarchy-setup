@@ -28,9 +28,9 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Windows 11 dual boot | Works: factory Windows restored by ASUS Cloud Recovery, Omarchy in the freed space, firmware entry "Omarchy (GRUB)", GRUB chainloads Windows (section 10) |
 | Bluetooth | No adapter: needs a device-tree patch (serdev node + regulators + `w-disable2` polarity, see jc372 patch 0001). Firmware is already in the image. Not done yet |
 | Battery percentage | **Works** after enabling the SoCCP remoteproc in the DTB (section 13): %, Wh, charge cycles, time left, 75–80 % charge limit all read. Power panel needs a small `omarchy-battery-status` patch |
-| Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 3.63 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Pads + putty inside (2026-09-27) made the rest "manageable" (section 8). **Since 2026-10-02 `a16-power.service` overrides the NVMe L1, fixed-clock, runtime-PM and deep-idle parts for battery** (section 16.3); the offline clusters, Gen1 links and cdsp stop stay |
+| Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 3.63 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Pads + putty inside (2026-09-27) made the rest "manageable" (section 8). `a16-power on` overrides the NVMe L1, fixed-clock, runtime-PM and deep-idle parts for battery (section 16.3); tried as the default on 2026-10-02 and reverted, because all 18 cores online buzzed |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
-| Battery life | ~13–15 W at light use (~5 h). GPU boost to max on trivial redraws costs 2–3 W, capped by `a16-gpu-cap.service`; the rest is missing platform power management (section 16). 2026-10-02: ~10.2–10.5 W, deep idle worth 0.3–0.6 W; `a16-power.service` (whine tweaks overridden, bwmon off, GPU 760 MHz, Wi-Fi PS) is the default now; Windows does 7.3 W (section 16.3) |
+| Battery life | ~13–15 W at light use (~5 h). GPU boost to max on trivial redraws costs 2–3 W, capped by `a16-gpu-cap.service`; the rest is missing platform power management (section 16). 2026-10-02: ~10.2–10.5 W, deep idle worth 0.3–0.6 W; `a16-power` battery toggle (tried as the default, reverted: 18 cores buzz); Windows does 7.3 W (section 16.3) |
 | OLED PWM flicker | Panel PWMs at ~1 kHz with a near-full-depth dark gap of ~35–45 % of each cycle at every brightness (camera-measured). **MyASUS-style dimming** via [`a16-dim`](assets/zenbook-a16/a16-dim) (panel fixed at 100 %, keys drive hyprsunset gamma) shortens it only ~43 → ~36 %; the panel dims mainly by current ([zenbook-a16-oled-comfort.md](zenbook-a16-oled-comfort.md)) |
 | Touchpad palm rejection | Custom behavioral filter `a16-palm-filter.service` (section 15); libinput's disable-while-typing stays off for games |
 | Camera | Not tested |
@@ -898,18 +898,22 @@ It also adds the battery savers:
 
 `off` restores the boot-time whine settings. The offline clusters and Gen1 PCIe links are left alone either way.
 
-**Default since 2026-10-02.** The pad + putty mod (section 8) masks enough of the whine that the owner keeps
-`on`. A16-power doesn't remove the whine services: `a16-power.service` runs after them and overrides them, so
-`sudo systemctl stop a16-power` brings the whine settings back at once and `disable` makes that stick.
-Readings after the switch were 12.0 W with a Chrome tab at 12 % CPU, where the same activity read ~14 W before.
-That is not a clean A/B: Chrome load moves the number by several watts, and Shift+Esc in Chrome finds the
-tab. **To do:** an A/B of `on` vs `off` hands-off. If the whine comes back, bisect it by toggling one setting
-at a time.
+**Tried as the default on 2026-10-02, reverted the same day.** The pad + putty mod (section 8) seemed to mask
+the whine, so `a16-power.service` was enabled to run `on` after the whine services. With 6 cores, readings were
+12.0 W with a Chrome tab at 12 % CPU, against ~14 W for similar activity before. That is not a clean A/B: Chrome
+load moves the number by several watts. Next, all 18 cores were brought online (schedutil, 355 MHz to full
+clock, deep idle on) for an 18-vs-6-core A/B. With the ear to the keyboard there was **an audible buzz**, so the
+test was stopped before its first window finished. The owner went back to the full whine settings: 6 cores,
+service disabled, GPU cap back to 915 MHz, Wi-Fi power save off. The files below stay available for a run on
+battery. **Untested:** whether `on` with 6 cores buzzes, and the non-whine savers alone (bwmon unbind, GPU
+760 MHz, Wi-Fi power save), which keep the whine settings.
+
+To make it the default again:
 
 ```
 sudo install -m755 assets/zenbook-a16/a16-power /usr/local/bin/
 sudo install -m644 assets/zenbook-a16/a16-power.service /etc/systemd/system/
-sudo install -m644 assets/zenbook-a16/a16-gpu-cap.conf /etc/default/a16-gpu-cap    # GPU_MAX_HZ=760000000
+sudo install -m644 assets/zenbook-a16/a16-gpu-cap.conf /etc/default/a16-gpu-cap    # then set GPU_MAX_HZ=760000000
 sudo install -m644 assets/zenbook-a16/zz-a16-wifi-powersave.conf /etc/NetworkManager/conf.d/
 sudo systemctl daemon-reload && sudo systemctl enable --now a16-power && sudo nmcli general reload conf
 a16-power status
