@@ -11,7 +11,7 @@ from running the screen dimmer overall, which the keys now make easy.
 
 ## Why it was tried
 
-- **The panel flickers (PWM) at about 1 kHz at every brightness level**
+- **The panel flickers (PWM) at about 1 kHz at every brightness level** (Notebookcheck: 960 Hz, 56 % amplitude)
   ([UltrabookReview](https://www.ultrabookreview.com/75005-asus-zenbook-a16-review/)).
 - **MyASUS "OLED Flicker-Free Dimming"** keeps the hardware brightness high and darkens the image in software;
   G-Helper's maintainers found it's software only, a pre-dimmed ICC profile / gamma
@@ -118,6 +118,49 @@ Same principle, so on this panel the same small flicker gain. The differences ar
 
 **Why 60 %?** ASUS doesn't say. Older ASUS OLEDs reportedly switched from PWM to DC dimming around 50 %, where the
 trick removes the flicker outright; this panel PWMs at every level, so here it's a trade-off, not a threshold.
+
+## Published measurements and the Windows panel config (research, 2026-10-02)
+
+**Lab numbers agree on the frequency and are gentler on the depth.**
+- Notebookcheck measured this laptop at **960 Hz with 56 % amplitude, at 100 % brightness and every level below**
+  ([review](https://www.notebookcheck.net/Asus-Zenbook-A16-Laptop-Review-X2-Elite-Extreme-48-GB-RAM-for-1599.1261795.0.html)).
+  960 Hz is 8 pulses per 120 Hz frame. The review text also mentions "DC dimming at lower brightness", which
+  contradicts its own table.
+- The AMD Zenbook S16 UM5606 uses the **same panel** and measured the same 960 Hz / 56 %, although AMD drives
+  brightness through its nits interface. So the PWM is the panel's own and doesn't depend on how the host sets
+  brightness.
+- 56 % is within IEEE 1789's low-risk limit at 960 Hz (0.08 × f = 76.8 %), but well above its no-effect level
+  (~32 %).
+- Our camera estimate of a near-full-depth gap, judged from 8-bit stripe brightness at ISO 3200, is cruder than
+  a photodiode. Treat 56 % as the better depth figure. The dark-share numbers above still describe how the
+  waveform changes with the settings.
+
+**Sibling panels:**
+
+| Laptop | Panel | PWM |
+|---|---|---|
+| Zenbook S16, older | ATNA60CL10 | 480 Hz, 30 % |
+| Zenbook A14 | ATNA40CT06 | 480 Hz, 22 %, and **none above 86 % brightness** (the only DC-above-threshold case found on these Samsung panels) |
+| Galaxy Book6 Pro | ATNA60HR05 | 240 Hz, 100 % at every level |
+
+**Windows does nothing special to this panel.** aarch64-laptops published this laptop's DSDT
+([build/misc/asus-zenbook-a16-ux3607oa](https://github.com/aarch64-laptops/build/tree/master/misc/asus-zenbook-a16-ux3607oa)).
+Its panel XML for ATNA60HR07-0 has `BacklightType 8`, a 5–500-nit brightness range, PSR2 and SSC, and **no
+`BrightnessInitSequence` or custom AUX writes**. So no hidden DPCD setup exists that Linux is missing. G-Helper's
+source shows MyASUS's flicker-free slider is ASUS Splendid command 19, a software dim with a 40 % floor, the same
+idea as `a16-dim`. No ASUS model was found with true DC dimming on this panel.
+
+**No host control for the PWM is known.** Neither the standard eDP registers nor the AMD (0x317–0x37E) or Intel
+(0x340–0x359) vendor nit interfaces control emission duty or frequency, and this panel reports no PWM-frequency
+capability. The only vendor write found on any Samsung laptop OLED is Lenovo's `0x332/0x333` "A-ELP" setting,
+which is undocumented and most likely about power. Don't write undocumented 0x3xx registers blind: TCONs can
+expose test or firmware modes over AUX.
+
+**Still worth one camera test each:**
+- **60 Hz** (`hyprctl eval 'hl.monitor({ output = "eDP-1", mode = "2880x1800@60", … })'`). The 60 Hz mode is
+  stretched vblank at the same line rate, so the panel either keeps ~960 Hz or drops to ~480 Hz.
+- **eDP 1.5 luminance mode.** Set `0x721` bit 7 and a millinit target in `0x734–0x736`. It's documented and
+  resets at panel power-off, but expect no change: the AMD laptop's nits path measured the same.
 
 ## Install
 
