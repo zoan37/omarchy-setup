@@ -30,7 +30,7 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 | Battery percentage | **Works** after enabling the SoCCP remoteproc in the DTB (section 13): %, Wh, charge cycles, time left, 75–80 % charge limit all read. Power panel needs a small `omarchy-battery-status` patch |
 | Coil whine | Traced with a mic to the SSD's PCIe link L1 state; `a16-nvme-aspm.service` keeps that link active, loudest tone −10 dB. Ear-judged extras in `a16-whine-tweaks.service` + `a16-cpuidle-nosleep.service` (PCIe links Gen1, 12 cores offline, cpu6-11 fixed at 3.63 GHz, runtime PM on, cdsp stopped, no deep idle; costs performance). Pads + putty inside (2026-09-27) made the rest "manageable" (section 8) |
 | Suspend | **Broken**: never resumes, machine resets. Sleep targets masked (section 8) |
-| Battery life | ~13–15 W at light use (~5 h). GPU boost to max on trivial redraws costs 2–3 W, capped by `a16-gpu-cap.service`; the rest is missing platform power management (section 16) |
+| Battery life | ~13–15 W at light use (~5 h). GPU boost to max on trivial redraws costs 2–3 W, capped by `a16-gpu-cap.service`; the rest is missing platform power management (section 16). 2026-10-02: ~10.2–10.5 W, deep idle worth 0.3–0.6 W, `a16-power` runtime toggle, Windows does 7.3 W (section 16.3) |
 | OLED PWM flicker | Panel PWMs at ~1 kHz with a near-full-depth dark gap of ~35–45 % of each cycle at every brightness (camera-measured). **MyASUS-style dimming** via [`a16-dim`](assets/zenbook-a16/a16-dim) (panel fixed at 100 %, keys drive hyprsunset gamma) shortens it only ~43 → ~36 %; the panel dims mainly by current ([zenbook-a16-oled-comfort.md](zenbook-a16-oled-comfort.md)) |
 | Touchpad palm rejection | Custom behavioral filter `a16-palm-filter.service` (section 15); libinput's disable-while-typing stays off for games |
 | Camera | Not tested |
@@ -844,3 +844,103 @@ automatically. The entry is still in `grub.cfg` for retesting after kernel updat
 - Downloads are kept in `~/src/a16-psr`. **Paused:** the estimated payoff is 0.3–1 W average (0.5–1.5 W only while
   the screen is completely static, and the CPU cluster's own 11–21 GB/s DDR votes probably stop DDR from
   dropping anyway), against hours of driver work. Worth reporting upstream.
+
+### 16.3 Second pass: A/B tooling, runtime toggles, patched modules (2026-10-02)
+
+Starting point: **~10.2–10.5 W** at light use (dark theme, panel at 100 % with `a16-dim` gamma ~35, a Claude
+Code session redrawing in a terminal, Chrome open). This is lower than the 13–15 W of section 16, mainly because
+of the GPU cap.
+
+**Realistic target.** ASUS's Energy Star listing for the UX3607O gives **7.3 W short idle with the screen on**
+on Windows, measured at the wall
+([Energy Star](https://www.energystar.gov/productfinder/product/certified-computers/details/4528779)). The gap
+to Windows is therefore about 2–3 W, not the 5–7 W assumed in section 16.
+
+**The gauge is usable now.** `qcom-battmgr`'s `power_now` updates every ~5 s even at 56 %; on 2026-09-26 it
+updated every 1–5 min. It still smooths over ~20 s. With a 25 s settle and a 50–60 s window, A/B tests work.
+[power-meas.sh](assets/zenbook-a16/power-meas.sh) `SETTLE WINDOW` prints the mean battery watts plus CPU busy %
+and the GPU's share of time above 310 MHz, so a window that caught background activity shows up. Active browser
+use swamps everything: one busy Chrome tab took the laptop from 10 W to 18 W, so measure hands-off.
+
+**Measured (A/B/A/B, 60 s windows):**
+
+| Change | Result |
+|---|---|
+| CPU deep idle (`cpu-sleep-0`) allowed vs blocked (`a16-cpuidle-nosleep`) | **−0.3 to −0.6 W** (10.10/9.92 W on vs 10.42/10.56 W off) |
+| CPU clock free to scale vs fixed 3.63 GHz | Inconclusive: a browser tab woke during one window (12.2 W). Retest hands-off |
+
+**Observed, not yet measured:**
+- **DDR is held at maximum by the CPU bandwidth monitor.** In `interconnect_summary`, `100d400.pmu` (the bwmon
+  of the online cpu6-11 cluster) votes 21.3 GB/s peak, the top of the table, at idle. Unbinding the three bwmon
+  devices (`echo 100d400.pmu > /sys/bus/platform/drivers/qcom-bwmon/unbind`, likewise `100c400`/`100e400`) drops
+  the DDR peak vote to the next voter, and rebinding works. Watch out: the GPU OPP table votes high too
+  (310 MHz → 2.1 GB/s, 572/760 MHz → 12.4 GB/s, 820–1185 MHz → 16.5 GB/s, ≥ 1350 MHz → 18.6 GB/s), so DDR only
+  comes down when both are low.
+- **The 915 MHz GPU cap no longer keeps the GPU at its lowest clock.** On this boot it spent ~40 % of the time
+  at 915 MHz (cycling 310 → 760 → 915 → 310), where on 2026-09-26 it stayed at 310 MHz. A 760 MHz cap is the
+  next step down.
+- The audio graph suspends when silent (`pw-top`), so the speaker filter-chain costs nothing at idle.
+- The kernel cmdline has no `clk_ignore_unused`/`pd_ignore_unused`, so nothing to gain there.
+- `ddr_stats` lists every DDR frequency with a count of 1 and a duration of 0, so it can't show DDR residency.
+
+**Runtime toggle: [a16-power](assets/zenbook-a16/a16-power) `on|off|status`** (re-execs with sudo, lost at
+reboot). `on` undoes the coil-whine tweaks that cost power:
+- deep idle allowed;
+- schedutil from 355 MHz;
+- runtime PM back to `auto` for the devices in `/run/a16-whine-rpm`;
+- NVMe L1 allowed.
+
+It also adds the battery savers:
+- bwmon unbound;
+- GPU capped at 760 MHz;
+- Wi-Fi power save on (mainline ath12k sets `supports_sta_ps` for QCC2072; Omarchy turns it off by default in
+  `/etc/NetworkManager/conf.d/omarchy-wifi-powersave.conf`).
+
+`off` restores the boot-time whine settings. One reading with `on`, just after unplugging, was 10.07 W, which
+isn't a clean A/B. The owner reverted to `off` and kept the whine settings. The offline clusters and Gen1 PCIe
+links are left alone either way. **To do:** an A/B of `on` vs `off` hands-off, then bisect whatever brings the
+whine back.
+
+**Kernel fixes, built as patched modules and paused.** Fixes found since 2026-09-20 (patchwork, mainline
+7.3-rc5, Ubuntu Concept 7.3, FixItFoundry). None of them are in 7.2.0-18:
+- [drm/msm/a6xx: Honor perfmode_bw threshold on A8x](https://patchwork.kernel.org/project/linux-arm-msm/patch/20260923-hawi-gpu-v1-1-0c3c79a1a470@oss.qualcomm.com/):
+  the X2-85 votes DDR perf mode (ACV) on every GPU bandwidth level, although the catalog sets a 16.5 GB/s threshold;
+- [phy: qcom: eusb2-repeater: power leakage fix](https://patchwork.kernel.org/project/linux-arm-msm/patch/20260917-smb-repeater-power-leakage-v1-1-6d7311c3c03e@oss.qualcomm.com/):
+  the SMB2370 repeater, two of them on the A16, keeps leaking after PHY exit;
+- clk: qcom: gpucc-glymur: mark the GPU CX GDSC as votable (upstream 8f3f88309fa4; FixItFoundry carries it as `0006`);
+- our own [msm-dp-psr-link-standby.patch](assets/zenbook-a16/kmod/msm-dp-psr-link-standby.patch). When the sink
+  needs training on PSR exit (DPCD `0x071` bit 0 clear, as on this panel), it sets `DP_PSR_MAIN_LINK_ACTIVE` in
+  `PSR_EN_CFG` and leaves the main link up during PSR, so no training is needed on exit. This is i915's
+  "link standby" approach for bug 1 of section 16.2. It only matters with `msm.psr_enabled=1`.
+
+The build works without a full kernel tree:
+1. Extract the source tarball and both header `.deb`s from section 16.2 (`bsdtar`).
+2. Copy `drivers/gpu/drm/msm` to a tree of the same depth: it includes `../../../drm_crtc_internal.h`.
+3. Replace the headers package's stub `drivers/gpu/drm/msm` with a symlink to that copy; the trace headers
+   resolve `../../drivers/gpu/drm/msm` from `include/trace`.
+4. Build with `make -C <headers> M=$PWD modules`. Arch's GCC 16 instead of Ubuntu's 15.2 only produces a
+   warning.
+
+The vermagic, modversion CRCs and `depends` of all three modules matched the stock ones exactly. Unsigned
+modules only taint the kernel, because signing isn't enforced and lockdown is `none`. The modules sit in the
+initramfs's uncompressed early cpio, not in the zstd main archive. Parse the newc headers to split the two
+(`zstd` magic bytes also occur inside firmware files). Swap the three `.ko.zst` files and repack with
+`bsdtar --uid 0 --gid 0 --format=newc`, keeping the original order. The repacked file list matched the original.
+The result went in as `/oma-snap/custom/initramfs-a16fix.img` with GRUB entries `oma-snap-a16fix` and
+`oma-snap-a16fix-psr`, armed one-shot through `next_entry`.
+
+**Result: a black screen after login on `oma-snap-a16fix`** (without PSR). The next boot fell back on its own.
+The failed boot's kernel log has a `WARNING … clk_branch_toggle` right after the patched `gpucc_glymur(OE)` and
+`msm(OE)` loaded. The GDSC `VOTABLE` change is the likely culprit: it changes how the GPU CX power domain's state
+is read, and the backport may need other 7.3 changes. If this is retried, drop that patch first and test the
+`msm` + eusb2 modules alone. The entries and the image are still on the ESP, but not the default.
+
+**Elsewhere (2026-10-02):** Canonical's
+[Ubuntu Concept 26.10 Snapdragon image](https://discourse.ubuntu.com/t/ubuntu-concept-26-10-snapdragon-edition/88518)
+(2026-09-29) adds the first X2 laptops, including the A14/A16, on a 7.3 kernel. Its A16 speakers don't work,
+suspend is broken, and battery life is "worse than Windows". It has nothing on power that this setup lacks.
+Certified Ubuntu and ASUS preloads are planned for H1 2027.
+[FixItFoundry/zenbook-a16-linux](https://github.com/FixItFoundry/zenbook-a16-linux) (7.3-rc5 + 28 patches)
+has no idle-power measurements. It records three unexplained silent resets, like the reset at idle lock on this
+machine. It also notes that 60 Hz and 120 Hz use the same 709.632 MHz pixel clock, so 60 Hz saves fetch and
+GPU work, not eDP link bandwidth.

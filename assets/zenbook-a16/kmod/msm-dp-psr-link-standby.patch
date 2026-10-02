@@ -1,0 +1,42 @@
+--- a/drivers/gpu/drm/msm/dp/dp_ctrl.c
++++ b/drivers/gpu/drm/msm/dp/dp_ctrl.c
+@@ -133,6 +133,7 @@
+ 
+ 	struct completion idle_comp;
+ 	struct completion psr_op_comp;
++	bool psr_link_standby;
+ 	struct completion video_comp;
+ 
+ 	u32 hw_revision;
+@@ -1863,8 +1864,17 @@
+ 	msm_dp_ctrl_config_psr_interrupt(ctrl);
+ 	msm_dp_ctrl_enable_sdp(ctrl);
+ 
++	/*
++	 * A sink that needs link training on PSR exit gets a main link that stays
++	 * active during PSR instead: the exit path below has no training sequence.
++	 */
++	ctrl->psr_link_standby = !(ctrl->panel->psr_cap.capabilities & DP_PSR_NO_TRAIN_ON_EXIT);
++
+ 	cfg = DP_PSR_ENABLE;
++	if (ctrl->psr_link_standby)
++		cfg |= DP_PSR_MAIN_LINK_ACTIVE;
+ 	drm_dp_dpcd_write(ctrl->aux, DP_PSR_EN_CFG, &cfg, 1);
++	drm_dbg_dp(ctrl->drm_dev, "PSR_EN_CFG=0x%x link_standby=%d\n", cfg, ctrl->psr_link_standby);
+ }
+ 
+ void msm_dp_ctrl_set_psr(struct msm_dp_ctrl *msm_dp_ctrl, bool enter)
+@@ -1899,9 +1909,11 @@
+ 		msm_dp_ctrl_push_idle(msm_dp_ctrl);
+ 		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, 0);
+ 
+-		msm_dp_ctrl_psr_mainlink_disable(ctrl);
++		if (!ctrl->psr_link_standby)
++			msm_dp_ctrl_psr_mainlink_disable(ctrl);
+ 	} else {
+-		msm_dp_ctrl_psr_mainlink_enable(ctrl);
++		if (!ctrl->psr_link_standby)
++			msm_dp_ctrl_psr_mainlink_enable(ctrl);
+ 
+ 		msm_dp_ctrl_psr_exit(ctrl);
+ 		msm_dp_write_link(ctrl, REG_DP_STATE_CTRL, DP_STATE_CTRL_SEND_VIDEO);

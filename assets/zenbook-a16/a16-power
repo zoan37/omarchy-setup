@@ -1,0 +1,39 @@
+#!/bin/bash
+# a16-power on|off|status: power-saving settings for the Zenbook A16, applied live (lost at reboot).
+# "on" undoes the coil-whine tweaks that cost power and adds the battery savers:
+#   deep idle (cpu-sleep-0) allowed, CPU clock free to scale (schedutil from 355 MHz), runtime PM back to auto,
+#   NVMe ASPM L1 allowed, CPU bandwidth monitors (bwmon) unbound so they stop voting DDR to max,
+#   GPU capped at 760 MHz, Wi-Fi power save on.
+# "off" restores what a16-whine-tweaks / a16-cpuidle-nosleep / a16-nvme-aspm / a16-gpu-cap set at boot.
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+CPU=/sys/devices/system/cpu; GPU=/sys/class/devfreq/3d00000.gpu
+BW=/sys/bus/platform/drivers/qcom-bwmon; BWDEV="100c400.pmu 100d400.pmu 100e400.pmu"
+RPM_SAVED=/run/a16-whine-rpm
+. /etc/default/a16-whine 2>/dev/null
+nvme(){ for d in /sys/bus/pci/devices/*; do [ "$(cat $d/class)" = 0x010802 ] && echo $d; done; }
+
+case ${1:-status} in
+on)
+  for s in $CPU/cpu*/cpuidle/state1/disable; do echo 0 2>/dev/null > $s; done
+  for p in $CPU/cpufreq/policy*; do cat $p/scaling_governor >/dev/null 2>&1 || continue
+    echo schedutil > $p/scaling_governor; echo 355200 > $p/scaling_min_freq; echo ${MAX_KHZ:-3628800} > $p/scaling_max_freq; done
+  [ -e $RPM_SAVED ] && while read -r f; do echo auto 2>/dev/null > "$f"; done < $RPM_SAVED
+  echo 1 > $(nvme)/link/l1_aspm
+  for d in $BWDEV; do [ -e $BW/$d ] && echo $d > $BW/unbind; done
+  echo 760000000 > $GPU/max_freq
+  iw dev wlan0 set power_save on
+  ;;
+off)
+  for s in $CPU/cpu*/cpuidle/state1/disable; do echo 1 2>/dev/null > $s; done
+  for p in $CPU/cpufreq/policy*; do cat $p/scaling_governor >/dev/null 2>&1 || continue
+    echo ondemand > $p/scaling_governor; echo ${MAX_KHZ:-3628800} > $p/scaling_max_freq; echo ${MIN_KHZ:-3628800} > $p/scaling_min_freq; done
+  [ -e $RPM_SAVED ] && while read -r f; do echo on 2>/dev/null > "$f"; done < $RPM_SAVED
+  echo 0 > $(nvme)/link/l1_aspm
+  for d in $BWDEV; do [ -e $BW/$d ] || echo $d > $BW/bind; done
+  echo 915000000 > $GPU/max_freq
+  iw dev wlan0 set power_save off
+  ;;
+esac
+p=$CPU/cpufreq/policy6
+echo "deep idle: $([ "$(cat $CPU/cpu6/cpuidle/state1/disable)" = 0 ] && echo on || echo off)  cpu: $(cat $p/scaling_governor) $(( $(cat $p/scaling_min_freq)/1000 ))-$(( $(cat $p/scaling_max_freq)/1000 )) MHz" \
+     " nvme L1: $(cat $(nvme)/link/l1_aspm)  bwmon: $(ls $BW | grep -c pmu) bound  gpu max: $(( $(cat $GPU/max_freq)/1000000 )) MHz  wifi $(iw dev wlan0 get power_save)"
