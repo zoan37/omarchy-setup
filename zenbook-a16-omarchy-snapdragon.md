@@ -966,3 +966,53 @@ Certified Ubuntu and ASUS preloads are planned for H1 2027.
 has no idle-power measurements. It records three unexplained silent resets, like the reset at idle lock on this
 machine. It also notes that 60 Hz and 120 Hz use the same 709.632 MHz pixel clock, so 60 Hz saves fetch and
 GPU work, not eDP link bandwidth.
+
+## 17. Display: 10-bit composition and EDID color management (2026-10-02)
+
+**Result:** two lines of Hyprland config. The owner finds text sharper and colors better.
+`~/.config/hypr/monitors.lua`, after Omarchy's catch-all `hl.monitor` line:
+```lua
+hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = omarchy_monitor_scale, bitdepth = 10, cm = "edid" })
+```
+Validate with `hyprctl reload && hyprctl configerrors`; `hyprctl monitors -j` should show `XRGB2101010` and
+`colorManagementPreset: edid`. To try it live, use `hyprctl eval 'hl.monitor({ … })'`. With the Lua config,
+`hyprctl keyword monitor …` fails with "keyword can't work with non-legacy parsers. Use eval."
+
+**Before, by default:**
+- Hyprland composed in **8-bit** (`XRGB8888`) and used the **`srgb` preset**, i.e. it treated the panel as an sRGB
+  screen.
+- The panel is a wide-gamut OLED, with EDID primaries R 0.683/0.316, G 0.245/0.714, B 0.140/0.044 (DCI-P3
+  class). Every sRGB color was therefore stretched to the panel's wider primaries: oversaturated, with skewed
+  skin tones.
+
+**What each setting does:**
+- **`cm = "edid"`**: Hyprland's color management converts sRGB content to the panel's EDID primaries, so colors
+  look as intended. Windows has the same correction in ASUS Splendid's sRGB/"native" modes.
+- **`bitdepth = 10`**: composition and the plane format become 10-bit (`XR30`). **The eDP link stays at 8 bpc**
+  (`dp_debug` shows `bpp = 24`). `msm_dp_panel_get_supported_bpp()` drops to 24 bpp because 2880×1800@120 at
+  30 bpp needs 709.6 MHz × 30 = 21.3 Gbit/s, but HBR2 ×4 carries 4 × 5.4 × 8/10 = 17.3 Gbit/s. The panel supports
+  DSC 1.2 (DPCD `0x060` = 0x01), but msm doesn't use DSC on eDP. The 60 Hz mode has the same 709.633 MHz pixel
+  clock (it stretches the vertical front porch from 80 to 2000 lines), so it doesn't help either. The gain is
+  that the color conversion and `a16-dim`'s gamma dimming run at 10-bit precision before the final 8-bit
+  quantization, which means less banding in dark gradients.
+
+**What the panel reports** (`edid-decode` on `/sys/class/drm/card1-eDP-1/edid`; read-only DPCD dump of
+`/dev/drm_dp_aux2` with `dd bs=1 skip=… count=…`):
+
+| Item | Value |
+|---|---|
+| Panel | Samsung Display `ATNA60HR07-0`, sink OUI 00-12-FB, DPCD 1.4, eDP 1.5 (`0x700` = 0x06) |
+| Color | 10 bpc input (12 bpc native), DCI-P3 + BT.2020/PQ, HDR static metadata type 1 |
+| Luminance | 500 cd/m² full screen, 1100 cd/m² at 10 % window, minimum SDR 5 cd/m² |
+| Refresh | 120 Hz and 60 Hz modes, same pixel clock. Adaptive Sync 30–120 Hz (DisplayID + AMD VSDB with "Replay"). The msm debugfs `vrr_range` is 30–120, but Hyprland reports `vrr: false` |
+| Link | Link-rate table 1.62/2.7/5.4 Gbit/s; running HBR2 ×4. DSC 1.2 capable |
+| Self refresh | PSR2 with Y-coordinates (`0x070` = 0x03, `0x071` = 0x76: training required on exit, see 16.2), Panel Replay (`0x0B0` = 0x07) |
+| Backlight caps | `0x701` = 0x9b, `0x702` = 0x86 (AUX brightness, 16-bit, vblank-synced update; **no PWM frequency set** and no PWM pass-through), `0x703` = 0xf4 (**panel luminance control** and smooth brightness), `0x724–0x726` = 11-bit PWMGEN, brightness 0x7ff |
+
+**Flicker:** no standard eDP register controls this panel's ~1 kHz PWM (see
+[zenbook-a16-oled-comfort.md](zenbook-a16-oled-comfort.md)). Two things are still untested, and each needs the
+phone-camera stripe test:
+- 60 Hz vs 120 Hz. If the panel keeps 8 pulses per frame, 60 Hz would halve the PWM rate; it may instead keep a
+  fixed emission rate through the long front porch.
+- eDP 1.5 luminance mode. This writes the documented `0x721` bit 7 plus a nits value in `0x734–0x736`. It's a
+  different dimming path and might not change the PWM at all. It's reversible by writing `0x721` back to 0x02.
