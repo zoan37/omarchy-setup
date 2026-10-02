@@ -5,6 +5,9 @@
 #   NVMe ASPM L1 allowed, CPU bandwidth monitors (bwmon) unbound so they stop voting DDR to max,
 #   GPU capped at 760 MHz, Wi-Fi power save on.
 # "off" restores what a16-whine-tweaks / a16-cpuidle-nosleep / a16-nvme-aspm / a16-gpu-cap set at boot.
+# a16-power.service runs "on" at boot after those services (default since 2026-10-02, after the pad + putty mod
+# made the whine tolerable); `systemctl stop a16-power` runs "off". Wi-Fi power save also needs
+# zz-a16-wifi-powersave.conf in /etc/NetworkManager/conf.d, or NetworkManager turns it off again on reconnect.
 [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
 CPU=/sys/devices/system/cpu; GPU=/sys/class/devfreq/3d00000.gpu
 BW=/sys/bus/platform/drivers/qcom-bwmon; BWDEV="100c400.pmu 100d400.pmu 100e400.pmu"
@@ -19,6 +22,7 @@ on)
     echo schedutil > $p/scaling_governor; echo 355200 > $p/scaling_min_freq; echo ${MAX_KHZ:-3628800} > $p/scaling_max_freq; done
   [ -e $RPM_SAVED ] && while read -r f; do echo auto 2>/dev/null > "$f"; done < $RPM_SAVED
   echo 1 > $(nvme)/link/l1_aspm
+  for i in $(seq 20); do [ -e $BW/100d400.pmu ] && break; sleep 1; done   # at boot, wait for bwmon to probe
   for d in $BWDEV; do [ -e $BW/$d ] && echo $d > $BW/unbind; done
   echo 760000000 > $GPU/max_freq
   iw dev wlan0 set power_save on

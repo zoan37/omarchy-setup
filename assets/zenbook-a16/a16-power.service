@@ -1,0 +1,12 @@
+[Unit]
+Description=Zenbook A16: battery settings (deep idle, CPU scaling, runtime PM, NVMe L1, no bwmon, GPU 760 MHz, Wi-Fi PS)
+After=multi-user.target a16-whine-tweaks.service a16-cpuidle-nosleep.service a16-nvme-aspm.service a16-gpu-cap.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/a16-power on
+ExecStop=/usr/local/bin/a16-power off
+
+[Install]
+WantedBy=multi-user.target
