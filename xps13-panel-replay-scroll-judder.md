@@ -115,18 +115,79 @@ savings. Reported on the PR:
 https://github.com/omacom/omarchy/pull/6849#issuecomment-5862460895
 
 Side note: the panel's EDID says manufacturer `SHP`, product `LQ134Z1`
-(Sharp), even though the DPCD sink OUI reads as LGD.
+(Sharp). The sink OUI `00:22:b9` was never LG's. It's Analogix's, the
+controller maker. See the next section.
+
+## Panel identity: Sharp glass, Analogix "Bamboo" controller (2026-10-05)
+
+Spencer Bull found a second Wildcat Lake DX13260 with the same subsystem
+(`1028:0e53`) and the same sink OUI that **doesn't** judder on `linux-omarchy`
+7.2.5 with Panel Replay on. The difference is the panel:
+
+| | This machine | Spencer's |
+|---|---|---|
+| Panel (EDID) | **Sharp LQ134Z1** (`SHP`, product 5597 / `0x15dd`, Dell P/N 933KG, made week 4 of 2026) | LG LP134WQ |
+| DPCD device ID (`0x403`) | `Bamboo` | `Balsa2` |
+| Controller firmware (`0x40A–0x40B`) | 0.0 (not populated) | 2.17 |
+| Sink OUI | `00:22:b9` | `00:22:b9` |
+| Judder | yes | no |
+
+**`00:22:b9` is Analogix** (`/usr/share/hwdata/oui.txt`), not LG Display. It
+names the controller vendor, so it matches across both panels and can't tell
+them apart. Earlier notes, the PR and the upstream issue called it "LGD", which
+was wrong. These are two different panels from two different makers, not one
+panel on two firmware versions, so a panel firmware update won't fix it.
+
+The Panther Lake DX13260 (`0e54`) also ships the Sharp LQ134Z1 and needs its
+own workaround (omarchy #12297). If it reports `Bamboo` too, the bug follows the
+panel across both platforms. That isn't confirmed yet.
+
+Reading the DPCD ID. `drm_dp_aux_dev` is built into `linux-omarchy`, so skip
+`modprobe`. `xxd` isn't installed, so use `od`. `aux0` is `AUX A`, the eDP link:
+
+```
+pkexec sh -c 'dd if=/dev/drm_dp_aux0 bs=1 skip=$((0x400)) count=12 2>/dev/null | od -A x -t x1z'
+# 000000 00 22 b9 42 61 6d 62 6f 6f 00 00 00  >.".Bamboo...<
+```
+
+**Other `0e53` owners upstream** (Fedora 44, kernel 7.1.8, KDE; panels not yet
+identified) report the same bug, plus `Selective fetch area calculation failed
+in pipe A` in dmesg:
+
+- joel1: `xe.enable_panel_replay=0` alone fixes the judder but adds **flicker**
+  from the PSR2 fallback. That confirms a quirk that only turns Panel Replay
+  off isn't enough for this panel.
+- Both run **PSR1** without problems: `xe.enable_psr=1 xe.enable_panel_replay=0`
+  (karz adds `xe.enable_psr2_sel_fetch=0` and turns VRR off). joel1 measured
+  ~77% package C10 at idle versus 0% with PSR fully off, about **2.4W saved**.
+  **Not tried on this machine yet** (`linux-omarchy` + Hyprland). This is the
+  thing to test if battery matters more than certainty.
+
+Posted upstream with a request for their DPCD IDs:
+https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/8930#note_3696599
+(PR reply: https://github.com/omacom/omarchy/pull/6849#issuecomment-6008169611)
+
+State on 2026-10-05: the drop-in (`xe.enable_psr=0 xe.enable_panel_replay=0`) is
+in `/etc/limine-entry-tool.d/`, and both UKIs (`linux` and `linux-omarchy`) and
+`limine.conf` have it. The boot from 2026-09-27 doesn't have it, so PSR is off
+through `i915_edp_psr_debug=1` until the next reboot.
 
 ## Upstream trail (for retiring this workaround later)
 
 - Kernel report: https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/8930
 - Omarchy issue/PR: basecamp/omarchy#6853 / basecamp/omarchy#6849
-- Key identifiers: GPU subsystem `1028:0e53`, DPCD sink OUI `00:22:b9` (LGD,
-  device string "Bamboo") — same sink family as the upstream quirks for
-  XPS 14 DA14260 (`45c77d4bf8d4`, v7.1) and XPS 16 DA16260 (`cb8d155b0806`,
-  7.2-rc1). Expected fix: matching `intel_dpcd_quirks[]` entry for DX13260.
-- When a kernel ships that quirk: delete
+- Key identifiers: GPU subsystem `1028:0e53`, DPCD sink OUI `00:22:b9`
+  (Analogix), device ID `Bamboo`, EDID Sharp LQ134Z1. The XPS 14 DA14260
+  (`45c77d4bf8d4`, v7.1) and XPS 16 DA16260 (`cb8d155b0806`, 7.2-rc1) quirks
+  use the same OUI. `intel_dpcd_quirks[]` matches only on subsystem + OUI, which
+  would also catch the working `Balsa2` panel. A quirk matching `Bamboo` is
+  narrower.
+- Omarchy's planned fix (spencerbull, PR #6849): add `0e53` + Bamboo to
+  `QUIRK_PANEL_REPLAY_ALPM_CURSOR_LAG` in `linux-omarchy`. Offered to test it.
+- When a kernel ships a quirk: delete
   `/etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf`, run
-  `sudo limine-mkinitcpio`, reboot, and verify scrolling stays smooth
-  (the quirk only disables Panel Replay, so PSR2 comes back — if it judders,
-  the sink OUI read was `sudo dd if=/dev/drm_dp_aux0 bs=1 skip=1024 count=16`).
+  `sudo limine-mkinitcpio`, reboot, confirm `/proc/cmdline` has no `xe.`
+  params, and check that scrolling and the cursor stay smooth. If the quirk
+  only disables Panel Replay, PSR2 comes back. Watch for **flicker** as well
+  as judder, and for `Selective fetch area calculation failed` in
+  `journalctl -k -b`.
