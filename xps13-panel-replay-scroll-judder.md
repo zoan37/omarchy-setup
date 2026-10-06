@@ -218,6 +218,25 @@ PSR mode: Panel Replay Selective Update enabled (Early Transport)
   boot. No visible effect so far.
 
 Reported: https://github.com/omacom/omarchy/pull/6849#issuecomment-6025602441
+Upstream: https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/8930#note_3698120
+
+Upstream replies on 2026-10-06 that matter:
+
+- **jtsuther** has a second Bamboo `0e53` with the same bytes, firmware 0.0 and
+  Sharp LQ134Z1.
+- **karz's `0e53` is Balsa2 (LG).** It doesn't stutter, but on 7.1–7.2.0 it
+  logged thousands of `DSB 0 poll error`s with Panel Replay on, plus corruption
+  after fullscreen video. So `0e53` has two panels and both may need handling.
+  A Bamboo-only match covers only ours. karz suggests a subsystem-keyed
+  `quirk_disable_psr2` for `0e53`.
+- **j1 (XPS 16, also Balsa2)** traced their stutter to the AS SDP: DPCD `0x107`
+  bit 7 promises it, but `PR_ALPM_CTL` turns it off in PR Active. Patch:
+  https://lore.kernel.org/r/20260923041342.2146450-1-j@metarealtyinc.ca. **Ours
+  reads `0x107 = 0x80`**, bit 7 set as well, so that patch may be the real root
+  fix for Bamboo too. Testing it would mean a build with j1's patch and without
+  `0406`.
+- This machine on 7.2.8-2 with the quirk, 7 min after boot: 0 DSB errors,
+  0 FIFO underruns, 0 PSR idle timeouts, DC5 → DC6 reached 1265 times.
 
 When an official `linux-omarchy` ships with `0406`, a normal `pacman -Syu`
 replaces this local build. If anything regresses, restore the drop-in:
