@@ -1,5 +1,10 @@
 # XPS 13 (Wildcat Lake): choppy scrolling caused by Panel Replay
 
+> **Status 2026-10-06: fixed by a kernel quirk, and the workaround is removed.**
+> `linux-omarchy` 7.2.8-2 (omarchy-pkgs patch `0406`) keeps Panel Replay on and
+> stays smooth. See [Kernel quirk tested](#kernel-quirk-tested-2026-10-06-fixed).
+> The command-line drop-in below is kept for history and rollback.
+
 **Symptom:** scrolling in Chrome (x.com etc.) has inertia but looks like it's
 running at a low framerate — discrete/steppy motion instead of the fluid glide
 macOS delivers on the same sites. Rendering benchmarks confuse the issue:
@@ -167,10 +172,59 @@ Posted upstream with a request for their DPCD IDs:
 https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/8930#note_3696599
 (PR reply: https://github.com/omacom/omarchy/pull/6849#issuecomment-6008169611)
 
-State on 2026-10-05: the drop-in (`xe.enable_psr=0 xe.enable_panel_replay=0`) is
-in `/etc/limine-entry-tool.d/`, and both UKIs (`linux` and `linux-omarchy`) and
-`limine.conf` have it. The boot from 2026-09-27 doesn't have it, so PSR is off
-through `i915_edp_psr_debug=1` until the next reboot.
+State on 2026-10-05: the drop-in was active (PSR fully off). It was replaced
+on 2026-10-06; see the next section.
+
+## Kernel quirk tested (2026-10-06): fixed
+
+kwilczynski added a quirk for this panel to `linux-omarchy` 7.2.8-2:
+omarchy-pkgs master `e3dfdd3`, patch
+`0406-drm-i915-quirk-dell-xps13-dx13260-wcl-panel-replay-exit-on-flush.patch`.
+It matches subsystem `0e53` + OUI `00:22:b9` + device ID `Bamboo` exactly, so
+`Balsa2` machines are untouched. It doesn't turn Panel Replay off. It hooks
+`QUIRK_PANEL_REPLAY_EXIT_ON_FLUSH` (patch `0402`): on every frontbuffer flush
+the driver **exits** Panel Replay, then re-enters it after 50 ms with no
+updates. So motion never hits the slow wake path, and an idle screen still
+self-refreshes.
+
+He shared a prebuilt kernel as a Google Drive link. I built from source instead:
+
+- **Build:** `makepkg` straight from `pkgbuilds/linux-omarchy`, no Docker.
+  Import the three keys from `keys/pgp/` into a throwaway `GNUPGHOME` first.
+  It needs `bc rust-bindgen rust-src` (plus `rust`). All 433 signatures
+  verified and every patch applied cleanly.
+- **Where to build:** not on the XPS 13. It's about 2–3 h on 6 cores and
+  hot. The **SER8 did it in 25 min** (8745HS, 16 threads, native). The M5 Max
+  in an x86_64 Arch container under Rosetta was slower, ~40+ min, and pacman
+  needs `DisableSandbox` in `/etc/pacman.conf` there. The SER8 dropped off
+  the LAN mid-build (see `ser8-lan-ssh-hostname.md`), but the build carried on.
+- **Install:** `pacman -U` both packages, move the drop-in to
+  `~/dell-xps13-wildcat-display.conf.bak`, `limine-update`, reboot. 7.2.5-4 is
+  still in the pacman cache, and the snapshot entries keep the old cmdline.
+
+Results with no `xe.` params in `/proc/cmdline`:
+
+```
+[drm] Applying Panel Replay exit on flush quirk
+PSR mode: Panel Replay Selective Update enabled (Early Transport)
+```
+
+- Chrome scrolling and the cursor are **smooth**.
+- Idle (empty workspace, 20 s): 40/40 samples showed `ctl: enabled, status:
+  SLEEP`, so Panel Replay re-engages and the power savings are kept. Don't
+  sample from a terminal running Claude Code, because its spinner counts as
+  screen updates and keeps kicking the panel out.
+- `Selective fetch area calculation failed in pipe A` still logs once at
+  boot. No visible effect so far.
+
+Reported: https://github.com/omacom/omarchy/pull/6849#issuecomment-6025602441
+
+When an official `linux-omarchy` ships with `0406`, a normal `pacman -Syu`
+replaces this local build. If anything regresses, restore the drop-in:
+
+```
+pkexec sh -c 'mv /home/zoan/dell-xps13-wildcat-display.conf.bak /etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf && limine-update'
+```
 
 ## Upstream trail (for retiring this workaround later)
 
@@ -182,8 +236,10 @@ through `i915_edp_psr_debug=1` until the next reboot.
   use the same OUI. `intel_dpcd_quirks[]` matches only on subsystem + OUI, which
   would also catch the working `Balsa2` panel. A quirk matching `Bamboo` is
   narrower.
-- Omarchy's planned fix (spencerbull, PR #6849): add `0e53` + Bamboo to
-  `QUIRK_PANEL_REPLAY_ALPM_CURSOR_LAG` in `linux-omarchy`. Offered to test it.
+- Omarchy's fix: patch `0406` in `linux-omarchy` 7.2.8-2 (exit-on-flush, matched
+  on `Bamboo`). Tested and working 2026-10-06. Exit-on-flush is different from
+  the upstream "disable Panel Replay" quirks: it keeps Panel Replay on and
+  doesn't fall back to PSR2, so the flicker joel1 reported doesn't apply.
 - When a kernel ships a quirk: delete
   `/etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf`, run
   `sudo limine-mkinitcpio`, reboot, confirm `/proc/cmdline` has no `xe.`
