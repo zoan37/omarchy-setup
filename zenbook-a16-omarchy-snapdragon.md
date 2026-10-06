@@ -60,8 +60,11 @@ Bluetooth device-tree patch), [Hekatomb/LinuxOnAsusUX3607OA](https://github.com/
 
 - Laptop: `sudo systemctl enable --now sshd` and, because Omarchy's ufw is on,
   `sudo ufw allow from 192.168.0.24 to any port 22 proto tcp`.
-- SER8 has two interfaces on the LAN and default-routes to the laptop from `.25`, so connect
-  with `ssh -b 192.168.0.24 <user>@192.168.0.21`.
+- SER8 had two interfaces on the LAN and default-routed to the laptop from `.25`, so this was
+  done with `ssh -b 192.168.0.24 <user>@192.168.0.21`. **Since 2026-10-06 the SER8 uses only
+  its TP-Link adapter at `192.168.0.25`** ([why](ser8-lan-ssh-hostname.md)), so the laptop's
+  rule needs to be `sudo ufw allow from 192.168.0.25 to any port 22 proto tcp` (or the
+  LAN-scoped `192.168.0.0/24`) and the `-b` flag goes away. Not yet updated on the laptop.
 - Files were moved with a FAT-formatted USB stick (`mkfs.vfat -n A16FIX -I /dev/sdX`, whole
   device) or a `python3 -m http.server 53317` on the SER8 (53317 is the LocalSend port ufw already
   allows).
