@@ -17,6 +17,16 @@ agent ("set up this machine"; identify the machine via
 | ASUS ROG Zephyrus M16 (GU603ZW) | Intel Iris Xe + RTX 3070 Ti (run **Integrated-only**) | i9-12900H. 2560x1600@165Hz eDP, scale 1.6 (stock `auto`). Fresh Quattro 4.0.4 install, 2026-09-20. Hardware via `asusctl`/`supergfxctl`. Quiet/power-saver everywhere, silent fan curve, dGPU off, 80% charge limit: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md). |
 | ASUS Zenbook A16 (UX3607OA) | Qualcomm Snapdragon X2 Elite Extreme (Adreno) | Community [Omarchy Snapdragon](https://github.com/bprendie/omarchy-snapdragon) v0.2.2-1, arm64, dual boot with factory Windows 11. 2880x1800@120Hz OLED eDP, 48GB RAM. Wi-Fi, audio and CPU frequency scaling each needed a fix, and the tweeters needed routing; the fan is driven from Linux through the reverse-engineered EC mailbox (Mac-style ~700 rpm whisper floor, bursts never spin it up); see [Zenbook A16 notes](zenbook-a16-omarchy-snapdragon.md). |
 
+## MediaTek ARM ports (separate repos)
+
+Hand-ported native Arch Linux ARM + Omarchy on MediaTek devices that have no Omarchy image. Each repo
+has its own bring-up logs, patches and recovery steps.
+
+| Device | SoC / GPU | Repo |
+|---|---|---|
+| Moto G Power 2025 (XT2515-1, `vegas`) | MediaTek Dimensity 6300 (MT6835), Mali-G57 MC2 | [moto-g-power-2025-omarchy](https://github.com/zoan37/moto-g-power-2025-omarchy): boots from microSD on the stock kernel, direct-DRM Hyprland at 120 Hz with GPU acceleration through a patched Mesa/kbase driver, Wi-Fi, Chrome |
+| Amazon Fire HD 8 2016 (`giza`, KFGIWI) | MediaTek MT8163, Mali-T720 | [fire-hd8-omarchy](https://github.com/zoan37/fire-hd8-omarchy): amonet bootloader exploit, Linux 3.18 kernel, Hyprland and the Omarchy shell on software rendering, touch and an on-screen keyboard |
+
 ## Checklists
 
 - [**Post-update checklist**](post-update-checklist.md) — run after every `omarchy update`: what breaks (speaker tuning, hyprpm plugins), what to spot-check, what survives.
