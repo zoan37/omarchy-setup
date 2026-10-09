@@ -24,6 +24,7 @@ has its own bring-up logs, patches and recovery steps.
 
 | Device | SoC / GPU | Repo |
 |---|---|---|
+| Lenovo IdeaPad Slim 3 Chromebook (14M8911, `quigon`) | MediaTek Kompanio 540 (MT8189), Mali-G57 | [lenovo-slim3-chromebook-omarchy](https://github.com/zoan37/lenovo-slim3-chromebook-omarchy): dual boot with ChromeOS from the internal disk in developer mode on the re-signed ChromeOS kernel, Hyprland, Chrome and apps on the GPU through ChromeOS's own Mali driver, audio, palm rejection ported from ChromeOS, sleep, ufw |
 | Moto G Power 2025 (XT2515-1, `vegas`) | MediaTek Dimensity 6300 (MT6835), Mali-G57 MC2 | [moto-g-power-2025-omarchy](https://github.com/zoan37/moto-g-power-2025-omarchy): boots from microSD on the stock kernel, direct-DRM Hyprland at 120 Hz with GPU acceleration through a patched Mesa/kbase driver, Wi-Fi, Chrome |
 | Amazon Fire HD 8 2016 (`giza`, KFGIWI) | MediaTek MT8163, Mali-T720 | [fire-hd8-omarchy](https://github.com/zoan37/fire-hd8-omarchy): amonet bootloader exploit, Linux 3.18 kernel, Hyprland and the Omarchy shell on software rendering, touch and an on-screen keyboard |
 
