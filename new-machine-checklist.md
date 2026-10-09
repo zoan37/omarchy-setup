@@ -175,6 +175,17 @@ can write its own format.
   ```
   Full writeup, including why two machines each report the other as having no
   services: [syncthing-and-ufw.md](syncthing-and-ufw.md).
+- **Make SSH key-only before taking the laptop out.** "LAN-scoped" means
+  `192.168.0.0/24`, and plenty of café and hotel networks use that range too,
+  so the login prompt is reachable there. Arch leaves `PasswordAuthentication`
+  at its default of yes, so without this change people there could keep
+  guessing passwords. Add the other machines' keys to `~/.ssh/authorized_keys`
+  first, then:
+  ```sh
+  printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\n' | sudo tee /etc/ssh/sshd_config.d/10-keys-only.conf
+  sudo sshd -t && sudo systemctl reload sshd
+  ssh -o PubkeyAuthentication=no localhost   # → Permission denied (publickey)
+  ```
 
 ### Bar clock after resume
 
