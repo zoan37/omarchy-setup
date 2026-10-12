@@ -9,6 +9,10 @@ cycle at every brightness**. Software dimming shortened it only from **~43 % to 
 current, not by duty cycle, so the MyASUS trick helps a little here, not a lot. The comfort gain most likely comes
 from running the screen dimmer overall, which the keys now make easy.
 
+**2026-10-12: closed out.** The whole MyASUS/Splendid/Qualcomm display stack is decompiled, and the panel was
+measured at its true maximum and in eDP luminance mode. There is no PWM control anywhere, and the gap is there
+at every level (section "Full Windows decompile").
+
 ## Why it was tried
 
 - **The panel flickers (PWM) at about 1 kHz at every brightness level** (Notebookcheck: 960 Hz, 56 % amplitude)
@@ -214,6 +218,62 @@ neither. Windows sends this panel nothing beyond A-ELP that Linux can't.
   intermittent eDP training failure as the black screen after LUKS unlock.
 - **Don't write blind** to undocumented 0x3xx, 0x4xx or 0x5xx registers, 0x600 (power state) or ≥ 0xF0000
   (LTTPR). TCONs can expose firmware-update or test modes over AUX.
+
+## Full Windows decompile and the true-maximum test (2026-10-12)
+
+The last open question: does anything on Windows, or the panel's real top end, change the PWM? **No.** The
+960 Hz gap is fixed in the panel. `a16-dim` at panel 100 % is already the best this screen can do.
+
+**MyASUS "OLED Flicker-Free Dimming", end to end.** Decompiled from the factory install (ILSpy for the .NET
+MyASUS module, Ghidra 12.1 headless for the native ARM64 binaries):
+- `AsusCustomization.dll` (MyASUS 4.4.10.0) accepts slider values **40–100** only, and calls
+  `SetSplendidDimming(n)` over RPC (`Func_SetSplendidDimming = 279`).
+- `AsusSplendid.exe` stores it as `LutDcScale` (an INI value, default 100) and applies it as
+  `cct->lutDcModeScale` through Qualcomm's colour library (`qdcmlib.dll`, `SetIGC`/PCC LUTs) plus ICC profiles.
+- Its only hardware call is ASUS ACPI `GLCD` (IOCTL `0x22240C`, a panel-ID read). Neither Splendid nor any other
+  ASUS display binary writes to the panel. The one exception is AsusHotkey's A-ELP (above).
+
+So MyASUS is a pixel-value scale, the same as `a16-dim`. The "DC" in `LutDcScale` is ASUS's name for it, not
+DC dimming in the panel.
+
+**The Qualcomm display driver (`qcdxkm8480.sys`, decompiled).** Its eDP brightness setter has four modes:
+- VESA AUX level at `0x722`: `(2^bits−1) × fraction`, optionally MSB-aligned. 11 bits here, so 2047.
+- AMD nits at `0x320`.
+- Intel nits at `0x354`.
+- eDP 1.5 luminance at `0x734`, with `0x721` = `0x82`/`0x83`.
+
+At panel init it writes only the AUX pairs from the panel's ACPI XML, and this laptop has none. Then it sets
+the mode register. Nothing touches emission, frequency or duty.
+
+**True-maximum test.** Notebookcheck's scope traces of this panel are almost flat at Windows 100 %, which
+suggested Linux's 2047 might not be the real top. [`edp-lum.py`](assets/zenbook-a16/edp-lum.py) (documented eDP
+registers only; volatile) stepped a white full-screen page through six states. Each state was photographed with
+the S26 at 1/12000 s, ISO 3200, and analysed with the `pwm-stripes.py` method (crop picked per photo):
+
+| State | Lit level (8-bit) | Dark share of cycle | Dark / lit |
+|---|---|---|---|
+| A: AUX `0x07FF` (Linux 100 %) | 166 | 25 % | 0.15 |
+| B: AUX `0xFFFF` | 162 | 25 % | 0.18 |
+| C: luminance mode 200 nits | 96 | 30 % | 0.15 |
+| D: luminance mode 400 nits | 137 | 25 % | 0.16 |
+| E: luminance mode 500 nits | 149 | 28 % | 0.15 |
+| F: luminance mode 600 nits | 155 | 28 % | 0.14 |
+| A again (after reset) | 147 | 28 % | 0.14 |
+
+- **Linux 100 % is the panel's real maximum.** `0xFFFF` and the 500/600-nit targets are no brighter, within the
+  ~12 % shot-to-shot spread that A vs A-again shows.
+- **The gap stays at every level, including the maximum.** That's a ~25–30 % near-dark share of each 1.04 ms
+  cycle (0.15 is close to camera black plus blur from the 83 µs exposure).
+- Notebookcheck's flat 100 % trace is most likely a saturated photodiode: its 100 % and 80 % peaks sit at the
+  same pixel row.
+- The panel accepted luminance mode (`0x703` bit 4 is set) and went back cleanly. It looks the same as AUX mode.
+
+**Untested, low value:** 60 Hz (risky here, see "Don't" above; AMD's emission-rate commit implies the rate stays
+960 Hz or halves) and HDR mode.
+
+**Bottom line:** there's no host-side PWM control, on Linux or Windows. What's left is less flickering light
+(`a16-dim`, a dark theme, room light) or a flicker-free screen: the Zenbook docked to a DC-dimmed external
+monitor with the lid shut, or used headless.
 
 ## Install
 
