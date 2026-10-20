@@ -266,3 +266,74 @@ pkexec sh -c 'mv /home/zoan/dell-xps13-wildcat-display.conf.bak /etc/limine-entr
   only disables Panel Replay, PSR2 comes back. Watch for **flicker** as well
   as judder, and for `Selective fetch area calculation failed` in
   `journalctl -k -b`.
+
+## Brightness flicker while typing (2026-10-20): under test
+
+**Symptom:** typing in Slack (sparse, single-keystroke updates) makes the whole
+screen's brightness flicker slightly. Scrolling looks fine.
+
+**Suspect: the `0406` exit-on-flush quirk itself.** It exits Panel Replay on
+every frontbuffer flush and re-enters after 50 ms with no updates. Scrolling
+updates the screen constantly, so the panel stays out of Panel Replay the
+whole time. Typing is the worst case: one flush per key, then a gap longer
+than 50 ms. The panel enters and leaves Panel Replay several times a second,
+and some panels shift brightness slightly on each transition. joel1 reported
+flicker on a `0e53` with PSR2 fallback upstream, so this panel does flicker
+in at least one self-refresh mode.
+
+Not the same bug as the MediaTek Chromebook's "dimming while scrolling"
+([lenovo-slim3-chromebook-omarchy](https://github.com/zoan37/lenovo-slim3-chromebook-omarchy),
+def10: GPU DVFS retuned the PLL that also clocks the backlight PWM). Here
+`intel_backlight` is the PCH's PWM, independent of GPU clocks.
+
+Ruled out: VRR (`hyprctl monitors` shows `vrr: false`).
+
+State during the test (`linux-omarchy` 7.2.8-2, quirk applied, no `xe.` params,
+brightness 57600/192000 ≈ 30%):
+
+```
+PSR mode: Panel Replay Selective Update enabled (Early Transport)
+Source PSR/PanelReplay status: SU_STANDBY [0x64200010]
+```
+
+Live A/B, no reboot (reverts at reboot, or `echo 0`):
+
+```
+pkexec sh -c 'echo 1 > /sys/kernel/debug/dri/0000:00:02.0/i915_edp_psr_debug'
+# i915_psr_status now: PSR mode: disabled
+```
+
+Ran on 2026-10-20 (status went to `PSR mode: disabled`). The flicker
+result **hasn't been assessed yet**, so the cause is still unconfirmed.
+
+### Whose bug it is
+
+- **Panel (most likely the main fault):** the Sharp LQ134Z1 + Analogix
+  `Bamboo` controller (firmware 0.0) wakes late from Panel Replay, and
+  possibly shifts luminance on each entry/exit. The `Balsa2` (LG) panel in the
+  same `0e53` chassis shows neither problem on the same driver.
+- **Kernel (xe display), possible gap:** j1's AS SDP finding (above). The
+  sink promises AS SDP in DPCD `0x107` bit 7 (ours reads `0x80`), but
+  `PR_ALPM_CTL` disables it in PR Active. If that's what stalls the wake, j1's
+  patch is the real root fix. Untested on Bamboo.
+- **Omarchy:** patch `0406` is a downstream workaround, not the bug. Its
+  50 ms re-entry trades scroll judder for frequent PR transitions during
+  sparse updates like typing, which is the suspected flicker.
+
+### Options and tradeoffs
+
+| Option | Typing flicker | Scroll judder | Idle power |
+|---|---|---|---|
+| `0406` quirk (current default) | suspected | fixed | PR savings kept |
+| Self-refresh off (`i915_edp_psr_debug` = 1, or `xe.enable_psr=0 xe.enable_panel_replay=0`) | none expected | none | ~2.4 W more at idle (joel1: 0% vs ~77% package C10) |
+| PSR1 only (`xe.enable_psr=1 xe.enable_panel_replay=0`) | unknown | fine for two upstream `0e53` owners | most savings |
+| Longer `0406` re-entry delay (e.g. 0.5–1 s) | should disappear | fixed | most savings |
+| j1's AS SDP patch, without `0406` | ? | ? | full savings, no quirk |
+
+### Next steps (deferred, need a reboot)
+
+1. Confirm the live A/B: does typing flicker stop with `i915_edp_psr_debug` = 1?
+2. If yes, try PSR1 only as a limine drop-in; that's the practical fix.
+3. For the true fix, build `linux-omarchy` with j1's patch and without
+   `0406` (SER8, ~25 min) and test both scrolling and typing. Report the
+   result on xe#8930 and omarchy PR #6849.
