@@ -73,7 +73,11 @@ end
 o.bind("SUPER + A", "Universal select all", send_shortcut_once("CTRL", "A"))
 ```
 
-SUPER+A is unbound in stock Omarchy, so no `hl.unbind` is needed. Deliberately
+**Retired 2026-10-22:** Omarchy 4.5 ships the same bind as "Select all" in
+`default/hypr/bindings/clipboard.lua`, so the local copy was removed (both
+fired on one press). Kept below for history.
+
+SUPER+A was unbound in stock Omarchy before 4.5, so no `hl.unbind` was needed. Deliberately
 **not** terminal-special-cased the way copy/paste is (stock swaps to
 `CTRL+Insert` / `SHIFT+Insert` there): terminals have no universal select-all,
 so in a terminal SUPER+A just sends CTRL+A = beginning-of-line. Fine as-is;

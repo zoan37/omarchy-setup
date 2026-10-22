@@ -40,7 +40,7 @@ omarchy menu keybindings --print
 touching any config file you own:
 
 ```sh
-omarchy default terminal    # Expected: ghostty on the XPS 16 trial and XPS 13
+omarchy default terminal    # Expected: ghostty on the XPS 16 trial, kitty on the XPS 13
 ```
 
 The XPS 16 switched from Kitty to a Ghostty trial on 2026-09-18; see
@@ -145,6 +145,23 @@ bump means no momentum/tab-drag until rebuilt — annoying, not fatal.
 hyprpm update   # rebuild both plugins against the new headers (needs a real terminal)
 ```
 
+**`hyprpm: command not found`** means the program itself is gone, not the
+plugins. Arch split it out of `hyprland` into its own `hyprpm` package at
+`0.56.2-4` (seen 2026-10-22, Omarchy 4.0.4 → 4.5.0rc1). The upgrade dropped
+the binary, the orphan cleanup then removed `hyprwayland-scanner`, and the
+`hyprpm reload -n` line in `autostart.lua` failed silently, leaving
+`hyprctl plugin list` empty. The cached builds were still valid (same
+Hyprland commit), so no rebuild was needed:
+
+```sh
+sudo pacman -S hyprpm && hyprpm reload   # pulls hyprwayland-scanner back in
+```
+
+Omarchy 4.5's own plugin (`omarchy-hyprland-titlebars`) skips hyprpm: it is a
+pacman package pinned to `hyprland=0.56.2` and loaded with `hl.plugin.load()`.
+Not worth copying for these plugins. The pin would make `pacman -Syu` refuse
+every Hyprland bump until a manual rebuild, which `hyprpm update` already does.
+
 If the compositor still won't start / crashes on login: from a TTY,
 `hyprpm disable momentum` (and `tab-drag` if needed), log in, then rebuild.
 Plugins installed: `momentum` ([hypr-momentum](https://github.com/zoan37/hypr-momentum),
@@ -236,14 +253,14 @@ edits, and everything is documented here:
 |---|---|---|
 | `~/.config/hypr/input.lua` | Alt/Super swap, natural scroll, 3-finger swipe tuning | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/hypr/looknfeel.lua` | resize-on-border trio | same |
-| `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+A select-all, SUPER+SHIFT+S screenshot (needs `hl.unbind` first) | same |
+| `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+SHIFT+S screenshot (needs `hl.unbind` first). SUPER+A select-all ships upstream since 4.5 | same |
 | `~/.config/hypr/monitors.lua` | monitor scale 1.6 | same |
 | `~/.config/hypr/autostart.lua` | `hyprpm reload -n` | [hyprpm-notes.md](hyprpm-notes.md) |
 | `~/.config/omarchy/shell.json` | clock format, Slack tray pin (`Slack_status_icon_1`) | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/omarchy/shell.toml` | base-size 12 | same |
 | `~/.claude/settings.json` | `cleanupPeriodDays` (session retention) | [claude-code-notes.md](claude-code-notes.md) |
 | `~/.config/ghostty/local.conf` | `ctrl+enter=unbind` lets Claude Code receive Ctrl+Enter (SER8); requires the trailing include in `ghostty/config` | [ghostty-ctrl-enter.md](ghostty-ctrl-enter.md) |
-| `~/.config/xdg-terminals.list` | default terminal (Ghostty trial on the XPS 16; Ghostty on the XPS 13) | [xps16-ghostty-trial.md](xps16-ghostty-trial.md) |
+| `~/.config/xdg-terminals.list` | default terminal (Ghostty trial on the XPS 16; Kitty on the XPS 13) | [xps16-ghostty-trial.md](xps16-ghostty-trial.md) |
 | `~/.config/kitty/{kitty,local}.conf` | `font_size 11.0` + the seeded line and trailing include; new tab/split keep the current directory | [terminal-font-size.md](terminal-font-size.md), [kitty-new-tab-cwd.md](kitty-new-tab-cwd.md) |
 | `~/.config/chrome-flags.conf` | Machine-specific Vulkan/VA-API flags; SER8 is trying OpenGL ANGLE with Vulkan retained | [white-video setup](chrome-vulkan-white-video.md), [SER8 flicker trial and rollback](chrome-ser8-flicker-trial.md) |
 | `~/.config/mimeapps.list` | Chrome default browser, HEY mailto | — |
@@ -361,9 +378,12 @@ a cable reconnect still needs a practical check. For comparable package-power sa
 
 Details: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md).
 
-## Known open gap (XPS 13 / SER8)
+## VA-API on the XPS 13: closed 2026-10-22
 
 `chrome-flags.conf` enables `VaapiVideoDecoder`, but `intel-media-driver`
-(iHD) is **not installed** on the XPS 13, so hardware video decode is silently
-off. `sudo pacman -S intel-media-driver`, then verify at `chrome://gpu`.
+(iHD) had never been installed on the XPS 13 (no entry in `pacman.log`), so
+hardware video decode was silently off. Installed 26.3.5 with `libva-utils`.
+`vainfo` loads the iHD driver on Wildcat Lake (`8086:fd80`) and lists VLD
+(decode) for H.264, HEVC up to 12-bit/4:4:4, VP9 profiles 0–3 and AV1.
+After an update, `vainfo | grep -c VLD` should stay non-zero.
 Not a gap on the XPS 16 — Quattro installed it there already.
