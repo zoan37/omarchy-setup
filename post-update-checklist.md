@@ -290,6 +290,21 @@ journalctl -b --since -1min | grep omarchy-clock-refresh   # Deactivated success
 If Quickshell's `SystemClock` has started handling resume itself, remove the hook.
 [bar-clock-stale-after-resume.md](bar-clock-stale-after-resume.md)
 
+## 7c. Tray app icons off-center — re-apply after every update (all machines on 4.5)
+
+Omarchy 4.5 centers tray app icons on a half pixel, so Slack sits higher than
+the status icons (or looks blurry at scale 1). The local fix is a two-line
+`Math.round` in package-owned `Tray.qml`, so **every update reverts it**:
+
+```sh
+grep -c 'Math.round((parent' /usr/share/omarchy/shell/plugins/bar/widgets/Tray.qml   # 2 = patched
+```
+
+`0` means it was reverted. Check
+[omacom/omarchy#16116](https://github.com/omacom/omarchy/issues/16116) first.
+If it's fixed upstream, drop this section. If not, re-apply with the command in
+[tray-icon-half-pixel.md](tray-icon-half-pixel.md).
+
 ## 8. Chrome theme selection — check if the administrator restriction returns
 
 If Chrome was opted out of Omarchy's forced theme, its
