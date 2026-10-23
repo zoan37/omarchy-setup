@@ -138,3 +138,27 @@ sudo systemctl restart avahi-daemon
 nmcli con modify "<home-2.4GHz>" connection.autoconnect yes
 nmcli con up "<home-2.4GHz>"          # brings ARP flux back while the TP-Link is also up
 ```
+
+## Recurrence 2026-10-22: `ser8.local` stopped resolving after an update reboot
+
+After an `omarchy update` + reboot, the SER8 came up on a new DHCP address
+(`192.168.0.27`) and `ssh ser8` failed with "Could not resolve hostname".
+Avahi had hit a name conflict at boot and renamed itself:
+
+```
+avahi-daemon: Host name conflict, retrying with ser8-2
+avahi-daemon: Server startup complete. Host name is ser8-2.local.
+```
+
+Most likely a stale record of its own from before the reboot (old address).
+Restarting Avahi reclaimed the name:
+
+```sh
+sudo systemctl restart avahi-daemon
+journalctl -u avahi-daemon --since -1min | grep "Host name is"   # ser8.local
+avahi-resolve -4 -n ser8.local                                    # from another machine
+```
+
+To find the box when mDNS is down: scan port 22 on the LAN and check
+`hostname` on each hit, then compare the host key with
+`ssh -o HostKeyAlias=ser8.local zoan@<ip>`.
