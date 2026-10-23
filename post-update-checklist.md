@@ -180,6 +180,14 @@ unverified. No display workaround was applied; if symptoms appear, use the
 measurements and checks in [xps16-notes.md](xps16-notes.md). The boot workaround
 below remains specific to the XPS 13.
 
+**XPS 13 as of 2026-10-22:** the active drop-in is
+`/etc/limine-entry-tool.d/dell-xps13-psr1-only.conf` (PSR1 only, Panel Replay
+off), which fixes the brightness flicker while typing. The earlier
+`dell-xps13-wildcat-display.conf` was retired on 2026-10-06 when kernel patch
+`0406` landed. After an update, `cat /proc/cmdline | grep -o 'xe\.[^ ]*'`
+should show `xe.enable_psr=1 xe.enable_panel_replay=0`. Details are in
+[xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scroll-judder.md#psr1-only-drop-in-2026-10-22-under-test).
+
 `/etc/limine-entry-tool.d/dell-xps13-wildcat-display.conf` is ours and
 persists. After a **kernel** update, check whether the upstream quirk landed
 (drm/xe#8930); until then, if scrolling turns choppy verify the cmdline took:

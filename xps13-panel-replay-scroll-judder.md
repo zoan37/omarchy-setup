@@ -1,6 +1,6 @@
 # XPS 13 (Wildcat Lake): choppy scrolling caused by Panel Replay
 
-> **Status 2026-10-06: fixed by a kernel quirk, and the workaround is removed.**
+> **Status 2026-10-22: scroll judder fixed by kernel quirk `0406`; typing flicker it causes is being fixed with a PSR1-only drop-in (under test).** Earlier: 2026-10-06, kernel quirk replaced the drop-in.
 > `linux-omarchy` 7.2.8-2 (omarchy-pkgs patch `0406`) keeps Panel Replay on and
 > stays smooth. See [Kernel quirk tested](#kernel-quirk-tested-2026-10-06-fixed).
 > The command-line drop-in below is kept for history and rollback.
@@ -303,8 +303,40 @@ pkexec sh -c 'echo 1 > /sys/kernel/debug/dri/0000:00:02.0/i915_edp_psr_debug'
 # i915_psr_status now: PSR mode: disabled
 ```
 
-Ran on 2026-10-20 (status went to `PSR mode: disabled`). The flicker
-result **hasn't been assessed yet**, so the cause is still unconfirmed.
+Ran on 2026-10-20 (status went to `PSR mode: disabled`). **Result: the
+flicker went away** and stayed away for that whole boot. It came back on
+2026-10-22, after the reboot that followed an `omarchy update`, because the
+debugfs toggle doesn't survive a reboot. That confirms that self-refresh
+transitions are the cause, not the backlight.
+
+### PSR1-only drop-in (2026-10-22): under test
+
+Next step 2 below, staged as a limine drop-in. It takes effect on the next boot:
+
+```
+# /etc/limine-entry-tool.d/dell-xps13-psr1-only.conf
+KERNEL_CMDLINE[default]+=" xe.enable_psr=1 xe.enable_panel_replay=0"
+```
+
+followed by `limine-update`, which rebuilds the UKI. The args are embedded in
+the UKI, so check there rather than only in `limine.conf`:
+
+```sh
+pkexec objcopy -O binary --only-section=.cmdline \
+  /boot/EFI/Linux/omarchy_linux-omarchy.efi /dev/stdout | tr -d '\0' | grep -o 'xe\.[^ ]*'
+```
+
+After the reboot, check:
+
+- `cat /proc/cmdline | grep -o 'xe\.[^ ]*'` shows both args.
+- `i915_psr_status` reports PSR1 rather than Panel Replay or disabled.
+- Typing in Slack: no brightness flicker.
+- Scrolling in Chrome (x.com): no judder. PSR1 has the same exit-on-update
+  shape as Panel Replay, so judder coming back is the main risk.
+
+If judder or flicker comes back, use full self-refresh off instead (same file,
+`xe.enable_psr=0 xe.enable_panel_replay=0`, then `limine-update`). Undo:
+`pkexec sh -c 'rm /etc/limine-entry-tool.d/dell-xps13-psr1-only.conf && limine-update'`.
 
 ### Whose bug it is
 
@@ -330,10 +362,10 @@ result **hasn't been assessed yet**, so the cause is still unconfirmed.
 | Longer `0406` re-entry delay (e.g. 0.5–1 s) | should disappear | fixed | most savings |
 | j1's AS SDP patch, without `0406` | ? | ? | full savings, no quirk |
 
-### Next steps (deferred, need a reboot)
+### Next steps
 
-1. Confirm the live A/B: does typing flicker stop with `i915_edp_psr_debug` = 1?
-2. If yes, try PSR1 only as a limine drop-in; that's the practical fix.
+1. ~~Confirm the live A/B~~: done, the flicker stops with `i915_edp_psr_debug` = 1.
+2. PSR1 only as a limine drop-in: staged 2026-10-22, see above.
 3. For the true fix, build `linux-omarchy` with j1's patch and without
    `0406` (SER8, ~25 min) and test both scrolling and typing. Report the
    result on xe#8930 and omarchy PR #6849.
