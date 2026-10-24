@@ -410,6 +410,24 @@ sudo systemctl restart sddm
 Rule: **never hold a package whose library dependencies are being upgraded.** Mesa follows LLVM; if mesa has
 to be held, hold `llvm-libs` with it. Check with `ldd /usr/lib/libgallium*.so | grep -i llvm` before rebooting.
 
+**Second casualty: Qt 6.12 hid the shell's colors.** The same run moved Qt 6.11 → 6.12 and quickshell 0.3.1 → 0.3.2
+while `omarchy` stayed at 4.0.3. Qt 6.12 adds a built-in `Color` singleton to QtQuick that shadows the shell's
+`qs.Commons` `Color`, so every palette read is `undefined`: no top bar, white-rectangle notifications, and
+hundreds of `TypeError: Cannot read property 'background' of undefined` per second in the shell log. Upstream fixed
+it in Omarchy 4.0.5/4.0.6 (#14553, `import qs.Commons as Commons`); see
+[omacom/omarchy#15915](https://github.com/omacom/omarchy/issues/15915) and #16082 (aarch64). This machine's
+`omarchy` repo only offers 4.5.0rc1, so the verified local fix from #15915 was applied instead:
+
+```sh
+tar -czf ~/omarchy-shell-backup-before-qt612-fix-$(date +%Y%m%d-%H%M%S).tar.gz -C /usr/share/omarchy shell
+sudo find /usr/share/omarchy/shell -name '*.qml' -exec sed -i 's/^import QtQuick$/import QtQuick 2.15/' {} +
+omarchy-restart-shell
+```
+
+The versioned import excludes Qt 6.12's new type: 102 files changed, 0 errors afterwards. A future `omarchy`
+package update overwrites these files with upstream's real fix. **Rule for this machine: with `omarchy` held below
+4.0.5, either hold `qt6-*` and `quickshell` too, or re-apply this patch after the update.**
+
 ## 9. Personal config ported from the other machines (2026-09-25, re-applied 2026-09-26)
 
 Applied over SSH, all user-level, backups as `~/.config/hypr/*.bak-<date>`:
