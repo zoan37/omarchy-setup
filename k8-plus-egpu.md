@@ -19,6 +19,36 @@ That value means the firmware disabled SMT; Linux can't turn it back on. Two BIO
 
 To get into setup without timing the Del key: `sudo systemctl reboot --firmware-setup`.
 
+Retail listings give the three modes as **Silent 35 W, Balanced 54 W, Performance 65 W (70 W peak)**. The
+8845HS is a 35–54 W part, so Performance is an unlocked mode above its standard range. These numbers are
+from store listings; GMKtec's BIOS documentation wasn't checked.
+
+### CPU frequency cap: 4.0 GHz
+
+The BIOS stays on Performance, and a Linux frequency cap trims heat instead: no reboot, and it's adjustable.
+Full load (16 busy threads, about 20 s each, a light background job also running):
+
+| Cap | Avg all-core clock | Tctl | APU power (`amdgpu` `power1_input`) |
+|---|---|---|---|
+| none (5.1 GHz boost) | 4,416 MHz | 88 °C | ~45 W |
+| **4.0 GHz** | 3,992 MHz (−10%) | **74 °C** | ~45 W |
+| 3.5 GHz | 3,493 MHz (−21%) | 64 °C | ~34 W |
+
+The power sensor is averaged and picks up the background job, so treat the watts as rough; temperature is
+the cleaner signal. An earlier reading under moderate load, uncapped, showed 63 W. **4.0 GHz** is the
+chosen cap: 14 °C cooler for about 10% less all-core clock.
+
+- [`assets/k8-plus/cpu-freq-cap`](assets/k8-plus/cpu-freq-cap) writes `MAX_MHZ` (default 4000) to every
+  core's `scaling_max_freq`.
+- [`assets/k8-plus/cpu-freq-cap.service`](assets/k8-plus/cpu-freq-cap.service) is a oneshot at boot.
+
+```sh
+sudo install -Dm755 assets/k8-plus/cpu-freq-cap /usr/local/bin/cpu-freq-cap
+sudo install -Dm644 assets/k8-plus/cpu-freq-cap.service /etc/systemd/system/cpu-freq-cap.service
+sudo systemctl daemon-reload && sudo systemctl enable --now cpu-freq-cap
+sudo MAX_MHZ=3500 /usr/local/bin/cpu-freq-cap     # try another value live (until reboot)
+```
+
 The BIOS power mode is the **ceiling**. The Omarchy power profile (`powerprofilesctl`) only decides how
 eagerly the CPU uses that budget, so with the BIOS on Quiet, "performance" in Omarchy can't go past Quiet's cap.
 `ryzenadj` can change the AMD limits live, but it's unofficial and the BIOS can reset it. Set the
@@ -148,6 +178,7 @@ feed about two GPUs. Planned layout:
 
 ```sh
 nproc                                                    # 16
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq # 4000000
 cat /sys/devices/system/cpu/smt/control                  # on
 source /opt/intel/oneapi/setvars.sh >/dev/null; sycl-ls  # level_zero:gpu ... Arc(TM) Pro B70
 systemctl is-enabled b70-power-cap                       # enabled
@@ -157,9 +188,10 @@ for h in /sys/class/hwmon/hwmon*; do [ "$(cat $h/name)" = xe ] && cat $h/power1_
 ## Undo
 
 ```sh
-sudo systemctl disable --now b70-power-cap
-sudo rm /etc/systemd/system/b70-power-cap.service /usr/local/bin/b70-power-cap
-# power1_cap returns to 275 W on the next boot
+sudo systemctl disable --now b70-power-cap cpu-freq-cap
+sudo rm /etc/systemd/system/b70-power-cap.service /usr/local/bin/b70-power-cap \
+  /etc/systemd/system/cpu-freq-cap.service /usr/local/bin/cpu-freq-cap
+# power1_cap returns to 275 W and the CPU to 5.1 GHz boost on the next boot
 sudo rm /etc/sudoers.d/<user>-nopasswd
 # BIOS: SMT and power mode are changed back in setup
 ```
