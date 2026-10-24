@@ -352,6 +352,50 @@ keeps spinning down to PWM 20, starts reliably from rest at PWM 25 (30 ≈ 800 r
 - The `oma-snap` kernel-update tooling may regenerate `grub.cfg`; keep the install stick and
   [`apply-a16-fixes.sh`](assets/zenbook-a16/apply-a16-fixes.sh).
 
+### 8.1 Updating safely while the oma-snap repo is dead (2026-10-24)
+
+**The community repo can't update any more.** Its database is signed with the key
+"Omarchy Snapdragon LOCAL TEST ONLY", which has **expired** (`error: oma-snap: signature from "Omarchy Snapdragon
+LOCAL TEST ONLY" is expired`, shown as `missing required signature` by `checkupdates`). The project has had no
+release since v0.2.2-1 (2026-09-15). Its Snapdragon work went into official Omarchy 4.5 (aarch64 ISO), and A16
+support is an open PR there: [omacom/omarchy #13820](https://github.com/omacom/omarchy/pull/13820)
+(FixItFoundry; `linux-omarchy` 7.2.8 + `omarchy-a16-support`, with audio, keyboard, touchscreen, charging and
+Bluetooth working). That's the long-term path: a reinstall on official Omarchy once it merges.
+
+**Until then, the ALARM userspace can still take security updates** without touching the boot path:
+
+```sh
+sudo snapper -c root create -d "before update"
+c=/tmp/pacman-secupdate.conf
+awk '/^\[oma-snap\]/{skip=1; next} /^\[/{skip=0} !skip' /etc/pacman.conf > $c   # drop the dead repo
+sudo sed -i 's/^IgnorePkg = .*/IgnorePkg = hyprland hyprtoolkit hyprland-guiutils linux-firmware linux-firmware-* mkinitcpio grub mesa mesa-* vulkan-freedreno vulkan-mesa-implicit-layers vulkan-mesa-layers omarchy omarchy-settings omarchy-keyring omarchy-nvim/' $c
+sudo pacman --config $c -Sy && pacman --config $c -Qu          # review the list first
+sudo env OMARCHY_ALLOW_DIRECT_PACMAN=1 pacman --config $c -Su
+sudo snapper -c root create -d "after update"
+```
+
+Why each hold:
+
+| Held | Reason |
+|---|---|
+| oma-snap repo (excluded) | the kernel sets, firmware and boot tooling come from here; its key is expired anyway |
+| `linux-firmware*` | **the Wi-Fi fix (section 3) overwrote `ath12k/QCC2072/hw1.0/board-2.bin`, a file `linux-firmware-atheros` owns.** An upgrade puts the stock file back and Wi-Fi loses its board data |
+| `mkinitcpio` | 42 breaks regenerated oma-snap entries (upstream issue #1) |
+| `grub` | the custom entries live in the oma-snap `grub.cfg` (section 5) |
+| `mesa`, `vulkan-freedreno`, `vulkan-mesa-*` | one source package; keep the GPU stack at one version, and avoid display regressions on a machine with no easy recovery |
+| `omarchy*` | expects `omarchy update` and its migrations, which this image's tooling doesn't run cleanly |
+| `hyprland*`, `hyprtoolkit` | already pinned in `/etc/pacman.conf` |
+
+The default entry boots `/boot/oma-snap/custom/vmlinuz-scmipoll-soccp.efi` with its own frozen
+`initramfs-a16fix.img`, so a systemd or cryptsetup upgrade (which triggers the mkinitcpio hook) can't change what
+actually boots.
+
+**Run on 2026-10-24:** about 290 packages (openssl 3.6.5, openssh 10.6p1, systemd 262.1, chromium 153, curl 8.23,
+nss 3.131, polkit 128, pam 1.7.3, expat 2.9.0, libarchive 3.8.10, Qt 6.12, PipeWire 1.6.9, …); 38 held. Afterwards:
+boot files and `set default=oma-snap-custom-soccp` unchanged, the board file still the patched one, no `.pacnew`,
+no failed units, all `a16-*` services active. Snapper #1 before, #2 after. A reboot is needed for systemd and the
+new libraries.
+
 ## 9. Personal config ported from the other machines (2026-09-25, re-applied 2026-09-26)
 
 Applied over SSH, all user-level, backups as `~/.config/hypr/*.bak-<date>`:
