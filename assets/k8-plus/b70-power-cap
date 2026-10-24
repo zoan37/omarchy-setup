@@ -1,0 +1,9 @@
+#!/bin/sh
+# Cap Intel xe GPUs (Arc Pro B70) at CAP_W watts; default card cap is 275 W.
+CAP_W=${CAP_W:-225}
+for h in /sys/class/hwmon/hwmon*; do
+  [ "$(cat $h/name 2>/dev/null)" = xe ] || continue
+  [ -w $h/power1_cap ] || continue
+  echo $((CAP_W * 1000000)) > $h/power1_cap
+  echo "$h power1_cap=$(cat $h/power1_cap)"
+done

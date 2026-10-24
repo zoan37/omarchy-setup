@@ -1,0 +1,9 @@
+[Unit]
+Description=Cap Intel Arc Pro B70 power at 225 W
+After=systemd-modules-load.service
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/local/bin/b70-power-cap
+[Install]
+WantedBy=multi-user.target

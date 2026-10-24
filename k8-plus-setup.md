@@ -101,8 +101,9 @@ ssh -o PubkeyAuthentication=no localhost   # → Permission denied (publickey)
   `hyprpm update && hyprpm add https://github.com/zoan37/hypr-tab-drag && hyprpm enable tab-drag`,
   then `o.exec_on_start("hyprpm reload -n")` in `autostart.lua`. hypr-momentum
   is skipped (no touchpad).
-- **Fan and power.** No fan, coil-whine or power-profile tuning has been looked
-  at yet.
+- **Fan and power.** SMT and the BIOS power mode (Quiet → Performance), the
+  eGPU setup, the B70 power cap and the coil whine are in
+  [k8-plus-egpu.md](k8-plus-egpu.md). No fan-curve tuning yet.
 
 ## Verify
 
