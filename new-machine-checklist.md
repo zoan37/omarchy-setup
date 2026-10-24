@@ -4,7 +4,8 @@ Condensed order of operations. Details in the per-topic files.
 
 Machine-specific pages: [Dell XPS 16](xps16-notes.md),
 [Beelink SER8 quiet fan setup](ser8-quiet-fan.md),
-[ASUS Zephyrus M16 quiet/power setup](zephyrus-m16-quiet-power.md). Identify the machine with
+[ASUS Zephyrus M16 quiet/power setup](zephyrus-m16-quiet-power.md),
+[GMKtec K8 Plus setup](k8-plus-setup.md). Identify the machine with
 `cat /sys/class/dmi/id/product_name` and its speaker/display variant with
 `cat /sys/class/dmi/id/product_sku`.
 

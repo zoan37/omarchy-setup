@@ -2,7 +2,7 @@
 
 Nuanced fixes and hard-won config for my Omarchy machines, so a fresh install
 doesn't mean re-deriving everything. Written for myself — and maybe useful to
-other Dell XPS 13 / XPS 16 / Beelink SER8 / ASUS Zephyrus M16 owners running Omarchy. Steps carry
+other Dell XPS 13 / XPS 16 / Beelink SER8 / GMKtec K8 Plus / ASUS Zephyrus M16 owners running Omarchy. Steps carry
 exact commands, verification, and revert paths, so the checklists also work handed to a coding
 agent ("set up this machine"; identify the machine via
 `cat /sys/class/dmi/id/product_name`).
@@ -14,6 +14,7 @@ agent ("set up this machine"; identify the machine via
 | Dell XPS 13 (DX13260) | Intel Wildcat Lake | 2560x1600@120Hz eDP, fractional scale 1.6 |
 | Dell XPS 16 (DA16260) | Intel Panther Lake (Arc B390) | SKU `0DBA`. **Being returned (2026-09-19): the zero-lattice keyboard never felt right (see [keyboard notes](xps16-keyboard-dropped-keys.md)), the short fan bursts at idle were part of it too, and so was poor palm rejection (the touchpad reports neither contact size nor a pressure that separates palms from fingers, see [section 3 of the keyboard notes](xps16-keyboard-dropped-keys.md#3-touchpad-palm-detection-by-pressure-not-possible), so a custom palm filter wasn't feasible); the bursts were later traced to a browser page holding a core, not the hardware (see [fan notes](xps16-fan-spins-up-on-video.md)).** 3200x2000@120Hz LG **OLED** eDP, fractional scale 1.6 (stock `auto` resolved correctly). Fresh Quattro 4.0.4 install. Assess display issues separately from the XPS 13; live Panel Replay checks in [xps16-notes.md](xps16-notes.md). |
 | Beelink SER8 | AMD Hawk Point iGPU (Radeon 780M) | 32GB RAM, mini-PC. 3440x1440 ultrawide over HDMI, scale 1 (stock `auto` resolves correctly). Wi-Fi (TP-Link USB adapter only; hostname `ser8`, see [LAN/SSH notes](ser8-lan-ssh-hostname.md)), which is what exposes the weather boot race. Logitech keyboard + mouse, **no touchpad** — so the touchpad/gesture/kinetic-scroll fixes below don't apply here. Upgraded from Omarchy 3; the XPS 13 was a fresh Quattro install. |
+| GMKtec NucBox K8 Plus | AMD Hawk Point iGPU (Radeon 780M) | Ryzen 7 8845HS, 64GB RAM, mini-PC. 3440x1440 ultrawide over HDMI, scale 1 (stock `auto`). Fresh Omarchy 4.0.6 install, 2026-10-24; hostname `k8`. USB keyboard + mouse, no touchpad. General checklist applied with the SER8 as the model, plus SSH from the XPS 13: [k8-plus-setup.md](k8-plus-setup.md). |
 | ASUS ROG Zephyrus M16 (GU603ZW) | Intel Iris Xe + RTX 3070 Ti (run **Integrated-only**) | i9-12900H. 2560x1600@165Hz eDP, scale 1.6 (stock `auto`). Fresh Quattro 4.0.4 install, 2026-09-20. Hardware via `asusctl`/`supergfxctl`. Quiet/power-saver everywhere, silent fan curve, dGPU off, 80% charge limit: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md). |
 | ASUS Zenbook A16 (UX3607OA) | Qualcomm Snapdragon X2 Elite Extreme (Adreno) | Community [Omarchy Snapdragon](https://github.com/bprendie/omarchy-snapdragon) v0.2.2-1, arm64, dual boot with factory Windows 11. 2880x1800@120Hz OLED eDP, 48GB RAM. Wi-Fi, audio and CPU frequency scaling each needed a fix, and the tweeters needed routing; the fan is driven from Linux through the reverse-engineered EC mailbox (Mac-style ~700 rpm whisper floor, bursts never spin it up); see [Zenbook A16 notes](zenbook-a16-omarchy-snapdragon.md). |
 
