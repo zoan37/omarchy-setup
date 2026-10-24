@@ -368,7 +368,7 @@ Bluetooth working). That's the long-term path: a reinstall on official Omarchy o
 sudo snapper -c root create -d "before update"
 c=/tmp/pacman-secupdate.conf
 awk '/^\[oma-snap\]/{skip=1; next} /^\[/{skip=0} !skip' /etc/pacman.conf > $c   # drop the dead repo
-sudo sed -i 's/^IgnorePkg = .*/IgnorePkg = hyprland hyprtoolkit hyprland-guiutils linux-firmware linux-firmware-* mkinitcpio grub mesa mesa-* vulkan-freedreno vulkan-mesa-implicit-layers vulkan-mesa-layers omarchy omarchy-settings omarchy-keyring omarchy-nvim/' $c
+sudo sed -i 's/^IgnorePkg = .*/IgnorePkg = hyprland hyprtoolkit hyprland-guiutils linux-firmware linux-firmware-* mkinitcpio grub omarchy omarchy-settings omarchy-keyring omarchy-nvim/' $c
 sudo pacman --config $c -Sy && pacman --config $c -Qu          # review the list first
 sudo env OMARCHY_ALLOW_DIRECT_PACMAN=1 pacman --config $c -Su
 sudo snapper -c root create -d "after update"
@@ -382,7 +382,7 @@ Why each hold:
 | `linux-firmware*` | **the Wi-Fi fix (section 3) overwrote `ath12k/QCC2072/hw1.0/board-2.bin`, a file `linux-firmware-atheros` owns.** An upgrade puts the stock file back and Wi-Fi loses its board data |
 | `mkinitcpio` | 42 breaks regenerated oma-snap entries (upstream issue #1) |
 | `grub` | the custom entries live in the oma-snap `grub.cfg` (section 5) |
-| `mesa`, `vulkan-freedreno`, `vulkan-mesa-*` | one source package; keep the GPU stack at one version, and avoid display regressions on a machine with no easy recovery |
+| ~~`mesa`, `vulkan-freedreno`, `vulkan-mesa-*`~~ | **don't hold these** (see the mistake below) |
 | `omarchy*` | expects `omarchy update` and its migrations, which this image's tooling doesn't run cleanly |
 | `hyprland*`, `hyprtoolkit` | already pinned in `/etc/pacman.conf` |
 
@@ -395,6 +395,20 @@ nss 3.131, polkit 128, pam 1.7.3, expat 2.9.0, libarchive 3.8.10, Qt 6.12, PipeW
 boot files and `set default=oma-snap-custom-soccp` unchanged, the board file still the patched one, no `.pacnew`,
 no failed units, all `a16-*` services active. Snapper #1 before, #2 after. A reboot is needed for systemd and the
 new libraries.
+
+**Mistake on that run: holding mesa broke the desktop.** The update moved `llvm-libs` 22 → 23.1, but the held
+mesa 26.2.2 was linked against `libLLVM.so.22.1`. After the reboot the GPU driver failed to load
+(`MESA-LOADER: failed to open dri: libLLVM.so.22.1: cannot open shared object file`), Hyprland aborted with
+`CBackend::create() failed!` and dumped core in a loop, and the screen showed only a blinking cursor. The system
+itself was up, so SSH still worked. Fix, without another reboot:
+
+```sh
+sudo env OMARCHY_ALLOW_DIRECT_PACMAN=1 pacman --config $c -S --needed mesa vulkan-freedreno vulkan-mesa-implicit-layers
+sudo systemctl restart sddm
+```
+
+Rule: **never hold a package whose library dependencies are being upgraded.** Mesa follows LLVM; if mesa has
+to be held, hold `llvm-libs` with it. Check with `ldd /usr/lib/libgallium*.so | grep -i llvm` before rebooting.
 
 ## 9. Personal config ported from the other machines (2026-09-25, re-applied 2026-09-26)
 
