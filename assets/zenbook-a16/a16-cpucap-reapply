@@ -1,0 +1,7 @@
+#!/bin/sh
+# Re-apply the CPU min/max from /etc/default/a16-whine, and nothing else (no PCIe retrain, no hotplug). Run by
+# udev on power_supply changes, because plugging/unplugging AC flips the power profile and the limits get reset.
+set -a; . /etc/default/a16-whine; set +a
+for p in /sys/devices/system/cpu/cpufreq/policy*; do
+  echo "$MAX_KHZ" > "$p/scaling_max_freq" 2>/dev/null; echo "$MIN_KHZ" > "$p/scaling_min_freq" 2>/dev/null
+done

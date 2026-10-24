@@ -8,7 +8,7 @@ case "$1" in
     cp /etc/default/a16-whine.$1 /etc/default/a16-whine; cp /etc/default/a16-fan.$1 /etc/default/a16-fan
     if [ "$1" = server ]; then systemctl disable --now a16-cpuidle-nosleep >/dev/null 2>&1
     else systemctl enable --now a16-cpuidle-nosleep >/dev/null 2>&1; fi
-    systemctl restart a16-whine-tweaks a16-fan-daemon
+    (set -a; . /etc/default/a16-whine; set +a; /usr/local/bin/a16-whine-tweaks on >/dev/null); systemctl restart a16-fan-daemon
     echo "$1" > /etc/default/a16-profile.current ;;
   status|"") ;;
   *) echo "usage: a16-profile server|desktop|status" >&2; exit 2 ;;
