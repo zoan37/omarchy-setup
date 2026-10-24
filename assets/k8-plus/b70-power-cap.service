@@ -1,5 +1,5 @@
 [Unit]
-Description=Cap Intel Arc Pro B70 power at 225 W
+Description=Cap Intel Arc Pro B70 power at 200 W
 After=systemd-modules-load.service
 [Service]
 Type=oneshot

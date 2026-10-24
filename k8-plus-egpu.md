@@ -91,14 +91,14 @@ done
 sudo lspci -vv -s 03:00.0 | grep -A1 'Physical Resizable BAR'
 ```
 
-## B70 power cap: 225 W
+## B70 power cap: 200 W
 
 The card's default cap is **275 W** (`power1_cap` in the `xe` hwmon). Intel exposes no voltage control on
 Linux, so "undervolting" means a power cap, the same approach as an `nvidia-smi -pl` cap. The cap is
-**225 W**, set at boot by a small service:
+**200 W** (first 225 W, lowered the same day to quiet the coil whine), set at boot by a small service:
 
 - [`assets/k8-plus/b70-power-cap`](assets/k8-plus/b70-power-cap): finds every `xe` hwmon and writes
-  `CAP_W` (default 225) to `power1_cap`.
+  `CAP_W` (default 200) to `power1_cap`.
 - [`assets/k8-plus/b70-power-cap.service`](assets/k8-plus/b70-power-cap.service): oneshot at boot.
 - [`assets/k8-plus/install-b70-power-cap.sh`](assets/k8-plus/install-b70-power-cap.sh): `sudo` from the
   repo root.
@@ -118,7 +118,7 @@ GPUs and PSUs commonly whine under load; it's harmless, and the pitch follows th
 cheapest first:
 
 1. Find the source: listen with the PSU and the card separated, or swap in another PSU.
-2. A lower power cap (it's at 225 W now) often lowers or changes the pitch.
+2. A lower power cap (it's at 200 W now) often lowers or changes the pitch.
 3. Distance: a closet, another room, or a rack.
 
 The [SER8](ser8-coil-whine.md) and Zenbook A16 whine fixes were about idle power states (ASPM, C3). This
@@ -151,7 +151,7 @@ nproc                                                    # 16
 cat /sys/devices/system/cpu/smt/control                  # on
 source /opt/intel/oneapi/setvars.sh >/dev/null; sycl-ls  # level_zero:gpu ... Arc(TM) Pro B70
 systemctl is-enabled b70-power-cap                       # enabled
-for h in /sys/class/hwmon/hwmon*; do [ "$(cat $h/name)" = xe ] && cat $h/power1_cap; done   # 225000000
+for h in /sys/class/hwmon/hwmon*; do [ "$(cat $h/name)" = xe ] && cat $h/power1_cap; done   # 200000000
 ```
 
 ## Undo
