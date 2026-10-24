@@ -3,7 +3,7 @@
 **Not an Omarchy machine.** This is the Windows 11 + WSL2 box that runs the long CUDA jobs alongside the
 Omarchy machines. It's here so the whole lab's power caps live in one place. Date: 2026-10-24.
 
-**Machine:** MSI PRO Z790-P WIFI (MS-7E06), Intel Core i9-13900K, MSI GeForce RTX 4090 Gaming X Trio
+**Machine:** a **Skytech prebuilt** gaming PC. Inside: MSI PRO Z790-P WIFI (MS-7E06), Intel Core i9-13900K, MSI GeForce RTX 4090 Gaming X Trio
 (subsystem `1462:5103`), driven over SSH into WSL.
 
 ## Why
@@ -16,6 +16,8 @@ Omarchy machines. It's here so the whole lab's power caps live in one place. Dat
 - **The 4090 runs flat out for hours.** A cap trades a few percent of speed for much less heat.
 
 ## BIOS: A.90 → A.K0 (microcode 0x12F)
+
+Skytech uses a retail MSI board, so the BIOS comes straight from MSI's MS-7E06 page, not from Skytech.
 
 1. Download the MS-7E06 BIOS **A.K0** (`7E06vAK`) from MSI. The image inside is `E7E06IMS.AK0`.
 2. Format a USB stick **FAT32** and copy the image to its root (check the SHA-256 after copying).
