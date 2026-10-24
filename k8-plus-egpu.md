@@ -189,6 +189,59 @@ feed about two GPUs. Planned layout:
 | OcuLink (DEG1) | R9700 | ROCm wants PCIe atomics. Over a USB4 dock's bridge they're usually not routed, and USB4 hotplug also leaves a 32 GB card with a 256 MB BAR |
 | USB4 (DEG2) | B70 | Level Zero doesn't need PCIe atomics |
 
+## Headless reboots: TPM2 auto-unlock of the LUKS root
+
+Omarchy encrypts the root with LUKS and asks for the passphrase at every boot. Until it's typed, nothing on
+the root runs: no Wi-Fi (iwd), no sshd, not even a ping reply. For a headless box that means a monitor and
+keyboard after every reboot or power cut. (A keyboard alone is enough: the prompt is waiting, so the
+passphrase can be typed blind.)
+
+The fix is a TPM2 key in a second LUKS keyslot, which systemd unlocks in the initramfs. **The passphrase
+keyslot stays**, and the prompt falls back to it if the TPM refuses (e.g. after a BIOS update changes PCR 7).
+
+Omarchy's initramfs is busybox-based (`encrypt` hook, `cryptdevice=` on the command line), and TPM unlock needs
+the systemd one. limine-mkinitcpio-hook ships systemd variants of everything Omarchy uses, including
+`sd-btrfs-overlayfs` for snapshot boots.
+
+1. **HOOKS**: a drop-in that sorts after `omarchy_*.conf`, so Omarchy's own files are untouched:
+   [`assets/k8-plus/zz-tpm-unlock.conf`](assets/k8-plus/zz-tpm-unlock.conf) →
+   `/etc/mkinitcpio.conf.d/zz-tpm-unlock.conf`. It drops `resume` (the systemd initramfs resumes on its own
+   from the `resume=` that Omarchy already puts on the command line).
+2. **Command line** in `/etc/default/limine` (back it up first): replace
+   `cryptdevice=PARTUUID=<partuuid>:root` with
+   `rd.luks.name=<luks-uuid>=root rd.luks.options=<luks-uuid>=tpm2-device=auto`
+   (`sudo cryptsetup luksUUID /dev/nvme0n1p2` gives the LUKS UUID).
+3. **Enroll** (asks for the current passphrase):
+   `sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 /dev/nvme0n1p2`.
+   Test it without rebooting:
+   `sudo cryptsetup open --test-passphrase --token-only /dev/nvme0n1p2` → `Key slot 1 unlocked`.
+4. **Rebuild** the UKI: `sudo limine-update`. It has no `--help`, so running it with any argument (or
+   without root) starts a build. Without root it can't write `/boot`, so nothing changes.
+5. **Inspect** the new UKI before trusting it:
+
+   ```sh
+   d=$(mktemp -d)
+   sudo objcopy -O binary --only-section=.cmdline /boot/EFI/Linux/omarchy_linux-omarchy.efi $d/cmdline
+   sudo objcopy -O binary --only-section=.initrd  /boot/EFI/Linux/omarchy_linux-omarchy.efi $d/initrd
+   sudo chmod 644 $d/*; tr -d '\0' < $d/cmdline; echo
+   lsinitcpio $d/initrd | grep -E 'systemd-cryptsetup|token-systemd-tpm2|libtss2-esys|plymouthd|overlayfs-setup'
+   ```
+
+   `btrfs.ko` won't be listed: it's built into `linux-omarchy` (`modules.builtin`).
+
+**Status: built and checked, the boot itself not yet tested** (the user deferred the reboot). The first reboot
+should be watched. If it fails, type the passphrase at the prompt, or boot a snapshot from the Limine menu,
+restore `/etc/default/limine.bak.<timestamp>`, delete `zz-tpm-unlock.conf`, and run `sudo limine-update`.
+
+PCR 7 is the Secure Boot state, so kernel and initramfs updates don't break the seal. BIOS updates or Secure
+Boot changes can, and then it's the passphrase once, followed by
+`sudo systemd-cryptenroll --wipe-slot=tpm2 --tpm2-device=auto --tpm2-pcrs=7 /dev/nvme0n1p2`.
+
+**Trade-off:** a drive removed from the box stays encrypted, but the whole box boots to the login screen on its
+own. Login, sudo and key-only SSH still protect it.
+
+Also worth setting in the BIOS: **restore on AC power loss → Power On**, so it comes back after an outage.
+
 ## Verify
 
 ```sh
@@ -208,5 +261,7 @@ sudo rm /etc/systemd/system/b70-power-cap.service /usr/local/bin/b70-power-cap \
   /etc/systemd/system/cpu-freq-cap.service /usr/local/bin/cpu-freq-cap
 # power1_cap returns to 275 W and the CPU to 5.1 GHz boost on the next boot
 sudo rm /etc/sudoers.d/<user>-nopasswd
+# TPM unlock: restore /etc/default/limine.bak.<ts>, remove /etc/mkinitcpio.conf.d/zz-tpm-unlock.conf,
+# sudo limine-update, then sudo systemd-cryptenroll --wipe-slot=tpm2 /dev/nvme0n1p2
 # BIOS: SMT and power mode are changed back in setup
 ```
