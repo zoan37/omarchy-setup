@@ -40,7 +40,22 @@ chosen cap: 14 °C cooler for about 10% less all-core clock.
 
 - [`assets/k8-plus/cpu-freq-cap`](assets/k8-plus/cpu-freq-cap) writes `MAX_MHZ` (default 4000) to every
   core's `scaling_max_freq`.
-- [`assets/k8-plus/cpu-freq-cap.service`](assets/k8-plus/cpu-freq-cap.service) is a oneshot at boot.
+- [`assets/k8-plus/cpu-freq-cap.service`](assets/k8-plus/cpu-freq-cap.service) is a oneshot at boot. Don't add
+  `After=power-profiles-daemon.service`: that daemon is itself ordered after `multi-user.target`, so systemd
+  finds an ordering cycle, drops the cap job at boot (`Found ordering cycle: cpu-freq-cap.service/start after
+  power-profiles-daemon.service/start ...`), and the CPU silently boots uncapped. The daemon only changes
+  EPP, not `scaling_max_freq`, so no ordering is needed.
+
+**Later the same day the BIOS moved to Balanced too**, so a cap that fails to apply still can't exceed 54 W.
+Full load with no background jobs:
+
+| BIOS mode | CPU cap | Avg clock | Tctl | APU power |
+|---|---|---|---|---|
+| Balanced (54 W) | none | 4,217 MHz | 81–85 °C | ~53 W |
+| **Balanced (54 W)** | **4.0 GHz** | **3,992 MHz** | **75 °C** | **~45 W** |
+
+With the cap in place the BIOS mode barely matters (the cap holds the chip near 45 W, below either ceiling).
+Balanced is kept as a firmware backstop.
 
 ```sh
 sudo install -Dm755 assets/k8-plus/cpu-freq-cap /usr/local/bin/cpu-freq-cap
