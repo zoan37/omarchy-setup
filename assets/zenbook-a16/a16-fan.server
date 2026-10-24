@@ -1,0 +1,19 @@
+# a16-fan SERVER profile (2026-10-24): the laptop runs headless, so cooling beats silence. Starts earlier, reacts in
+# ~15 s instead of ~60 s, and ramps to full duty by 88 C. Desktop "whisper" profile: /etc/default/a16-fan.desktop.
+ON_C=55000
+OFF_C=48000
+MIN_ON_S=120
+OFF_HOLD_S=120
+ALPHA_PCT=20
+FAST_ALPHA_PCT=40
+UP_STEP=3
+UP_STEP_HOT=8
+HOT_C=72000
+UP_STEP_FAST=16
+FAST_C=80000
+FAST_HYST=4000
+DOWN_DIV=20
+PWM_MIN=40
+IDLE_PWM=25
+TRIP_C=97000
+CURVE=55000:40 65000:70 72000:110 78000:170 84000:230 88000:255

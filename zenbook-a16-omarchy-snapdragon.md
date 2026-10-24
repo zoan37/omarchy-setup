@@ -1095,3 +1095,62 @@ phone-camera stripe test:
   fixed emission rate through the long front porch.
 - eDP 1.5 luminance mode. This writes the documented `0x721` bit 7 plus a nits value in `0x734–0x736`. It's a
   different dimming path and might not change the PWM at all. It's reversible by writing `0x721` back to 0x02.
+
+## 17. Server mode: all 18 cores, frequency cap, server fan, and an SSD that dropped at Gen4 (2026-10-24)
+
+The OLED's PWM flicker (see [zenbook-a16-oled-comfort.md](zenbook-a16-oled-comfort.md)) made the A16 a poor daily
+screen, so it became a **headless server**. Coil whine no longer matters there, but heat does. Everything is
+switchable, and the original anti-whine desktop setup is kept intact:
+
+```sh
+sudo a16-profile server     # all 18 cores, scaling up to a cap, deep idle allowed, server fan curve
+sudo a16-profile desktop    # the original anti-whine profile (section 8) and the "whisper" fan (section 11)
+a16-profile status
+```
+
+[`a16-profile`](assets/zenbook-a16/a16-profile) copies `/etc/default/a16-whine.{server,desktop}` and
+`/etc/default/a16-fan.{server,desktop}` into place, enables or disables `a16-cpuidle-nosleep`, and restarts
+`a16-whine-tweaks` and `a16-fan-daemon`. The desktop files are the untouched originals (plus timestamped
+`.bak-desktop-*` / `.bak-whisper-*` copies).
+
+| | desktop (original) | **server** ([`a16-whine.server`](assets/zenbook-a16/a16-whine.server), [`a16-fan.server`](assets/zenbook-a16/a16-fan.server)) |
+|---|---|---|
+| CPUs online | cpu6-11 only | **all 18** (`OFFLINE_CPUS=none`; empty falls back to the script default) |
+| Clock | fixed 3.63 GHz | ondemand **355 MHz up to a 2.4 GHz cap** (effective: ~2.07 GHz on cpu0-5, ~2.6 GHz on cpu6-17, the nearest steps) |
+| NVMe link | Gen1 | **Gen1** (see below) |
+| Wi-Fi link | Gen1 | stock Gen3 |
+| Runtime PM forced on / deep idle off | yes / yes | no / no |
+| Fan | whisper (starts at 68 C smoothed over ~60 s) | starts at 55 C, ~15 s response, full duty by 88 C |
+
+There's no watt limit on this platform from Linux (nothing like RAPL), so the frequency cap is the power limit.
+
+**Full-load results** (18 busy threads):
+
+| Setting | Steady hottest CPU zone |
+|---|---|
+| 3.63 GHz cap, whisper fan | 93–95 C, clocks pinned by heat to ~2.4 GHz average |
+| 2.4 GHz cap, whisper fan | 88–92 C (cpufreq cooling state 0, i.e. not thermally throttled) |
+| **2.4 GHz cap, server fan** | **86 C at ~95% fan duty** (PWM ~245/255 after a minute), back to 41 C 30 s after the load stops |
+
+The chassis is the limit: even near full fan it holds around 86 C. That's inside spec (95 C passive / 115 C
+critical). For cooler running, lower `MAX_KHZ`.
+
+**Incident: the NVMe dropped off the bus at Gen4.** The first server profile put the SSD link back to stock
+**Gen4** (`NVME_GEN=4`, retrained at runtime). A few minutes of all-core load at 93–95 C later, the SSD was
+gone: `current_link_speed` returned `Invalid argument`, the root filesystem returned `Input/output error`, and
+`sudo` asked for a password because it couldn't read `/etc/sudoers.d`. The journal of that boot has no trace,
+since it couldn't be written. After a hard power-off, everything checked out clean: SMART critical warning 0,
+0 media errors, **Warning Temperature Time 0** (the drive itself never overheated), `btrfs device stats` all 0,
+and a full `btrfs scrub` (17.8 GiB) with no errors. The likely cause is the Gen4 link, or the SoC's PCIe side
+at full heat, not the drive. **Keep `NVME_GEN=1`.** It ran a month on the desktop profile, and the same load test
+at Gen1 kept the link up for the whole run. Gen1 is ~1 GB/s (scrub ran at 760 MiB/s), plenty for CPU work.
+
+**Other server bits:**
+
+- **Lid:** [`50-server-lid.conf`](assets/zenbook-a16/50-server-lid.conf) in `/etc/systemd/logind.conf.d/`
+  ignores the lid on battery, AC and docked.
+- **Charge limit:** `qcom-battmgr` resets `charge_control_{start,end}_threshold` to 0 at boot (section 13's 75/80
+  doesn't persist). [`a16-charge-limit.service`](assets/zenbook-a16/a16-charge-limit.service) writes 75/80 shortly
+  after boot. No `After=multi-user.target`: with `WantedBy=multi-user.target` that's an ordering cycle, and systemd
+  silently drops the job.
+

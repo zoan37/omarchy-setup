@@ -1,0 +1,16 @@
+#!/bin/sh
+# a16-profile server|desktop|status: switch the Zenbook between the headless server profile (all 18 cores,
+# 3.63 GHz cap, deep idle, stock PCIe) and the original anti-whine desktop profile (6 cores fixed at 3.63 GHz,
+# PCIe Gen1, runtime PM on, no deep idle). Profiles live in /etc/default/a16-whine.{server,desktop}.
+set -e
+case "$1" in
+  server|desktop)
+    cp /etc/default/a16-whine.$1 /etc/default/a16-whine; cp /etc/default/a16-fan.$1 /etc/default/a16-fan
+    if [ "$1" = server ]; then systemctl disable --now a16-cpuidle-nosleep >/dev/null 2>&1
+    else systemctl enable --now a16-cpuidle-nosleep >/dev/null 2>&1; fi
+    systemctl restart a16-whine-tweaks a16-fan-daemon
+    echo "$1" > /etc/default/a16-profile.current ;;
+  status|"") ;;
+  *) echo "usage: a16-profile server|desktop|status" >&2; exit 2 ;;
+esac
+echo "profile: $(cat /etc/default/a16-profile.current 2>/dev/null || echo unknown)  cpus: $(cat /sys/devices/system/cpu/online)  max: $(cat /sys/devices/system/cpu/cpufreq/policy6/scaling_max_freq 2>/dev/null) kHz  deep-idle-off: $(systemctl is-enabled a16-cpuidle-nosleep 2>/dev/null)"

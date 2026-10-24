@@ -1,0 +1,15 @@
+# /etc/default/a16-whine: SERVER profile (2026-10-24). The laptop runs headless as a server, so coil whine no longer
+# matters; heat and noise are kept down with a frequency cap instead. Desktop profile: a16-whine.bak-desktop-*.
+# Values only on assignment lines (systemd keeps inline comments as part of the value).
+# PCIe generation: NVMe at Gen1 (Gen4 + sustained load dropped the SSD off the bus, 2026-10-24); Wi-Fi stock 3
+NVME_GEN=1
+WIFI_GEN=3
+# all 18 CPUs online ("none" because an empty value falls back to the script default)
+OFFLINE_CPUS=none
+# scale freely up to a 2.4 GHz cap: under sustained all-core load it throttled to ~2.4 GHz at 93-95 C anyway
+MIN_KHZ=355200
+MAX_KHZ=2400000
+# let devices runtime-suspend normally: on|off
+RUNTIME_PM=off
+# the compute DSP stays stopped (unused): 1|0
+STOP_CDSP=1
