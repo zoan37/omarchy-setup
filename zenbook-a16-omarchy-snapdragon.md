@@ -1118,8 +1118,8 @@ a16-profile status
 | CPUs online | cpu6-11 only | **all 18** (`OFFLINE_CPUS=none`; empty falls back to the script default) |
 | Clock | fixed 3.63 GHz | ondemand **355 MHz up to a 2.4 GHz cap** (effective: ~2.07 GHz on cpu0-5, ~2.6 GHz on cpu6-17, the nearest steps) |
 | NVMe link | Gen1 | **Gen1** (see below) |
-| Wi-Fi link | Gen1 | stock Gen3 |
-| Runtime PM forced on / deep idle off | yes / yes | no / no |
+| Wi-Fi link | Gen1 | **Gen1** (Gen3 dropped off the network; see below) |
+| Runtime PM forced on / deep idle off | yes / yes | **yes** / no |
 | Fan | whisper (starts at 68 C smoothed over ~60 s) | starts at 55 C, ~15 s response, full duty by 88 C |
 
 There's no watt limit on this platform from Linux (nothing like RAPL), so the frequency cap is the power limit.
@@ -1144,6 +1144,14 @@ since it couldn't be written. After a hard power-off, everything checked out cle
 and a full `btrfs scrub` (17.8 GiB) with no errors. The likely cause is the Gen4 link, or the SoC's PCIe side
 at full heat, not the drive. **Keep `NVME_GEN=1`.** It ran a month on the desktop profile, and the same load test
 at Gen1 kept the link up for the whole run. Gen1 is ~1 GB/s (scrub ran at 760 MiB/s), plenty for CPU work.
+
+**Second drop: the Wi-Fi (same evening).** Under ~2 h of heavy load (12 processes, load ~26, ~6.8 GB written),
+the laptop vanished from the network: no ping, no mDNS. The screen was fine and the uptime continuous, so it was
+the network, not a crash. Server profile v1 had moved the Wi-Fi card (QCC2072) from Gen1 to stock **Gen3** and
+allowed **runtime PM**; the desktop profile kept both conservative for weeks. v2 of the server profile:
+`WIFI_GEN=1`, `RUNTIME_PM=on`, and NetworkManager prefers the 2.4 GHz SSID (`autoconnect-priority 10`, the 5 GHz
+profile 0). As on the K8 and the Spark, 5 GHz was the weaker band at that desk. **Rule for this laptop: keep
+every PCIe link at Gen1 and runtime PM forced on; only the CPU side changes between profiles.**
 
 **Other server bits:**
 
