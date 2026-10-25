@@ -70,6 +70,21 @@ Windows drive, or the `.exe` fails to start:
 cd /mnt/c && /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command '...'
 ```
 
+## Strata (local LLM) in WSL, driven over SSH
+
+Strata 0.1.47 (CUDA engine) serves Qwen3.8-Flash-Next IQ3_XXS from WSL at ~50 tok/s (32K context, 23 of 24 GB VRAM,
+~30 GB of RAM for experts).
+- **WSL's `nvidia-smi` isn't on `PATH`** in a non-interactive SSH session (it's in `/usr/lib/wsl/lib`), so
+  `strata launch` says "no graphics card that Strata can use was found". Prefix the command with
+  `PATH=/usr/lib/wsl/lib:$PATH LD_LIBRARY_PATH=/usr/lib/wsl/lib`.
+- **Model files on `/mnt/c` load slowly** through WSL's file bridge: the first start after the one-time preparation
+  took several minutes. Keeping them on the WSL disk would be faster.
+- **A background job started from a Windows OpenSSH session dies when the session ends** (`Start-Process` inside
+  `ssh <pc> powershell …`), so a long `robocopy` never ran. Use a scheduled task, or run it from WSL with
+  `setsid nohup`.
+- **For PowerShell over SSH, pass the script with `-EncodedCommand`** (base64 of UTF-16LE). Plain quoting through
+  bash → ssh → PowerShell mangles `$_` and braces.
+
 ## Verify
 
 ```sh

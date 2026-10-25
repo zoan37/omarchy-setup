@@ -77,6 +77,27 @@ The card is an Intel AX200, so this looks like signal strength (the desk has doc
 a driver bug. Long term the box should be on Ethernet; see the ARP flux note in
 [k8-plus-setup.md](k8-plus-setup.md) before plugging a cable in with Wi-Fi up.
 
+**Update 2026-10-25: 5 GHz works now.** The saved 5 GHz profile was bound to an interface name from the
+installer (`connection.interface-name wlp4s0`; the card is `wlp7s0` here), so NetworkManager refused it
+("The interface names of the device and the connection didn't match"), and a fresh scan showed the 5 GHz network
+at a *stronger* signal than 2.4 GHz (−56 vs −62 dBm). After rebinding:
+
+```sh
+nmcli con modify "<home-5GHz>" connection.interface-name wlp7s0 connection.autoconnect-priority 10
+nmcli con modify "<home-2.4GHz>" connection.autoconnect-priority 0     # stays as the fallback
+```
+
+| | 2.4 GHz (ch 6, 20 MHz) | 5 GHz (ch 153, 80 MHz, 2×2) |
+|---|---|---|
+| Link rate | 144 / 130 Mbit/s | 351 / 234 Mbit/s |
+| Loss to the router (50 pings) | — | 0% (avg 3.5 ms) |
+| Download (Hugging Face) | ~4 MB/s | **~27 MB/s** |
+
+The switch was done with a script under `systemd-run` that reverts to 2.4 GHz unless the router and the internet
+answer on a 5 GHz link (`iw dev wlp7s0 link | grep "freq: 5"`), so a failed join can't strand a headless box. A
+second way in, in case the Wi-Fi ever drops: ufw allows SSH on the direct cable to the DGX Spark from the Spark's
+address only (`ufw allow in on eno1 from 10.77.0.1 to any port 22 proto tcp`), so `ssh -J <spark-wifi> k8` works.
+
 ## Running `omarchy update` over SSH
 
 A plain `sudo pacman -Syu` is refused by Omarchy's guard hook
@@ -155,6 +176,54 @@ behind OcuLink. Not investigated yet.
 **For the R9700s** (300 W board power each), the plan is to start at about 250 W with `rocm-smi`. The
 reason is the wall circuit, not the PSUs (each card has its own): a 15 A, 120 V circuit carries about
 1,440 W continuous, and four cards at stock power plus the hosts can exceed that.
+
+## Strata (local LLM) on the B70, and why OcuLink limits it
+
+Set up 2026-10-25: [Strata](https://github.com/Niko1221/Strata) serving Qwen3.8-Flash-Next **IQ3_S** on the Arc
+Pro B70 over OcuLink.
+
+**Install gotchas, in order:**
+- **The Terminal installer picks the wrong GPU.** `strata launch` detected the 780M iGPU (gfx1103) and asked for an
+  AMD engine. `strata update --backend sycl` installs the Intel engine.
+- **Intel needs the source/Docker route for the model.** `strata launch` reuses prepared files but won't prepare
+  them on Intel. Strata's [Intel docs](https://github.com/Niko1221/Strata/blob/main/docs/INTEL.md):
+  - add the user to the `docker` and `render` groups; `systemctl enable --now docker.socket`;
+  - `docker build --pull -t strata-sycl-dev sycl/tools` (4 min here; the base is a community llama.cpp SYCL image);
+  - build the engine with `AOT=bmg-g31` (6 min, no ocloc crash);
+  - `./setup.sh --backend sycl --model IQ3_S --context 32768 --yes --no-start`.
+- **The data folder must be under the container mount.** An earlier Terminal install had put
+  `Strata-data` in `~/.local/share/strata`, so setup downloaded ~99 GB there and then stopped ("outside …, which the
+  SYCL engine's container mounts"). Moving it under the checkout's parent (same disk, instant), linking the old
+  path, and re-running with `--data-dir` skipped everything already done.
+- **Setup misread the RAM as 1024 GB** and chose `--ple-io ram` (a 29 GB n-gram table kept in RAM). With the expert
+  mirror that would overfill 64 GB. That arg was removed from `strata-iq3_s.json`; the table is read from the SSD.
+- **The engine refused to start:** "2048 experts are neither in VRAM nor mirrored". `STRATA_MIRROR_MIB` defaults to
+  *free* RAM minus 4 GiB, and most RAM was page cache after the download, so the mirror came out at ~21 GiB.
+  `"env": {"STRATA_MIRROR_MIB": "26000"}` in the config fixed it: ready in ~45 s, 22 GiB of experts in VRAM, the rest
+  in the pinned RAM mirror.
+
+**Result: link-bound.**
+
+| | B70 on OcuLink (K8) | RTX 4090 in its x16 slot (another PC) |
+|---|---|---|
+| Strata's PCIe probe, host → GPU | **7.0 GB/s** | 24.0 GB/s |
+| Model | IQ3_S | IQ3_XXS |
+| Decode (engine log, 300-token answers) | **19–27 tok/s** | ~50 tok/s |
+
+GPU at 47 °C with the desk fans.
+
+**Why:** the model doesn't fit in 32 GB, so about half its experts live in the RAM mirror and **the GPU reads the
+ones each token needs across the link.** OcuLink is PCIe 4.0 ×4, about a third of an x16 slot. Strata's published
+B70 numbers (30–41 tok/s for IQ3_S) were likely measured in an x16 slot.
+
+**What follows for any eGPU here (the R9700s too):**
+- A model that **fits in VRAM** doesn't care about the link.
+- A model that doesn't is limited by it, and more so over Thunderbolt.
+- Hosts with **unified memory** (Strix Halo, Apple Silicon) avoid this: the overflow is computed where it lives,
+  at 256–800 GB/s, and only activations cross the link.
+- Strata's AMD engine can also compute RAM experts on the CPU instead of pulling them over the link (it probes the
+  link and sets `pcie_frac`, 0.19 here vs 0.55 default), so an R9700 on this port should do somewhat better than the
+  B70, but the K8's DDR5 (~90 GB/s) is still far from a Strix Halo's 256 GB/s.
 
 ## Coil whine
 
