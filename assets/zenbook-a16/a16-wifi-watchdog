@@ -1,0 +1,12 @@
+#!/bin/sh
+# a16-wifi-watchdog: the QCC2072 (ath12k) sometimes stays "connected" but passes no traffic. Every run (timer: 1 min)
+# ping the default gateway; after 2 consecutive failed runs toggle the Wi-Fi radio (the manual fix), and after 2 more
+# restart NetworkManager. State in /run so a reboot starts clean. Logs to the journal (tag a16-wifi-watchdog).
+S=/run/a16-wifi-watchdog.fails
+gw=$(ip -4 route show default 2>/dev/null | awk "{print \$3; exit}")
+[ -n "$gw" ] || gw=192.168.0.1
+if ping -c 3 -W 2 -q "$gw" >/dev/null 2>&1; then echo 0 > $S; exit 0; fi
+n=$(( $(cat $S 2>/dev/null || echo 0) + 1 )); echo $n > $S
+logger -t a16-wifi-watchdog "gateway $gw unreachable ($n consecutive)"
+if [ $n -eq 2 ]; then logger -t a16-wifi-watchdog "toggling Wi-Fi radio"; nmcli radio wifi off; sleep 3; nmcli radio wifi on
+elif [ $n -ge 4 ]; then logger -t a16-wifi-watchdog "restarting NetworkManager"; systemctl restart NetworkManager; echo 0 > $S; fi

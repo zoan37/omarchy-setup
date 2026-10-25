@@ -1153,6 +1153,16 @@ allowed **runtime PM**; the desktop profile kept both conservative for weeks. v2
 profile 0). As on the K8 and the Spark, 5 GHz was the weaker band at that desk. **Rule for this laptop: keep
 every PCIe link at Gen1 and runtime PM forced on; only the CPU side changes between profiles.**
 
+**Third drop: the Wi-Fi driver itself (later the same night).** With server profile v2 and only light load (8
+low-priority processes writing to /dev/shm), the laptop vanished again. The Wi-Fi showed "connected" (NETGEAR84,
+-48 dBm), but no ARP, no ping, no mDNS, and a full LAN scan (matching SSH host keys) didn't find it. Toggling the
+radio off and on brought it straight back, same IP, no reboot. So the QCC2072/ath12k link can stall on this
+kernel regardless of load. Mitigation: [`a16-wifi-watchdog`](assets/zenbook-a16/a16-wifi-watchdog) plus its
+[`.service`](assets/zenbook-a16/a16-wifi-watchdog.service) and [`.timer`](assets/zenbook-a16/a16-wifi-watchdog.timer)
+ping the default gateway every minute. After 2 failed runs they toggle the radio (the manual fix); after 4 they
+restart NetworkManager. They log to the journal under `a16-wifi-watchdog`. The real fix for server use is wired
+Ethernet through a USB-C adapter.
+
 **Other server bits:**
 
 - **Lid:** [`50-server-lid.conf`](assets/zenbook-a16/50-server-lid.conf) in `/etc/systemd/logind.conf.d/`

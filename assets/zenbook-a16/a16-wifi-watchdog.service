@@ -1,0 +1,5 @@
+[Unit]
+Description=A16: recover a stuck Wi-Fi link
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/a16-wifi-watchdog
