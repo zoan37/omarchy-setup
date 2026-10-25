@@ -1,0 +1,11 @@
+[Unit]
+Description=SSH tunnel: laptop 127.0.0.1:8080 -> Strata on the 4090 PC (<gpu-pc>)
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:8080:127.0.0.1:8080 <gpu-pc>
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

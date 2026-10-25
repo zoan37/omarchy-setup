@@ -1,0 +1,20 @@
+[Unit]
+Description=Open WebUI (chat UI for the local Strata server via strata-tunnel)
+After=network-online.target
+
+[Service]
+Environment=DATA_DIR=%h/.local/share/open-webui
+Environment=OPENAI_API_BASE_URLS=http://127.0.0.1:8080/v1;http://127.0.0.1:8081/v1
+Environment=OPENAI_API_KEYS=local;local
+Environment=ENABLE_PERSISTENT_CONFIG=False
+Environment=ENABLE_OLLAMA_API=False
+Environment=WEBUI_AUTH=False
+Environment=ANONYMIZED_TELEMETRY=False
+Environment=DO_NOT_TRACK=True
+Environment=SCARF_NO_ANALYTICS=True
+ExecStart=%h/.local/bin/open-webui serve --host 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

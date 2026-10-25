@@ -1,0 +1,11 @@
+[Unit]
+Description=SSH tunnel: laptop 127.0.0.1:8081 -> Strata on the K8's B70
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 127.0.0.1:8081:127.0.0.1:8080 <k8>
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
