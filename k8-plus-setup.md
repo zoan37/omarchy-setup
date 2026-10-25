@@ -79,6 +79,10 @@ Host k8
     IdentitiesOnly yes
 ```
 
+**Update 2026-10-25:** `k8.local` stopped resolving over Wi-Fi (mDNS timeouts), which also broke the
+Spark alias that jumps through the K8. The alias now uses a pinned IP plus a self-healing `ProxyCommand`:
+[lan-ssh-self-healing.md](lan-ssh-self-healing.md).
+
 Verified: the sshd journal on the K8 shows `Accepted publickey ... ED25519`
 from the XPS 13 (`192.168.0.29`) after the one `Accepted password` from
 `ssh-copy-id`.

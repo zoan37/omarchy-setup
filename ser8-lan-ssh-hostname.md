@@ -159,6 +159,9 @@ journalctl -u avahi-daemon --since -1min | grep "Host name is"   # ser8.local
 avahi-resolve -4 -n ser8.local                                    # from another machine
 ```
 
-To find the box when mDNS is down: scan port 22 on the LAN and check
+**Since 2026-10-25 SSH finds it by itself:** [lan-ssh-self-healing.md](lan-ssh-self-healing.md)
+(a `ProxyCommand` that tries the last address, then mDNS, then the MAC on the LAN).
+
+To find the box by hand when mDNS is down: scan port 22 on the LAN and check
 `hostname` on each hit, then compare the host key with
 `ssh -o HostKeyAlias=ser8.local zoan@<ip>`.
