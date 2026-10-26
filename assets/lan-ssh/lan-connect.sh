@@ -41,7 +41,8 @@ fi
 if [ -n "$macs" ]; then
   find_by_mac() { ip neigh | grep -iE "$macs" | awk '{print $1}' | grep "^$subnet\." | head -1; }
   addr=$(find_by_mac)
-  if [ -z "$addr" ] || ! is_open "$addr"; then
+  # LAN_CONNECT_NO_SCAN=1 (e.g. a dashboard polling machines that may be off): skip the ping sweep
+  if { [ -z "$addr" ] || ! is_open "$addr"; } && [ -z "${LAN_CONNECT_NO_SCAN:-}" ]; then
     echo "lan-connect: scanning $subnet.0/24 for $name..." >&2
     for i in $(seq 1 254); do ping -c1 -W1 "$subnet.$i" >/dev/null 2>&1 & done
     wait
