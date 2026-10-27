@@ -265,6 +265,10 @@ feed about two GPUs. Planned layout:
 | OcuLink (DEG1) | R9700 | ROCm wants PCIe atomics. Over a USB4 dock's bridge they're usually not routed, and USB4 hotplug also leaves a 32 GB card with a 256 MB BAR |
 | USB4 (DEG2) | B70 | Level Zero doesn't need PCIe atomics |
 
+**Update 2026-10-27:** the first R9700 runs on **USB4 in a DEG2** for now (the DEG2's OcuLink mode needs a hidden
+switch). `pci=noaer` and a longer `amdgpu.lockup_timeout` get it to full speed for short runs, but it still hangs under
+sustained load; the details, the 2.5 GT/s link inside the dock, and the benchmark are in [r9700-egpu-thunderbolt.md](r9700-egpu-thunderbolt.md).
+
 ## Headless reboots: TPM2 auto-unlock of the LUKS root
 
 Omarchy encrypts the root with LUKS and asks for the passphrase at every boot. Until it's typed, nothing on
