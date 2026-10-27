@@ -139,6 +139,13 @@ or `icpx`.
 Order: card in the DEG1, PSU 24-pin to the dock, PCIe power to the card, OcuLink cable to the K8 with the
 K8 **off** (OcuLink isn't hot-pluggable). Then dock/PSU on, then the K8. Power down in the reverse order.
 
+> **Learned the hard way (2026-10-25):** switching the dock off while the K8 was running took the link down
+> (`pciehp: Slot(0): Link Down`, `xe ... DC state mismatch`) and hung the K8. It was then powered off hard,
+> and the btrfs **primary superblock** was lost. The next boots stopped at
+> `A start job is running for /dev/mapper/root`, and the snapshot entries at
+> `Failed to mount /dev/mapper/root` → emergency shell. Always `sudo poweroff` the K8 first, then the dock.
+> See [Recovery: lost btrfs superblock](#recovery-lost-btrfs-superblock).
+
 | Check | Result |
 |---|---|
 | Device | `Intel Corporation Battlemage G31 [Arc Pro B70] [8086:e223]`, driver `xe` |
@@ -298,8 +305,15 @@ the systemd one. limine-mkinitcpio-hook ships systemd variants of everything Oma
 
    `btrfs.ko` won't be listed: it's built into `linux-omarchy` (`modules.builtin`).
 
-**Status: built and checked, the boot itself not yet tested** (the user deferred the reboot). The first reboot
-should be watched. If it fails, type the passphrase at the prompt, or boot a snapshot from the Limine menu,
+**Status: rolled back 2026-10-26; the K8 asks for the passphrase again.** The first reboot after this setup
+came after the dock incident above, so it never got a clean test: the boot hung at the unlock step, and the
+lost superblock may or may not explain all of it. With TPM unlock and a broken root filesystem
+mixed together, the plain passphrase boot was the safer default. The rollback restored
+`/etc/default/limine.bak.<timestamp>`, moved `zz-tpm-unlock.conf` aside, ran `sudo limine-update`, and removed
+the TPM token and its keyslot (`cryptsetup token remove --token-id 0`, `cryptsetup luksKillSlot <dev> 1`) after
+a `luksHeaderBackup`. To retry, redo steps 1–5 and watch the first boot with a monitor attached.
+
+The original note: the first reboot should be watched. If it fails, type the passphrase at the prompt, or boot a snapshot from the Limine menu,
 restore `/etc/default/limine.bak.<timestamp>`, delete `zz-tpm-unlock.conf`, and run `sudo limine-update`.
 
 PCR 7 is the Secure Boot state, so kernel and initramfs updates don't break the seal. BIOS updates or Secure
@@ -310,6 +324,31 @@ Boot changes can, and then it's the passphrase once, followed by
 own. Login, sudo and key-only SSH still protect it.
 
 Also worth setting in the BIOS: **restore on AC power loss → Power On**, so it comes back after an outage.
+
+## Recovery: lost btrfs superblock
+
+Symptom: the LUKS passphrase is accepted, then `Failed to mount /dev/mapper/root` and an emergency shell
+(or a systemd boot waiting forever on `/dev/mapper/root`). btrfs keeps two backup superblocks, at 64 MiB and
+256 GiB, so this is usually a 10-minute fix. Everything below runs in the initramfs emergency shell (boot any
+Limine entry; the standard Omarchy image includes `cryptsetup` and `btrfs`).
+
+```sh
+cryptsetup open /dev/nvme0n1p2 root      # if /dev/mapper/root isn't there yet
+blkid /dev/mapper/root                    # prints nothing → no filesystem recognized
+# Read-only diagnosis: the volume start should be zeros (decryption is fine),
+# the primary superblock (64 KiB) lacks _BHRfS_M, the backup (64 MiB) has it.
+dd if=/dev/mapper/root bs=4096 count=1 2>/dev/null | hexdump -C | head -4
+dd if=/dev/mapper/root bs=4096 skip=16 count=1 2>/dev/null | hexdump -C | head -6
+dd if=/dev/mapper/root bs=4096 skip=16384 count=1 2>/dev/null | hexdump -C | head -6
+# Fix: copies a verified backup over the bad copy (asks before writing)
+btrfs rescue super-recover -v /dev/mapper/root
+mount -t btrfs -o subvol=@ /dev/mapper/root /new_root
+exit                                      # boot continues into the real system
+```
+
+Afterwards, from the running system: `sudo btrfs inspect-internal dump-super -a /dev/mapper/root` (all three
+copies `[match]`), `sudo btrfs device stats /` (all 0), `sudo btrfs scrub start -B /` (on 2026-10-26: 178 GiB in
+36 s, no errors). Don't reach for `btrfs check --repair` or `mkfs`: they can destroy what's still intact.
 
 ## Verify
 
