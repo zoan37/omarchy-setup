@@ -1,4 +1,4 @@
-# Radeon AI PRO R9700 as a Thunderbolt 5 eGPU (Minisforum DEG2): full speed, but not stable yet
+# Radeon AI PRO R9700 as a Thunderbolt 5 eGPU (Minisforum DEG2): fast or stable, not both yet
 
 **Setup:** ASRock Radeon AI PRO R9700 Creator 32 GB (RDNA4, Navi 48, `1002:7551`) in a Minisforum **DEG2**
 (Intel JHL9480 Thunderbolt 5 controller) with its own ATX PSU, connected with the USB-C cable from the box to
@@ -11,6 +11,11 @@ under sustained load:** a soak test of back-to-back runs got through 2 runs (~1 
 timeout` with the 60 s timeout in place. So the options fix the boot-time failure and get short jobs through,
 not the underlying problem, which looks like the dock's link to the GPU (below). No driver install is needed:
 `amdgpu` and the RDNA4 firmware are already in Omarchy.
+
+**Update, same evening:** a `llama-server` that loads the model **once** ran 14.5 minutes (36 requests) with no
+errors, but at only ~22 tok/s generation. The pattern across all the hangs: **CPU writes to VRAM through the BAR
+survive this link; the GPU's own DMA reads from system RAM (`sdma` jobs) are what hang.** See
+[Server soak](#server-soak-load-once-is-stable-dma-is-not).
 
 ## Symptoms, in the order they showed up
 
@@ -143,6 +148,30 @@ Back-to-back `llama-bench -p 4096 -n 1024 -r 1` runs, logging temperatures and G
 Temperatures were low, so it isn't heat. The hung card needs the full power-cycle order again (host off, dock off and
 on, host on). A hung GPU also leaves `llama-bench` as a zombie, and `echo 1 > .../remove` blocks in D state; use
 `sync` and `systemctl poweroff -f` rather than waiting on a normal shutdown.
+
+## Server soak: load once is stable, DMA is not
+
+`llama-server` (same build, `-ngl 99 -fa on -c 8192`), model loaded once, then back-to-back 512-token requests:
+
+| Run | Model load | Result | Generation |
+|---|---|---|---|
+| Default settings | 21 s, fine | **14.5 min, 36 requests, 0 failures, 0 GPU errors**; junction leveled off at 73 °C | **21.7 tok/s** |
+| `GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM=1` | **hung**: `Ring sdma1 reset failed` | no requests | n/a |
+
+**Why the server is slow when `llama-bench` isn't:** the server reads the logits (vocabulary × 4 bytes, ~600 KB here)
+after every token for sampling. With a 256 MB BAR, llama.cpp keeps that output in host-visible VRAM, so the CPU reads
+it across the link with uncached loads. Each one is a round trip over Thunderbolt at 2.5 GT/s, so every step costs a fixed
+~40 ms: `eval time = 46 ms per token`, and even a 15-token prompt pass takes ~490 ms. `llama-bench` doesn't sample, so it
+never pays this.
+
+**Why the obvious fix hangs:** `GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM=1` moves those transfers, and the weight upload, to
+DMA on the GPU's SDMA engines. The model load then hung. Every hang so far has been a GPU job that never completed
+(`signaled seq` < `emitted seq`). A DMA read is a *non-posted* request that waits for a completion from the host; a CPU
+write is *posted* and needs none. On a link logging receiver errors, a lost completion would stall a DMA job forever while
+CPU writes still get through.
+
+**Next experiment:** lower the GPU's Max Read Request Size from 512 to 128 bytes (`setpci` on the DevCtl register, no
+reboot) so each completion is smaller, then repeat the DMA run.
 
 ## Still open
 
