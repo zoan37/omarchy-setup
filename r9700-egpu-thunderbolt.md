@@ -192,6 +192,30 @@ of a hang that needs a dock power cycle. The remaining ~16 ms per token over `ll
 sampling) and not yet tracked down. None of this fixes the link itself (`RxErr+` is still logged); it only makes failures
 rarer. The next test is a second DEG2 unit.
 
+## Later tests: errors at idle, loads still hang
+
+- **The error bits are sticky**, so earlier `RxErr+` readings could have been left over from boot-time link training.
+  After clearing them (`setpci -s <dev> ECAP_AER+10.l=ffffffff`, write-1-to-clear) and re-reading every 0.5 s at idle:
+  the dock's JHL9480 port toward the GPU logged `RxErr` in **11 of 20** windows, and the K8's own USB4 tunnel root port
+  logged **`BadDLLP` in 20 of 20**. The links take errors continuously, even idle at 2.5 GT/s.
+- **`thunderbolt.clx=0`** (USB4 link low-power states off): no change in either error rate. Removed again.
+- **The 128-byte read size is now applied by a udev rule** for the GPU (`1002:7551`) and its audio function (`1002:ab40`):
+
+  ```
+  # /etc/udev/rules.d/90-r9700-egpu-mrrs.rules
+  ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x1002", ATTR{device}=="0x7551", RUN+="/usr/bin/setpci -s %k CAP_EXP+08.w=0000:7000"
+  ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x1002", ATTR{device}=="0xab40", RUN+="/usr/bin/setpci -s %k CAP_EXP+08.w=0000:7000"
+  ```
+
+- **Repeated model loads** (`llama-bench -p 64 -n 16`, all fixes active): loads 1–2 fine, **load 3 hung** (`sdma0`).
+- **Power cap:** the driver allows **210–300 W** (`power1_cap_min`/`max`; 150 W is refused with `Invalid argument`). At
+  210 W, **load 2 hung** (`sdma1`), before any full-power run, so power draw isn't the trigger.
+
+Summary: the fixes above change how often a GPU copy is lost, not whether it is. The USB4 link speed (20 of 80 Gb/s) and
+the host-side `BadDLLP` don't involve the GPU at all, which points at the DEG2's Thunderbolt side or its interop with the
+AMD USB4 host. Next: read the link from a Thunderbolt 5 Mac (`system_profiler SPThunderboltDataType SPPCIDataType`, which
+lists the dock and the GPU's link speed even with no driver), and the R9700 on OcuLink in a DEG1.
+
 ## Still open
 
 - **The main question: is the 2.5 GT/s + `RxErr` link (and the hang) this DEG2 unit, or JHL9480 docks with RDNA4 in
