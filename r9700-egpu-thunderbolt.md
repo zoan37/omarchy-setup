@@ -170,8 +170,27 @@ DMA on the GPU's SDMA engines. The model load then hung. Every hang so far has b
 write is *posted* and needs none. On a link logging receiver errors, a lost completion would stall a DMA job forever while
 CPU writes still get through.
 
-**Next experiment:** lower the GPU's Max Read Request Size from 512 to 128 bytes (`setpci` on the DevCtl register, no
-reboot) so each completion is smaller, then repeat the DMA run.
+### Smaller DMA reads: stable once loaded, loads still a gamble
+
+Lowering the GPU's **Max Read Request Size from 512 to 128 bytes** (DevCtl bits 14:12, on both the GPU and its audio
+function; runtime only, resets on reboot) made the DMA path work:
+
+```sh
+G=$(lspci -D -d 1002:7551 | cut -d' ' -f1)
+for f in ${G%.0}.0 ${G%.0}.1; do sudo setpci -s $f CAP_EXP+08.w=0000:7000; done   # value:mask → MRRS = 128
+sudo lspci -vvv -s $G | grep -o 'MaxReadReq [0-9]* bytes'
+```
+
+| Run (`GGML_VK_DISABLE_HOST_VISIBLE_VIDMEM=1`, MRRS 128) | Result |
+|---|---|
+| `llama-server` soak, 15 min | **70 requests, 0 failures, 0 GPU errors, 40.1 tok/s** (vs 21.7), junction 74 °C |
+| `llama-bench` tg128, default vs the env setting | 122 vs 118 tok/s, so the setting itself costs little |
+| 4th model load that boot | **hung** (`ring gfx_0.0.0 timeout` → `GPU Recovery Failed`) |
+
+So with all of the above, a server that loads once runs stably at 40 tok/s, but each model load is roughly a 1-in-4 chance
+of a hang that needs a dock power cycle. The remaining ~16 ms per token over `llama-bench` is server-side (logits,
+sampling) and not yet tracked down. None of this fixes the link itself (`RxErr+` is still logged); it only makes failures
+rarer. The next test is a second DEG2 unit.
 
 ## Still open
 
