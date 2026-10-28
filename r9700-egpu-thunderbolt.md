@@ -195,7 +195,7 @@ Restore a backed-up `/etc/default/limine` (or delete the lines) and run `sudo li
 
 ## Still open
 
-- **Bug 3** above. Next: add these results to [#5100](https://gitlab.freedesktop.org/drm/amd/-/work_items/5100).
+- **Bug 3** above. Reported with these results on [#5100](https://gitlab.freedesktop.org/drm/amd/-/work_items/5100#note_3743081) (2026-10-27).
 - **The same card on OcuLink** (DEG2 in OCuLink mode, or a DEG1), to see whether bug 3 needs Thunderbolt at all
   ([#5294](https://gitlab.freedesktop.org/drm/amd/-/work_items/5294) suggests not).
 - **A Thunderbolt 5 Mac as host:** `system_profiler SPThunderboltDataType SPPCIDataType` lists the dock and the GPU's
