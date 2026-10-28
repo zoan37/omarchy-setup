@@ -1,0 +1,3 @@
+# R9700 (Navi 48) behind a Thunderbolt dock: cap PCIe Max Read Request at 128 bytes.
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x1002", ATTR{device}=="0x7551", RUN+="/usr/bin/setpci -s %k CAP_EXP+08.w=0000:7000"
+ACTION=="add|bind", SUBSYSTEM=="pci", ATTR{vendor}=="0x1002", ATTR{device}=="0xab40", RUN+="/usr/bin/setpci -s %k CAP_EXP+08.w=0000:7000"

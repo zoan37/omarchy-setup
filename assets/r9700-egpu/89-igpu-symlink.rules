@@ -1,0 +1,2 @@
+# Stable name for the K8 iGPU (Radeon 780M, 1002:1900) so Hyprland can be pinned to it (AQ_DRM_DEVICES is colon-separated).
+SUBSYSTEM=="drm", KERNEL=="card*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x1900", SYMLINK+="dri/igpu"
