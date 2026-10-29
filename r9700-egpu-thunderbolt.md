@@ -1,4 +1,4 @@
-# Radeon AI PRO R9700 as a Thunderbolt 5 eGPU (Minisforum DEG2): link fixed, process-switch hang open
+# Radeon AI PRO R9700 as a Thunderbolt 5 eGPU (Minisforum DEG2): link fixed, Linux-only process-switch hang
 
 **Setup:** ASRock Radeon AI PRO R9700 Creator 32 GB (RDNA4, Navi 48, `1002:7551`) in a Minisforum **DEG2**
 (Intel JHL9480 Thunderbolt 5 controller, NVM 62.42) with its own ATX PSU, connected with the 80 Gbps USB-C cable
@@ -15,6 +15,10 @@ from the box to a USB4 port on the [GMKtec K8 Plus](k8-plus-egpu.md) (Ryzen 7 88
 - Loaded models run at normal R9700 speed: Qwen3-30B-A3B Q4_K_M at **~3,000 tok/s prompt, ~120 tok/s generation** in
   `llama-bench`.
 - No driver install is needed: `amdgpu` and the RDNA4 firmware are already in Omarchy.
+
+> **Update 2026-10-28: it's Linux.** The same card, dock and cable hang on Linux on an **Intel** Thunderbolt 4 host too
+> (with a perfectly clean 40 Gb/s link), and pass **11/11** separate model loads on **Windows 11** on a K6 (Ryzen 7 7840HS,
+> AMD USB4). See [Cross-host and Windows A/B](#cross-host-and-windows-ab).
 
 > **Correction:** earlier versions of this page blamed the DEG2's hardware for the 2.5 GT/s link (`RxErr` at idle, the
 > dock "refusing" 16 GT/s). That was wrong. Turning off PCIe DPM fixed it completely. Thanks to a tip in the
@@ -249,6 +253,30 @@ Restore a backed-up `/etc/default/limine` (or delete the lines) and run `sudo li
 `~/.config/environment.d/90-hyprland-igpu.conf` and `/usr/lib/firmware/updates/amdgpu/`. `sudo pacman -R linux-lts`
 removes the second kernel. `sudo boltctl forget <dock-uuid>` removes the enrollment.
 
+## Cross-host and Windows A/B
+
+Same R9700, same DEG2 and its 80 Gbps cable, same model (Qwen3-30B-A3B Q4_K_M), same test (one `llama-bench` process
+per model load, 10 in a row):
+
+| Host | OS / driver | USB4 link | Dock → GPU | Correctable errors at idle | Load loop |
+|---|---|---|---|---|---|
+| K8 Plus, Ryzen 7 8845HS (AMD USB4) | Linux 7.2.8 / 6.18.57-lts, amdgpu | 20 Gb/s | 16 GT/s x4 (PCIe DPM off) | host tunnel port `BadDLLP` 20/20 | **hangs on load 1–3** |
+| Zephyrus M16 GU603ZW, i9-12900H (Intel Thunderbolt 4) | Linux 7.2.8, amdgpu, same options + firmware | **40 Gb/s** | 16 GT/s x4 | **0 on every port** | **hangs on load 1** (`sdma0`, then `MES(1) failed to respond to msg=REMOVE_QUEUE`) |
+| K6, Ryzen 7 7840HS (AMD USB4) | **Windows 11 24H2, Adrenalin 26.10.1** | — | — | — | **11/11 OK**, ~18 s per load, **156–171 tok/s** |
+
+- **The K8's 20 Gb/s link and `BadDLLP` were real but unrelated:** the Intel host fixes both and still hangs.
+- **Windows runs the card with default PCIe settings** (read from device properties, no extra tools): GPU MaxReadReq
+  512, AER error reporting on with nothing masked, `AtomicsSupported = False`, `IsTunneledDevice = True`. So the Linux
+  workarounds (`pci=noaer`, 128-byte reads) compensate for driver behavior, not for a hardware setting Windows changes.
+- **Windows is also faster:** ~170 tok/s generation vs ~120–125 on Linux, same llama.cpp Vulkan backend
+  (Windows build `b11969`, Linux builds from August and October 2026).
+
+How the Windows side was set up (no reinstall): the K6's existing Windows (dual-boot), the R9700 driver via AMD's
+"Auto-Detect and Install" for the R9700 (Adrenalin 26.10.1, Authenticode-signed by AMD), the Windows Vulkan build of
+llama.cpp, and the model read straight from a USB stick, since C: had only 20 GB free. The test scripts are in
+[`assets/r9700-egpu/windows/`](assets/r9700-egpu/windows/). In PowerShell, `Start-Process -PassThru` reports an empty
+`ExitCode` unless the script touches `$p.Handle` after starting the process; the first run misreported a pass as a failure.
+
 ## Also installed during the hunt
 
 - **Newer GPU firmware as an override:** the six files changed for this card in linux-firmware tag `20261019`
@@ -262,13 +290,12 @@ removes the second kernel. `sudo boltctl forget <dock-uuid>` removes the enrollm
 
 ## Still open
 
-- **Bug 3** above. Reported with these results on [#5100](https://gitlab.freedesktop.org/drm/amd/-/work_items/5100#note_3743081) (2026-10-27).
+- **Bug 3** above: a Linux amdgpu bug (Windows passes on the same hardware). Reported with these results on [#5100](https://gitlab.freedesktop.org/drm/amd/-/work_items/5100#note_3743081) (2026-10-27).
 - **What would actually settle bug 3** is changing the hardware path, since software changes on this host didn't:
   - **The same card on OcuLink** (DEG2 in OCuLink mode, or a DEG1), to see whether it needs Thunderbolt at all
     ([#5294](https://gitlab.freedesktop.org/drm/amd/-/work_items/5294) reports RDNA4 ring hangs on a DEG1 too).
-  - **Windows on the same K8** (e.g. Windows To Go on a USB SSD): [#5100](https://gitlab.freedesktop.org/drm/amd/-/work_items/5100)
-    reports the same dock and chip working under Windows, so comparing the PCIe configuration Windows sets up with Linux's
-    is the next best source of ideas.
+  - ~~Windows on an AMD USB4 host~~: done, passes (see above).
+  - **Deeper Windows register comparison** (LTR and power-management enable bits need a tool like RW-Everything).
 - **A Thunderbolt 5 Mac as host:** `system_profiler SPThunderboltDataType SPPCIDataType` lists the dock and the GPU's
   link speed even with no driver.
 - **ROCm/HIP over Thunderbolt:** PCIe atomics usually aren't routed through USB4 bridges (`AtomicOpsCtl: ReqEn-`
