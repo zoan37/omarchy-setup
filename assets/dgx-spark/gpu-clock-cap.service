@@ -1,0 +1,13 @@
+[Unit]
+Description=Cap NVIDIA GB10 GPU graphics clock to 2000 MHz (reduce heat)
+After=nvidia-persistenced.service
+Wants=nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nvidia-smi -lgc 0,2000
+ExecStop=/usr/bin/nvidia-smi -rgc
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
