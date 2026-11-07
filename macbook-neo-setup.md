@@ -191,6 +191,16 @@ patch that **has to be rebuilt after each kernel update**:
 - **Tray half-pixel patch: skipped.** It edits a package-owned file, and every update
   reverts it ([tray-icon-half-pixel.md](tray-icon-half-pixel.md)).
 - **Clock hook:** the dry run passed. Not yet confirmed on a real lid close.
+- **Chrome Vulkan: try it here.** Not done on the Neo yet. On a 16-inch M1 Pro
+  (same Omarchy, kernel and Chrome setup), adding
+  `Vulkan,DefaultANGLEVulkan,VulkanFromANGLE` to the `--enable-features=` line in
+  `~/.config/chrome-flags.conf` took WebGPU from "no adapter" to working, with
+  video still playing and no crashes. It has held up in light daily use there. The
+  main gain is WebGPU, so don't expect browsing to change. The Neo has a different
+  GPU, so check that it has a Vulkan driver first (`ls /usr/share/vulkan/icd.d`).
+  Fully quit and reopen Chrome, then confirm in `chrome://gpu`. Watch for the toolbar
+  flicker seen on the [SER8](chrome-ser8-flicker-trial.md) and for
+  [white video](chrome-vulkan-white-video.md).
 
 ## Verify
 
