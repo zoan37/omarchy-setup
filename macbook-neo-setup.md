@@ -172,6 +172,13 @@ wasn't needed once the screen moved to 1.725, but it's the Chrome-only option if
 the screen goes back to 2. `0.85` should be close to the macOS size. Only `0.8`,
 `1.0` and `1.6` were tested.
 
+## Wi-Fi: routers in WPA/WPA2 mixed mode
+
+Home Wi-Fi failed instantly here while macOS joined it fine, because the Linux
+driver accepts only AES and the router's group key is TKIP. It's fixed with a driver
+patch that **has to be rebuilt after each kernel update**:
+[macbook-neo-wifi-tkip.md](macbook-neo-wifi-tkip.md).
+
 ## Open / not done
 
 - **hypr-tab-drag: built and enabled, but not loading.** hyprpm reported it loaded,
