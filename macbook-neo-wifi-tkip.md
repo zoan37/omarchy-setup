@@ -16,7 +16,7 @@ hotels, cafes and other people's homes.
 **Status:** working. The patched driver joined both the 5 GHz and 2.4 GHz
 networks, tested from a separate boot entry: internet and DNS fine, mDNS discovery
 of other devices on the LAN fine, Bluetooth up, no driver errors. Installed into
-the normal boot afterwards. **Not yet confirmed: a reboot into that normal image.**
+the normal boot afterwards and confirmed with a reboot: both networks passed again.
 Only one router has been tried.
 
 ## Diagnosis
@@ -222,7 +222,6 @@ sudo limine-mkinitcpio
 
 ## Open
 
-- **Confirm** the reboot into the rebuilt normal image.
 - **Upstream:** reported with the patch as
   [omacom/linux-aurora#398](https://github.com/omacom/linux-aurora/issues/398),
   PR open from the `zoan37/linux-aurora` fork with added test cases. Once it's in,
