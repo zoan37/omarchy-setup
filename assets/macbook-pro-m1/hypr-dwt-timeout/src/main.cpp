@@ -22,7 +22,7 @@ static CHyprSignalListener g_reloadListener;
 // Omarchy's Lua config, because plugins load after it is parsed.
 static uint32_t timeoutMs() {
     const char* env = std::getenv("HYPR_DWT_TIMEOUT_MS");
-    return env ? (uint32_t)std::strtoul(env, nullptr, 10) : 800;
+    return env ? (uint32_t)std::strtoul(env, nullptr, 10) : 500;
 }
 
 static void apply(bool notify) {
@@ -39,7 +39,8 @@ static void apply(bool notify) {
         const uint32_t before = libinput_device_config_dwt_get_timeout(dev);
         const auto     status = libinput_device_config_dwt_set_timeout(dev, ms);
         const uint32_t after  = libinput_device_config_dwt_get_timeout(dev);
-        const auto     msg    = std::format("[dwt-timeout] {}: {} ms -> {} ms ({})", pointer->m_deviceName, before, after, libinput_config_status_to_str(status));
+        const uint32_t def    = libinput_device_config_dwt_get_default_timeout(dev);
+        const auto     msg    = std::format("[dwt-timeout] {}: default {} ms, was {} ms, now {} ms ({})", pointer->m_deviceName, def, before, after, libinput_config_status_to_str(status));
 
         Log::logger->log(Log::INFO, "{}", msg);
         if (const char* dir = std::getenv("XDG_RUNTIME_DIR"))
