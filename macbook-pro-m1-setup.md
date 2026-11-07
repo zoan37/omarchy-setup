@@ -75,8 +75,8 @@ Chrome.
 ## Palm touches while typing
 
 `disable_while_typing` and tap-to-click are both left on. Palms can still make the
-hidden pointer reappear while typing, so the pause after typing is lengthened
-([below](#longer-pause-after-typing-800-ms)).
+hidden pointer reappear while typing, so the pause after typing is now tunable
+([below](#pause-after-typing-500-ms)).
 
 libinput does match this pad. `libinput quirks list` shows the `Apple Laptop
 Touchpad (SPI)` entry, and the keyboard is tagged internal, so the two are paired:
@@ -104,13 +104,14 @@ a normal fingertip. The recording has no finger step, and it was taken while try
 to trigger the problem, so some may be real swipes. Lowering the threshold without
 that data risks dropping real fingers.
 
-### Longer pause after typing: 800 ms
+### Pause after typing: 500 ms
 
-libinput's `libinput_device_config_dwt_set_timeout` accepts a longer pause, but
-Hyprland 0.56.2 doesn't call it or expose an option. A small plugin sets it to
-800 ms: [assets/macbook-pro-m1/hypr-dwt-timeout](assets/macbook-pro-m1/hypr-dwt-timeout).
-The longer pause trades a slightly slower pad after typing for fewer palm touches.
-Whether it's enough isn't known yet.
+libinput's `libinput_device_config_dwt_set_timeout` can change the pause, but
+Hyprland 0.56.2 doesn't call it or expose an option. A small plugin sets it:
+[assets/macbook-pro-m1/hypr-dwt-timeout](assets/macbook-pro-m1/hypr-dwt-timeout).
+800 ms was tried first and felt too long, so it's back at 500 ms, which is the
+default libinput reports for this pad. At that value the plugin may change nothing,
+so it's only there to make the pause easy to tune.
 
 ```sh
 cp -r assets/macbook-pro-m1/hypr-dwt-timeout ~/Projects/
