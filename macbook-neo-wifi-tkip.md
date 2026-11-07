@@ -62,9 +62,9 @@ and `CCMP+TKIP`, which was the hint that it could cope. That turned out to be
 true: nothing else needed changing. The association path, the firmware request
 and the receive filter all worked as they were.
 
-The project's own `association-test.c` lists "TKIP group" as a case to reject, so
-the refusal was deliberate, or at least conservative. A patch for upstream needs to
-change that test too.
+The driver's refusal was deliberate, or at least conservative: `association-test.c`
+has a "TKIP group" reject case, though that one goes through SAE, which the patch
+still refuses.
 
 ## The patch
 
@@ -224,9 +224,9 @@ sudo limine-mkinitcpio
 
 - **Confirm** the reboot into the rebuilt normal image, and the 2.4 GHz network.
 - **Upstream:** reported with the patch as
-  [omacom/linux-aurora#398](https://github.com/omacom/linux-aurora/issues/398).
-  A PR would need to update the `association-test.c` case. Once it's in, none of
-  this is needed.
+  [omacom/linux-aurora#398](https://github.com/omacom/linux-aurora/issues/398),
+  PR open from the `zoan37/linux-aurora` fork with added test cases. Once it's in,
+  none of this is needed.
 - **A post-update warning** for when the stock driver comes back.
 - **Other routers:** only one has been tried. Roaming between access points on a
   mixed-mode network is untested.
