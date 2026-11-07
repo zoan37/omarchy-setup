@@ -401,6 +401,18 @@ a cable reconnect still needs a practical check. For comparable package-power sa
 
 Details: [zephyrus-m16-quiet-power.md](zephyrus-m16-quiet-power.md).
 
+## 12. MacBook Neo — Wi-Fi driver patch after kernel updates
+
+A kernel update brings back the stock `mt7932-fullmac`, so WPA/WPA2 mixed-mode
+routers stop connecting. Hotspots and AES-only networks keep working, so have a
+hotspot ready before updating.
+
+```sh
+iw phy phy0 info | grep -c TKIP    # 1 = patched, 0 = rebuild it
+```
+
+Rebuild and reinstall: [macbook-neo-wifi-tkip.md](macbook-neo-wifi-tkip.md#after-a-kernel-update).
+
 ## VA-API on the XPS 13: closed 2026-10-22
 
 `chrome-flags.conf` enables `VaapiVideoDecoder`, but `intel-media-driver`

@@ -1,0 +1,44 @@
+diff --git a/drivers/net/wireless/mediatek/mt7932/association.h b/drivers/net/wireless/mediatek/mt7932/association.h
+index 5963eea..bccd60a 100644
+--- a/drivers/net/wireless/mediatek/mt7932/association.h
++++ b/drivers/net/wireless/mediatek/mt7932/association.h
+@@ -19,6 +19,7 @@ static inline int
+ mt7932_connect_auth(const struct cfg80211_connect_params *p)
+ {
+ 	u32 versions = p->crypto.wpa_versions;
++	bool tkip_group = p->crypto.cipher_group == WLAN_CIPHER_SUITE_TKIP;
+ 
+ 	/* SAE offload clients use VERSION_3; older clients use VERSION_2.
+ 	 * A transition request can carry both. The selected AKM still owns
+@@ -28,10 +29,17 @@ mt7932_connect_auth(const struct cfg80211_connect_params *p)
+ 	    (versions & ~(NL80211_WPA_VERSION_2 | NL80211_WPA_VERSION_3)) ||
+ 	    p->crypto.n_ciphers_pairwise != 1 ||
+ 	    p->crypto.ciphers_pairwise[0] != WLAN_CIPHER_SUITE_CCMP ||
+-	    p->crypto.cipher_group != WLAN_CIPHER_SUITE_CCMP ||
++	    (p->crypto.cipher_group != WLAN_CIPHER_SUITE_CCMP && !tkip_group) ||
+ 	    p->crypto.n_akm_suites < 1)
+ 		return -EOPNOTSUPP;
+ 
++	/* WPA/WPA2 mixed-mode APs pair a CCMP unicast key with a TKIP group
++	 * key. The firmware owns the handshake and both keys. Only plain
++	 * WPA2-PSK may do this; pairwise TKIP stays refused.
++	 */
++	if (tkip_group && p->crypto.akm_suites[0] != WLAN_AKM_SUITE_PSK)
++		return -EOPNOTSUPP;
++
+ 	switch (p->crypto.akm_suites[0]) {
+ 	case WLAN_AKM_SUITE_PSK:
+ 		if ((versions & NL80211_WPA_VERSION_2) && p->crypto.psk &&
+diff --git a/drivers/net/wireless/mediatek/mt7932/startup.c b/drivers/net/wireless/mediatek/mt7932/startup.c
+index c90c7b2..2f7d27a 100644
+--- a/drivers/net/wireless/mediatek/mt7932/startup.c
++++ b/drivers/net/wireless/mediatek/mt7932/startup.c
+@@ -599,7 +599,7 @@ static const struct cfg80211_ops mt_cfg_ops = {
+ int mt_register_regulatory_gate(struct mt7932 *m)
+ {
+ 	static const int rates[] = {10,20,55,110,60,90,120,180,240,360,480,540};
+-	static const u32 ciphers[] = { WLAN_CIPHER_SUITE_CCMP };
++	static const u32 ciphers[] = { WLAN_CIPHER_SUITE_CCMP, WLAN_CIPHER_SUITE_TKIP };
+ 	static const u32 akms[] = {
+ 		WLAN_AKM_SUITE_PSK, WLAN_AKM_SUITE_SAE, WLAN_AKM_SUITE_OWE,
+ 	};

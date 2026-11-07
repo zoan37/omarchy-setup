@@ -82,6 +82,13 @@ font-size = 9
 
 Apply with `omarchy restart terminal`, which reloads windows in place.
 
+## Wi-Fi: routers in WPA/WPA2 mixed mode
+
+Home Wi-Fi failed instantly here while macOS joined it fine, because the Linux
+driver accepts only AES and the router's group key is TKIP. It's fixed with a driver
+patch that **has to be rebuilt after each kernel update**:
+[macbook-neo-wifi-tkip.md](macbook-neo-wifi-tkip.md).
+
 ## Open / not done
 
 - **hypr-momentum and hypr-tab-drag: not installed yet.** `cmake` and `hyprpm` are
