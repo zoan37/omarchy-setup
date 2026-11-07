@@ -162,7 +162,7 @@ Apply with `omarchy restart terminal`, which reloads windows in place.
 ## Chrome
 
 Google Chrome has an aarch64 package here (157.0.8103.38). It runs natively on
-Wayland, and no Chrome flags were added.
+Wayland. The only flag change is Vulkan, [below](#vulkan-in-chrome).
 
 `--force-device-scale-factor` **multiplies** with the Hyprland scale on Wayland
 instead of replacing it. Measured at scale 2 in a throwaway profile, 1.0 gave
@@ -171,6 +171,55 @@ shrink the tabs and toolbar, unlike Page zoom, which only affects page content. 
 wasn't needed once the screen moved to 1.725, but it's the Chrome-only option if
 the screen goes back to 2. `0.85` should be close to the macOS size. Only `0.8`,
 `1.0` and `1.6` were tested.
+
+### Vulkan in Chrome
+
+Set up 2026-11-07. Stock Chrome runs WebGL on OpenGL and has no WebGPU adapter. The
+Vulkan driver was already there: `vulkan-aurora`, a Honeykrisp-derived driver named
+Borealis, reports `Apple A18 Pro (G17P B1)`, Vulkan 1.4.363, conformant
+(`vulkaninfo --summary`, from `vulkan-tools`).
+
+In `~/.config/chrome-flags.conf`, add the three features to the existing
+`--enable-features` line. Only the last `--enable-features` counts, so a second line
+would drop Omarchy's own features:
+
+```
+--enable-features=TouchpadOverscrollHistoryNavigation,OverlayScrollbar,Vulkan,VulkanFromANGLE,DefaultANGLEVulkan
+```
+
+No `--use-angle=vulkan` or `--ignore-gpu-blocklist` is needed. They changed nothing
+here. Quit Chrome completely to apply it: the Relaunch button keeps the old flags
+([gotcha](chrome-vulkan-white-video.md#the-gotcha-that-made-it-look-broken)).
+
+Tested with real Wayland windows in throwaway profiles:
+
+| Flags | WebGL | WebGPU | H.264 test video |
+|---|---|---|---|
+| Stock | OpenGL (`AGX G13/G14`) | no adapter | plays |
+| `--use-angle=vulkan` only | Vulkan, A18 Pro | no adapter | not tested |
+| The three features above | **Vulkan, A18 Pro** | **works** | **plays, correct color, no dropped frames** |
+| `--use-angle=gl` with Vulkan and `--use-webgpu-adapter=vulkan` | OpenGL | works | **white rectangle** |
+
+The last row is the [white-video bug](chrome-vulkan-white-video.md), so WebGPU on an
+OpenGL ANGLE is not an option here.
+
+Two misleading results while testing:
+
+- **Don't test in headless mode.** `--headless=new` falls back to SwiftShader
+  software rendering, and with `--use-angle=vulkan` its GPU process segfaults.
+  Neither happens in a real window. Check `chrome://gpu`, or a page reading
+  `WEBGL_debug_renderer_info`.
+- **Chrome logs `'--ozone-platform=wayland' is not compatible with Vulkan`.** WebGL
+  and WebGPU use Vulkan anyway, as above. Whether Chrome's own page compositing does
+  wasn't established.
+
+The daily browser has run these flags since 2026-11-07 with no crashes so far, which
+is a short time. **Not tested:** real sites and games, any performance gain over OpenGL, or tab and
+toolbar flicker over a long session, which the SER8 had with Vulkan flags. Video is
+still decoded on the CPU, because Omarchy's flags set
+`--disable-features=AcceleratedVideoDecoder`. Chromium is unchanged.
+
+Undo: remove the three features from that line and fully restart Chrome.
 
 ## Wi-Fi: routers in WPA/WPA2 mixed mode
 
@@ -186,7 +235,11 @@ patch that **has to be rebuilt after each kernel update**:
   been a problem on other machines too.
 - **hypr-momentum feel not confirmed.** It loads on arm64. It still needs a real
   test in a non-browser app. If login crashes: `hyprpm disable momentum` from a TTY.
-- **SSH and syncthing: not set up.** Both need firewall changes
+- **SSH: inbound only, from another laptop on the LAN.** Keys only
+  (`/etc/ssh/sshd_config.d/10-keys-only.conf`), with a `ufw` rule for `192.168.0.0/24`.
+  This install had no SSH host keys, so `sshd` refuses to start until
+  `sudo ssh-keygen -A` has run.
+- **Syncthing: not set up.** It needs firewall changes
   ([syncthing-and-ufw.md](syncthing-and-ufw.md)).
 - **Tray half-pixel patch: skipped.** It edits a package-owned file, and every update
   reverts it ([tray-icon-half-pixel.md](tray-icon-half-pixel.md)).

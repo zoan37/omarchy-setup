@@ -80,3 +80,8 @@ Vulkan rather than OpenGL ES.
 - **AMD (HawkPoint1):** `radeonsi_drv_video.so` comes with Mesa, so VA-API
   decode works with no extra packages. `VaapiIgnoreDriverChecks` is needed
   because Chrome's allowlist doesn't recognize the Mesa stack.
+- **Apple Silicon (MacBook Neo):** the Vulkan half works through `vulkan-aurora`,
+  and `VulkanFromANGLE` and `DefaultANGLEVulkan` are what keep video from going
+  white. There's no VA-API, so leave out the `Vaapi*` features: exact line and
+  test results in
+  [the Neo notes](macbook-neo-setup.md#vulkan-in-chrome).
