@@ -223,9 +223,10 @@ sudo limine-mkinitcpio
 ## Open
 
 - **Confirm** the reboot into the rebuilt normal image, and the 2.4 GHz network.
-- **Upstream:** send the patch to
-  [omacom/linux-aurora](https://github.com/omacom/linux-aurora), updating the
-  `association-test.c` case. Once it's in, none of this is needed.
+- **Upstream:** reported with the patch as
+  [omacom/linux-aurora#398](https://github.com/omacom/linux-aurora/issues/398).
+  A PR would need to update the `association-test.c` case. Once it's in, none of
+  this is needed.
 - **A post-update warning** for when the stock driver comes back.
 - **Other routers:** only one has been tried. Roaming between access points on a
   mixed-mode network is untested.
