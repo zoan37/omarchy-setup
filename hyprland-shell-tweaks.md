@@ -49,6 +49,11 @@ SUPER+CTRL+SHIFT+LEFT  -> hl.dsp.group.move_window({ forward = false })
 SUPER+CTRL+SHIFT+RIGHT -> hl.dsp.group.move_window({ forward = true })
 ```
 
+These keys collide with stock "Move window to left/right monitor". On 4.5,
+`o.rebind` only removed the stock bind when the modifiers were written in
+Omarchy's order, `"SUPER + SHIFT + CTRL + LEFT"`. Written as `SUPER + CTRL + SHIFT`,
+both binds stayed listed in `omarchy menu keybindings --print`.
+
 **SUPER+A = select all**, to complete Omarchy's macOS-ish `SUPER+C/V/X`
 clipboard set (which stock leaves without a select-all). Copy the
 `send_shortcut_once` helper verbatim from

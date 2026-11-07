@@ -38,7 +38,8 @@ hyprctl getoption input:touchpad:disable_while_typing  # -> bool: false
 ```
 
 Applied to both laptops 2026-09-17. **Not applicable to the Beelink** — no
-touchpad.
+touchpad. **Left on the default on the [MacBook Neo](macbook-neo-setup.md#palm-touches-while-typing)**,
+where turning it off let palms move the pointer during normal typing.
 
 **Tradeoff:** palm rejection while typing is now off, so you may occasionally
 jog the cursor with a palm mid-typing. There's no per-application libinput
