@@ -1,0 +1,9 @@
+[repository]
+name = "hypr-dwt-timeout"
+authors = ["zoan37"]
+
+[dwt-timeout]
+description = "Set libinput's disable-while-typing timeout"
+authors = ["zoan37"]
+output = "dwt-timeout.so"
+build = ["make all"]

@@ -24,7 +24,7 @@ User config (each changed file has a `.bak.<timestamp>` next to it):
 | Natural scroll, 3-finger swipe with the hair-trigger tuning | `~/.config/hypr/input.lua` |
 | `extend_border_grab_area = 15` | `~/.config/hypr/looknfeel.lua` |
 | Group tab reorder, SUPER+SHIFT+S screenshot | `~/.config/hypr/bindings.lua` |
-| `o.exec_on_start("hyprpm reload -n")` | `~/.config/hypr/autostart.lua` |
+| `o.exec_on_start("hyprpm reload -n")`, hypr-dwt-timeout load | `~/.config/hypr/autostart.lua` |
 | Clock format `ddd d MMM HH:mm` | `~/.config/omarchy/shell.json` |
 | Ghostty as default terminal, 10pt, `ctrl+enter=unbind` | `~/.config/xdg-terminals.list`, `~/.config/ghostty/local.conf` + trailing include |
 | Vulkan features | `~/.config/chrome-flags.conf` |
@@ -75,7 +75,8 @@ Chrome.
 ## Palm touches while typing
 
 `disable_while_typing` and tap-to-click are both left on. Palms can still make the
-hidden pointer reappear while typing. Not fixed yet.
+hidden pointer reappear while typing, so the pause after typing is lengthened
+([below](#longer-pause-after-typing-800-ms)).
 
 libinput does match this pad. `libinput quirks list` shows the `Apple Laptop
 Touchpad (SPI)` entry, and the keyboard is tagged internal, so the two are paired:
@@ -103,10 +104,52 @@ a normal fingertip. The recording has no finger step, and it was taken while try
 to trigger the problem, so some may be real swipes. Lowering the threshold without
 that data risks dropping real fingers.
 
-The next thing to try is a longer pause after each keystroke.
-`libinput_device_config_dwt_set_timeout` exists in libinput 1.32, but Hyprland 0.56.2
-doesn't appear to call it or expose an option, so it would need a small plugin. Not
-built, and not known to help.
+### Longer pause after typing: 800 ms
+
+libinput's `libinput_device_config_dwt_set_timeout` accepts a longer pause, but
+Hyprland 0.56.2 doesn't call it or expose an option. A small plugin sets it to
+800 ms: [assets/macbook-pro-m1/hypr-dwt-timeout](assets/macbook-pro-m1/hypr-dwt-timeout).
+The longer pause trades a slightly slower pad after typing for fewer palm touches.
+Whether it's enough isn't known yet.
+
+```sh
+cp -r assets/macbook-pro-m1/hypr-dwt-timeout ~/Projects/
+cd ~/Projects/hypr-dwt-timeout && make
+hyprctl plugin load "$PWD/dwt-timeout.so"
+```
+
+Then in `~/.config/hypr/autostart.lua`:
+
+```lua
+o.exec_on_start("hyprctl plugin load $HOME/Projects/hypr-dwt-timeout/dwt-timeout.so")
+```
+
+It isn't managed by hyprpm, so `hyprpm update` won't rebuild it. After a Hyprland
+update it refuses to load and the pad falls back to the default pause. To rebuild:
+
+```sh
+hyprctl plugin unload ~/Projects/hypr-dwt-timeout/dwt-timeout.so
+make -C ~/Projects/hypr-dwt-timeout clean all
+hyprctl plugin load ~/Projects/hypr-dwt-timeout/dwt-timeout.so
+```
+
+Set `HYPR_DWT_TIMEOUT_MS` in the compositor's environment for a different value.
+`cat $XDG_RUNTIME_DIR/hypr-dwt-timeout` shows what was applied. To undo it, remove
+the autostart line and unload the plugin.
+
+### Todo: macOS-style palm detection
+
+Build a filter that judges a touch on more than its size, since palms and fingers
+overlap in size here. macOS's method is private, but the pad gives enough to try:
+
+- shape and angle (touch major, minor and orientation)
+- where the touch lands, and how far it is from the keyboard
+- how it arrives: a palm rolls on and spreads, a finger lands and moves
+- whether keys were pressed just before
+
+Start by recording deliberate finger use, which is the missing half of the data above.
+Compare it with palm touches for a signal that separates them, then look at whether
+libinput or a Hyprland plugin is the right place for the filter.
 
 ## Verify
 
@@ -116,7 +159,7 @@ hyprctl getoption input:touchpad:disable_while_typing    # true
 hyprctl getoption input:touchpad:tap-to-click            # true
 hyprctl getoption gestures:workspace_swipe_distance      # 150
 hyprctl -j monitors | jq '.[0].scale'                    # 2
-hyprctl plugin list | grep '^Plugin'                     # hypr-momentum
+hyprctl plugin list | grep '^Plugin'                     # hypr-momentum, hypr-dwt-timeout
 omarchy-default-terminal                                 # ghostty
 ghostty +show-config | grep font-size                    # 10
 libinput quirks list /dev/input/event1                   # the block above
