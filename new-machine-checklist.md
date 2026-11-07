@@ -5,7 +5,8 @@ Condensed order of operations. Details in the per-topic files.
 Machine-specific pages: [Dell XPS 16](xps16-notes.md),
 [Beelink SER8 quiet fan setup](ser8-quiet-fan.md),
 [ASUS Zephyrus M16 quiet/power setup](zephyrus-m16-quiet-power.md),
-[GMKtec K8 Plus setup](k8-plus-setup.md). Identify the machine with
+[GMKtec K8 Plus setup](k8-plus-setup.md),
+[MacBook Neo setup](macbook-neo-setup.md). Identify the machine with
 `cat /sys/class/dmi/id/product_name` and its speaker/display variant with
 `cat /sys/class/dmi/id/product_sku`.
 
@@ -89,6 +90,9 @@ wheel-speed verification. The touchpad steps below apply to the laptops.
 Apply the input/looknfeel/bindings/monitors edits from
 [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) (Alt/Super swap, natural
 scroll, 3-finger swipe tuning, border resize, group tab-reorder binds).
+
+**On a MacBook:** skip the Alt/Super swap, since Command is already Super, and
+keep `disable_while_typing` on. See [macbook-neo-setup.md](macbook-neo-setup.md).
 
 Any binding that collides with an Omarchy default needs `hl.unbind` before the
 `o.bind`, or the default wins. `SUPER + SHIFT + S` (screenshot vs. the stock
