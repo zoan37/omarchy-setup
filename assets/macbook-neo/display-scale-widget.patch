@@ -1,0 +1,75 @@
+--- a/Model.js
++++ b/Model.js
+@@ -7,7 +7,21 @@
+ function normalizeScale(scale) {
+   var n = parseFloat(String(scale || ""))
+   if (!isFinite(n)) return ""
+-  return String(Math.round(n * 100) / 100)
++  return String(Math.round(n * 1000) / 1000)
++}
++
++// Scales offered even though they don't divide the mode into whole pixels.
++// Keyed by mode. They need debug:disable_scale_checks in the Hyprland config
++// and the set-exact-scale helper, since omarchy-hyprland-monitor-scaling
++// rounds them to a clean value. 1.725 is close to macOS's 1408x881 default.
++var exactScalesByMode = { "2408x1506": ["1.725"] }
++
++function exactScales(width, height) {
++  return exactScalesByMode[Number(width) + "x" + Number(height)] || []
++}
++
++function isExactScale(scale, width, height) {
++  return exactScales(width, height).indexOf(String(scale)) !== -1
+ }
+ 
+ function gcd(a, b) {
+@@ -20,6 +34,7 @@
+ }
+ 
+ function cleanScale(scale, width, height) {
++  if (isExactScale(scale, width, height)) return normalizeScale(scale)
+   var requested = Number(scale)
+   var modeWidth = Number(width)
+   var modeHeight = Number(height)
+@@ -55,10 +70,13 @@
+ function availableScales(scales, width, height) {
+   if (!Array.isArray(scales) || Number(width) <= 0 || Number(height) <= 0) return scales || []
+ 
++  var exact = exactScales(width, height)
++  scales = scales.concat(exact).sort(function(a, b) { return Number(a) - Number(b) })
++
+   var byEffectiveScale = {}
+   for (var i = 0; i < scales.length; i++) {
+     var requested = Number(scales[i])
+-    var effective = Number(cleanScale(requested, width, height))
++    var effective = Number(cleanScale(scales[i], width, height))
+ 
+     if (!isFinite(requested) || !isFinite(effective)) continue
+ 
+@@ -118,6 +136,7 @@
+   module.exports = {
+     clampBrightness: clampBrightness,
+     normalizeScale: normalizeScale,
++    isExactScale: isExactScale,
+     cleanScale: cleanScale,
+     matchingScaleIndex: matchingScaleIndex,
+     availableScales: availableScales,
+--- a/Panel.qml
++++ b/Panel.qml
+@@ -315,7 +315,15 @@
+   }
+ 
+   function setScale(scale) {
+-    actionProc.command = ["bash", "-c", "omarchy-hyprland-monitor-scaling " + scale]
++    var focused = null
++    for (var i = 0; i < displays.length; i++) {
++      if (displays[i] && displays[i].focused) focused = displays[i]
++    }
++    if (focused && Model.isExactScale(scale, focused.width, focused.height)) {
++      actionProc.command = ["bash", Quickshell.env("HOME") + "/.config/omarchy/plugins/" + Quickshell.env("USER") + ".monitor/set-exact-scale", String(scale)]
++    } else {
++      actionProc.command = ["bash", "-c", "omarchy-hyprland-monitor-scaling " + scale]
++    }
+     if (!actionProc.running) actionProc.running = true
+   }
+ 

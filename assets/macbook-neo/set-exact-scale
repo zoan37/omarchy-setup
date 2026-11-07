@@ -1,0 +1,28 @@
+#!/bin/bash
+# Apply and save a scale that omarchy-hyprland-monitor-scaling would round to a
+# clean value. Requires debug:disable_scale_checks in the Hyprland config.
+set -euo pipefail
+
+scale=${1:-}
+[[ $scale =~ ^[0-9]+([.][0-9]+)?$ ]] || { echo "Usage: set-exact-scale SCALE" >&2; exit 1; }
+
+info=$(hyprctl monitors -j | jq -e -c '.[] | select(.focused == true)')
+name=$(jq -r .name <<<"$info")
+width=$(jq -r .width <<<"$info")
+height=$(jq -r .height <<<"$info")
+refresh=$(jq -r .refreshRate <<<"$info")
+[[ $name =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Refusing unsafe monitor name" >&2; exit 1; }
+
+hyprctl eval "hl.monitor({ output = \"$name\", mode = \"${width}x${height}@${refresh}\", position = \"auto\", scale = $scale })" >/dev/null
+
+# GTK only honors whole numbers, so round like Omarchy does.
+gdk=$(awk -v s="$scale" 'BEGIN { g = int(s + 0.5); print (g < 1 ? 1 : g) }')
+monitors=$HOME/.config/hypr/monitors.lua
+target=$(readlink -f "$monitors")
+tmp=$(mktemp "$target.XXXXXX")
+sed -E \
+  -e "/^hl\.monitor\(\{ output = \"$name\",/ s/scale = [0-9.]+/scale = $scale/" \
+  -e "s/^local omarchy_gdk_scale = .*/local omarchy_gdk_scale = $gdk/" \
+  "$target" >"$tmp"
+chmod --reference="$target" "$tmp"
+mv "$tmp" "$target"

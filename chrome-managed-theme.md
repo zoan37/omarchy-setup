@@ -48,6 +48,32 @@ happen through the desktop prompt.
 Now choose a theme in **Chrome → Settings → Appearance**, or use **Customize
 Chrome** on a new tab. If the restriction remains, quit and reopen Chrome.
 
+### If other policies are present: keep them with a symlink
+
+On the [MacBook Neo](macbook-neo-setup.md) (2026-11-06) the directory also held
+`omarchy.json` (`{"DefaultBrowserSettingEnabled": false}`), which Omarchy now ships,
+so moving the whole directory would drop it. `omarchy-theme-set-browser-policy`
+skips any policy path that is a symlink (`[[ -d $policy_dir && ! -L $policy_dir ]]`),
+so `managed` can stay as a link to a directory holding only the policies to keep:
+
+```sh
+cd /etc/opt/chrome/policies
+sudo mv -T --no-clobber managed managed.omarchy-theme-backup-20261106
+sudo install -d -m755 managed.local
+sudo cp managed.omarchy-theme-backup-20261106/omarchy.json managed.local/
+sudo ln -s managed.local managed
+google-chrome-stable --refresh-platform-policy --no-startup-window
+```
+
+The system stays on `prefer-dark`, so Chrome may stay dark until **Settings →
+Appearance → Mode** is set to Light.
+
+Whether Chrome reads the policy through the symlink, and whether the theme script
+really leaves it alone in a live theme change, are not confirmed yet. If Chrome
+doesn't follow the link, the only loss is the default-browser policy.
+
+To undo, remove the `managed` link and move the backup back to `managed`.
+
 ### Why move the directory, rather than just delete `color.json`?
 
 The installed `/usr/bin/omarchy-theme-set` runs

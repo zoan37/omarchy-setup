@@ -313,6 +313,12 @@ grep -c 'Math.round((parent' /usr/share/omarchy/shell/plugins/bar/widgets/Tray.q
 If it's fixed upstream, drop this section. If not, re-apply with the command in
 [tray-icon-half-pixel.md](tray-icon-half-pixel.md).
 
+## 7d. MacBook Neo: Display menu clone
+
+`<user>.monitor` is a clone, so updates to the stock widget don't reach it. If the
+Display menu misbehaves, re-clone and re-apply the patch from
+[macbook-neo-setup.md](macbook-neo-setup.md#a-1725x-button-in-the-display-menu).
+
 ## 8. Chrome theme selection — check if the administrator restriction returns
 
 If Chrome was opted out of Omarchy's forced theme, its
