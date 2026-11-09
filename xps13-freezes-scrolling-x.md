@@ -32,6 +32,14 @@ grep -c 'too slow' "$L"                                          # 32 since logi
 grep -o 'past (-[0-9]*ms)' "$L" | grep -o '[0-9]*' | sort -n | tail -3   # ... 317, 605
 ```
 
+**Update, same evening: a fourth cause, the display.** With the three fixes below in place, the screen
+froze again. The [stall logger](assets/xps13-freezes/freezewatch.sh) showed *no* system stall: the CPU,
+Hyprland's input handling and memory/IO pressure were all normal. The machine was on the 2026-10-22 **PSR1-only**
+boot setting, where the panel can hold its last frame while the GPU keeps producing new ones. Self-refresh is now
+off entirely (`xe.enable_psr=0 xe.enable_panel_replay=0`), live via debugfs and as the boot default; details in
+[xps13-panel-replay-scroll-judder.md](xps13-panel-replay-scroll-judder.md#psr1-froze-the-screen-2026-11-08-self-refresh-off).
+Under test.
+
 ## Diagnosis (all read-only)
 
 ```sh

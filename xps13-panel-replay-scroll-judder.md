@@ -1,6 +1,6 @@
 # XPS 13 (Wildcat Lake): choppy scrolling caused by Panel Replay
 
-> **Status 2026-10-22: scroll judder fixed by kernel quirk `0406`; typing flicker it causes is being fixed with a PSR1-only drop-in (under test).** Earlier: 2026-10-06, kernel quirk replaced the drop-in.
+> **Status 2026-11-08: all eDP self-refresh is off by default (`xe.enable_psr=0 xe.enable_panel_replay=0`, drop-in `dell-xps13-psr-off.conf`).** The 2026-10-22 PSR1-only drop-in fixed the typing flicker but froze the whole screen and pointer for moments while scrolling x.com; see [PSR1 froze the screen](#psr1-froze-the-screen-2026-11-08-self-refresh-off). Earlier: 2026-10-22, PSR1-only drop-in for the typing flicker caused by kernel quirk `0406`; 2026-10-06, 2026-10-06, kernel quirk replaced the drop-in.
 > `linux-omarchy` 7.2.8-2 (omarchy-pkgs patch `0406`) keeps Panel Replay on and
 > stays smooth. See [Kernel quirk tested](#kernel-quirk-tested-2026-10-06-fixed).
 > The command-line drop-in below is kept for history and rollback.
@@ -338,6 +338,49 @@ If judder or flicker comes back, use full self-refresh off instead (same file,
 `xe.enable_psr=0 xe.enable_panel_replay=0`, then `limine-update`). Undo:
 `pkexec sh -c 'rm /etc/limine-entry-tool.d/dell-xps13-psr1-only.conf && limine-update'`.
 
+### PSR1 froze the screen (2026-11-08): self-refresh off
+
+**Symptom under PSR1 only:** short freezes where the screen *and* the pointer
+stop together, mostly while scrolling x.com, while everything else keeps
+running. A half-second stall logger
+([`assets/xps13-freezes/freezewatch.sh`](assets/xps13-freezes/freezewatch.sh))
+caught a freeze with no stall at all: the CPU, Hyprland's input handling
+(no new libinput "too slow" lines) and memory/IO pressure were all fine,
+and `dmesg` was empty. So the frames were being produced but not shown,
+which is the panel staying in (or slow to leave) self-refresh. Other causes found
+the same day are in [xps13-freezes-scrolling-x.md](xps13-freezes-scrolling-x.md).
+
+Live, no reboot:
+
+```sh
+sudo sh -c 'd=/sys/kernel/debug/dri/0000:00:02.0; grep "PSR mode" $d/i915_edp_psr_status; echo 1 > $d/i915_edp_psr_debug; grep "PSR mode" $d/i915_edp_psr_status'
+# PSR mode: PSR1 enabled  ->  PSR mode: disabled
+```
+
+Made the default the same day: the PSR1 drop-in was renamed to
+`dell-xps13-psr1-only.conf.disabled` (limine only reads `*.conf`), and
+
+```
+# /etc/limine-entry-tool.d/dell-xps13-psr-off.conf
+KERNEL_CMDLINE[default]+=" xe.enable_psr=0 xe.enable_panel_replay=0"
+```
+
+then `sudo limine-update`. Check the UKI with the `objcopy` command above
+(it should print `xe.enable_psr=0` and `xe.enable_panel_replay=0`) and, after
+the next boot, `/proc/cmdline`. The cost is idle power, ~2.4 W in joel1's
+measurement (package C10 0% instead of ~77%); not yet measured on this
+machine. **Status: under test**, freeze-free so far only for the rest of the
+boot it was applied in.
+
+Undo (back to PSR1 only):
+
+```sh
+D=/etc/limine-entry-tool.d
+sudo mv $D/dell-xps13-psr1-only.conf.disabled $D/dell-xps13-psr1-only.conf
+sudo mv $D/dell-xps13-psr-off.conf $D/dell-xps13-psr-off.conf.disabled
+sudo limine-update
+```
+
 ### Whose bug it is
 
 - **Panel (most likely the main fault):** the Sharp LQ134Z1 + Analogix
@@ -357,15 +400,15 @@ If judder or flicker comes back, use full self-refresh off instead (same file,
 | Option | Typing flicker | Scroll judder | Idle power |
 |---|---|---|---|
 | `0406` quirk (current default) | suspected | fixed | PR savings kept |
-| Self-refresh off (`i915_edp_psr_debug` = 1, or `xe.enable_psr=0 xe.enable_panel_replay=0`) | none expected | none | ~2.4 W more at idle (joel1: 0% vs ~77% package C10) |
-| PSR1 only (`xe.enable_psr=1 xe.enable_panel_replay=0`) | unknown | fine for two upstream `0e53` owners | most savings |
+| **Self-refresh off (current, 2026-11-08)** (`i915_edp_psr_debug` = 1, or `xe.enable_psr=0 xe.enable_panel_replay=0`) | none | none | ~2.4 W more at idle (joel1: 0% vs ~77% package C10) |
+| PSR1 only (`xe.enable_psr=1 xe.enable_panel_replay=0`) | fixed | fine for two upstream `0e53` owners, but **froze screen + pointer while scrolling x.com here** (2026-11-08) | most savings |
 | Longer `0406` re-entry delay (e.g. 0.5–1 s) | should disappear | fixed | most savings |
 | j1's AS SDP patch, without `0406` | ? | ? | full savings, no quirk |
 
 ### Next steps
 
 1. ~~Confirm the live A/B~~: done, the flicker stops with `i915_edp_psr_debug` = 1.
-2. PSR1 only as a limine drop-in: staged 2026-10-22, see above.
+2. ~~PSR1 only as a limine drop-in~~ (2026-10-22): fixed the flicker, but froze the screen while scrolling; replaced by self-refresh off on 2026-11-08.
 3. For the true fix, build `linux-omarchy` with j1's patch and without
    `0406` (SER8, ~25 min) and test both scrolling and typing. Report the
    result on xe#8930 and omarchy PR #6849.
