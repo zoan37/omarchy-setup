@@ -372,6 +372,9 @@ measurement (package C10 0% instead of ~77%); not yet measured on this
 machine. **Status: under test**, freeze-free so far only for the rest of the
 boot it was applied in.
 
+Reported upstream (flicker under `0406`, PSR1 freeze, self-refresh off as the
+only clean setting): [omacom/omarchy#18226](https://github.com/omacom/omarchy/issues/18226).
+
 Undo (back to PSR1 only):
 
 ```sh
