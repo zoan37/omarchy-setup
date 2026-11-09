@@ -42,7 +42,19 @@ AMD/RADV):
 
 Leave `chrome://flags` alone (everything on Default) — the conf file is the
 single source of truth. Vulkan enabled in both places is harmless but confusing
-to debug.
+to debug. **A `chrome://flags` entry set to *Disabled* beats the conf file:**
+on the XPS 13, *Hardware-accelerated video decode: Disabled* (left over from
+debugging this) kept every video on the CPU for weeks with the conf line above in
+place. Check `chrome://flags` for anything not on Default, and see
+[xps13-freezes-scrolling-x.md](xps13-freezes-scrolling-x.md) for the test that
+proves decode works.
+
+**GPU encode for video calls (optional):** add `AcceleratedVideoEncoder` to the
+same line. It isn't on by default on Linux. On the XPS 13 (2026-11-08):
+
+```
+--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE,VaapiVideoDecoder,VaapiIgnoreDriverChecks,AcceleratedVideoEncoder,OverlayScrollbar
+```
 
 ## The gotcha that made it look broken
 
