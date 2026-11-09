@@ -2,8 +2,8 @@
 
 **2026-11-08, XPS 13 (Wildcat Lake, 16 GB RAM), Omarchy 4.5.0, Hyprland 0.56.2, Chrome 157.**
 
-**Symptom:** short freezes where the whole screen and the mouse pointer stop together, sometimes for over half a
-second. They mostly happened while scrolling x.com past videos. Nothing showed up in `dmesg`, and there were no GPU
+**Symptom:** freezes where the whole screen and the mouse pointer stop together, from brief hitches to many
+seconds (the multi-second ones were the display, see the update below). They mostly happened while scrolling x.com past videos. Nothing showed up in `dmesg`, and there were no GPU
 errors.
 
 **Cause:** three problems on top of each other:
