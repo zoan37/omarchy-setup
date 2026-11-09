@@ -340,9 +340,11 @@ If judder or flicker comes back, use full self-refresh off instead (same file,
 
 ### PSR1 froze the screen (2026-11-08): self-refresh off
 
-**Symptom under PSR1 only:** short freezes where the screen *and* the pointer
+**Symptom under PSR1 only:** freezes where the screen *and* the pointer
 stop together, mostly while scrolling x.com, while everything else keeps
-running. A half-second stall logger
+running. They ranged from brief hitches to **many seconds**, which looks like
+the panel getting stuck in self-refresh until something forces an exit,
+not just waking late. A half-second stall logger
 ([`assets/xps13-freezes/freezewatch.sh`](assets/xps13-freezes/freezewatch.sh))
 caught a freeze with no stall at all: the CPU, Hyprland's input handling
 (no new libinput "too slow" lines) and memory/IO pressure were all fine,
