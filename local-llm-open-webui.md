@@ -75,6 +75,13 @@ models.
 When a Strata server is stopped (for example to give the 4090 back to other work), its model disappears from the
 picker. Old chats stay.
 
+**If a GPU host stays off, stop its tunnel.** With `Restart=always` / `RestartSec=10`, a tunnel to a machine that's
+off retries forever, and every retry runs [`lan-connect.sh`](lan-ssh-self-healing.md)'s 254-host ping sweep. Over two
+weeks that came to ~8,000 restarts, and it contributed to [desktop freezes on the XPS 13](xps13-freezes-scrolling-x.md).
+Either `systemctl --user disable --now strata-tunnel-k8` (and/or `strata-tunnel`) until the machine is back, or add
+`Environment=LAN_CONNECT_NO_SCAN=1` and a longer `RestartSec=` to the unit. Both tunnels were disabled on the XPS 13
+on 2026-11-08.
+
 ## Undo
 
 ```sh

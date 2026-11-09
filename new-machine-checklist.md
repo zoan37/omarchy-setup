@@ -48,7 +48,10 @@ trial; it has not replaced the laptop configuration or proven a flicker fix.
    AMD needs nothing extra.
 3. Launch via `google-chrome-stable` (never trust the in-app Relaunch button
    to pick up conf changes — see [chrome-vulkan-white-video.md](chrome-vulkan-white-video.md)).
-4. Verify: `chrome://gpu` → Vulkan Enabled, ANGLE on Vulkan.
+4. Verify: `chrome://gpu` → Vulkan Enabled, ANGLE on Vulkan, *Video Decode:
+   Hardware accelerated*. Make sure nothing in `chrome://flags` is set to
+   Disabled; a Disabled entry overrides the conf file
+   ([xps13-freezes-scrolling-x.md](xps13-freezes-scrolling-x.md)).
 
 ## Terminal
 

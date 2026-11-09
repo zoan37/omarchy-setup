@@ -113,6 +113,10 @@ skywsl      ok   (WSL, port 22, same cache)
   **Fixed** in System Settings, or update the MAC in the table when it changes.
 - **Same subnet only.** The MAC scan sweeps the laptop's own `/24`; it can't find a machine on another
   network (use the jump-host pattern above for those).
+- **Don't put a sweep in a restart loop.** A `Restart=always` service whose `ssh` goes through this script
+  sweeps the `/24` (254 parallel `ping`s) on every retry while the target is off. Set
+  `LAN_CONNECT_NO_SCAN=1` in such units, or stop them; see
+  [xps13-freezes-scrolling-x.md](xps13-freezes-scrolling-x.md).
 - **The ping sweep needs hosts that answer ping or ARP.** Every host answers ARP even with ICMP blocked,
   so it shows up in `ip neigh` anyway.
 

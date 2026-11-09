@@ -80,6 +80,13 @@ old command line and reads no config; see the gotcha section of
 
 ## Verify
 
+> **Second trap (2026-11-08):** after installing iHD, a `chrome://flags` entry
+> *Hardware-accelerated video decode: Disabled* still forced software decode,
+> because it overrides the conf file. `vainfo` and `chrome-flags.conf` both looked
+> right. The decisive check is whether Chrome's GPU process actually loaded the
+> driver: `grep -c iHD_drv_video /proc/$(pgrep -f '^/opt/google/chrome/chrome --type=gpu-process' | head -1)/maps`
+> must be non-zero. Details in [xps13-freezes-scrolling-x.md](xps13-freezes-scrolling-x.md).
+
 ```bash
 vainfo 2>&1 | head -30
 ```
