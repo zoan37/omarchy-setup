@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Toggle "game mode": libinput disable-while-typing off (games) / on (normal palm rejection).
+# Runtime only: a Hyprland config reload or re-login returns to the default (palm rejection on).
+if hyprctl getoption input:touchpad:disable_while_typing | grep -q 'bool: false'; then
+  hyprctl eval 'hl.config({ input = { touchpad = { disable_while_typing = true } } })' >/dev/null
+  notify-send -t 2000 "Game mode off" "Touchpad palm rejection is back on."
+else
+  hyprctl eval 'hl.config({ input = { touchpad = { disable_while_typing = false } } })' >/dev/null
+  notify-send -t 2000 "Game mode on" "Touchpad keeps working while keys are held."
+fi
