@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Bar status for "game mode": touchpad stays live while keys are held (libinput disable-while-typing off).
+if hyprctl getoption input:touchpad:disable_while_typing | grep -q 'bool: false'; then
+  echo '{"text":"󰊗","tooltip":"Game mode ON: touchpad works while keys are held (palm rejection off). Click to turn off.","class":"active"}'
+else
+  echo '{"text":"󱔓","tooltip":"Game mode off. Click so the touchpad keeps working while you hold WASD.","class":"inactive"}'
+fi

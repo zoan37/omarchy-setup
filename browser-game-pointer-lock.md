@@ -49,6 +49,37 @@ worth it unless the palm contact actually bothers you.
 **Revert:** delete the line (the default is `true`), or restore the
 `input.lua.bak.<epoch>` written next to it.
 
+## Update 2026-11-09: the fix was gone, now a bar toggle (XPS 13)
+
+The `disable_while_typing = false` line had disappeared from `input.lua`,
+probably in the [`.conf` → `.lua` migration](quattro-lua-migration.md), so the
+camera died again in a three.js shooter. Instead of turning palm rejection off
+for good, there's now a **game-mode button in the bar** (right section, before
+the keyboard layout): an outlined gamepad (`󱔓`) means off, normal palm rejection;
+a filled one (`󰊗`) means on, touchpad live while keys are held. Click to switch.
+It also shows a 2 s notification.
+
+It's a `command` bar module, two scripts in
+[`assets/game-mode/`](assets/game-mode/) copied to `~/.config/omarchy/bar/scripts/`,
+plus this entry in `bar.layout.right` of `~/.config/omarchy/shell.json`:
+
+```json
+{ "id": "game-mode", "type": "command",
+  "exec": "~/.config/omarchy/bar/scripts/game-mode-status", "interval": 2,
+  "tooltip": "Game mode", "onClick": "~/.config/omarchy/bar/scripts/game-mode-toggle" }
+```
+
+Under the Lua config `hyprctl keyword` is refused ("keyword can't work with
+non-legacy parsers. Use eval."), so the toggle uses
+
+```sh
+hyprctl eval 'hl.config({ input = { touchpad = { disable_while_typing = false } } })'
+```
+
+The change is runtime only: a config reload or re-login goes back to the default
+(palm rejection on), which is the safe side. Undo: delete the entry from
+`shell.json` (backup `shell.json.bak.<epoch>` next to it) and the two scripts.
+
 ## Dead ends — don't re-chase these
 
 All four were tried and *all four failed*, in this order. The whole detour came
