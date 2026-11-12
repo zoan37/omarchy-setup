@@ -76,6 +76,32 @@ sudo nmcli c up spark-direct
 `never-default` keeps the default route on Wi-Fi. ufw allows SSH on this link
 only: `sudo ufw allow in on eno1 from 10.77.0.0/30 to any port 22 proto tcp`.
 
+**Half-up link.** Once, the Spark's port went to NO-CARRIER while the X3 kept
+reporting carrier at 2.5 Gb/s, so neither side could reach the other. Bouncing the
+X3's port renegotiated it and the link came straight back:
+
+```sh
+sudo ip link set eno1 down; sleep 3; sudo ip link set eno1 up
+sudo nmcli c up spark-direct && ping -c3 10.77.0.1
+```
+
+Verified: `ping 10.77.0.1` from the X3, and `ssh x3-cable` from the XPS 13.
+
+## Second Wi-Fi network
+
+The X3, the Spark and the XPS 13 were later moved to a second router on
+`192.168.1.0/24`. The LAN-scoped SSH rule doesn't cover it, so the X3 refused
+SSH there until it had its own rule:
+
+```sh
+sudo ufw allow from 192.168.1.0/24 to any port 22 proto tcp
+```
+
+`lan-connect.sh` still found both machines, through their `.local` names (its
+MAC sweep only covers `192.168.0.0/24`). On the Spark the second network has
+`autoconnect-priority 20`, above the first network's 10, so it stays preferred
+after a reboot.
+
 ## SSH from the XPS 13
 
 The X3 is on Wi-Fi at `192.168.0.21` and answers as `x3.local` (with Avahi off
@@ -108,9 +134,6 @@ Key-only SSH is on; verified with
   `gh auth login -h github.com -p https -w && gh auth setup-git`, then
   `hyprpm update && hyprpm add https://github.com/zoan37/hypr-tab-drag && hyprpm enable tab-drag`.
   hypr-momentum is skipped (no touchpad).
-- **Spark cable.** The X3 side is configured. The Spark side lost carrier at
-  16:32 while the X3 still reported a 2.5 Gb/s link; it came back later. Still to
-  check: `ping 10.77.0.1` from the X3 and `ssh x3-cable`.
 - **Power and fans.** The power profile is `performance` (stock without a
   battery). No fan, power-limit or UMA-split tuning yet; for eGPU use over
   OcuLink see the R9700/B70 notes before changing it.
@@ -119,7 +142,7 @@ Key-only SSH is on; verified with
 
 ```sh
 systemctl is-active sshd                          # active
-sudo ufw status | grep -E '22/tcp|syncthing'      # LAN 22, eno1 22 from 10.77.0.0/30, syncthing
+sudo ufw status | grep -E '22/tcp|syncthing'      # both LANs 22, eno1 22 from 10.77.0.0/30, syncthing
 avahi-resolve -4 -n x3.local                      # LAN address, not 172.17.0.1
 hyprctl getoption input:kb_options                # omarchy:shift_caps_compose,altwin:swap_lalt_lwin
 omarchy menu keybindings --print | grep -E 'SHIFT \+ S |grouped window'
