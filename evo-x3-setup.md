@@ -128,6 +128,61 @@ Host x3-cable
 Key-only SSH is on; verified with
 `ssh -o PubkeyAuthentication=no localhost` → `Permission denied (publickey)`.
 
+## Local LLM memory: BIOS carve-out and GTT
+
+Large local models (Qwen3.8 Flash-Next at 84-111 GB) need the iGPU to see most
+of the 128 GB. The BIOS default gave it a fixed 64 GB carve-out, so Linux saw
+only 62 GB and every engine (Strata, Gufo, Halogen) failed to load.
+
+- **BIOS:** Advanced → AMD CBS → NBIO → GFX Configuration → iGPU Configuration
+  `UMA_SPECIFIED`, UMA frame buffer **1G** (the lowest offered). Do not pick
+  "iGPU Disabled", which turns the graphics off.
+- **Kernel:** a 112 GiB GTT ceiling, appended in `/etc/default/limine`, then
+  `sudo limine-update`:
+  ```sh
+  KERNEL_CMDLINE[default]+=" ttm.pages_limit=29360128 ttm.page_pool_size=29360128"
+  ```
+
+Verify: `free -g` shows ~124 GB, and
+`cat /sys/class/drm/card*/device/mem_info_gtt_total` shows 120259084288.
+
+## GPU clock cap (less heat)
+
+Like the [Spark's clock lock](dgx-spark-gpu-clock-cap.md): there is no
+user-settable package power limit here (no `platform_profile`, so
+`powerprofilesctl` only changes CPU behaviour), but the iGPU's shader clock is
+adjustable through `pp_od_clk_voltage` (stock 600-2900 MHz). Token generation is
+memory-bound, so a cap costs little speed. Measured with Qwen3.8 Flash-Next on
+Halogen 0.20.4 (coding prompt, one user, socket power from the amdgpu sensor):
+
+| Shader clock cap | Generation | Power while generating | 8K prompt read |
+|---|---|---|---|
+| 2900 MHz (stock) | 99 tok/s | 91 W | 1,773 tok/s |
+| 2200 MHz | 92 tok/s | 65 W | 1,897 tok/s |
+| **2000 MHz (applied)** | **89 tok/s** | **59 W** | **1,755 tok/s** |
+| 1800 MHz | 85 tok/s | 55 W | 1,629 tok/s |
+| 1500 MHz | 77 tok/s | 49 W | 1,402 tok/s |
+| 1200 MHz | 68 tok/s | 44 W | 1,155 tok/s |
+
+Prompt reading stays at the chip's ~85 W package limit down to about 2000 MHz,
+so it barely changes. Idle stays at ~6-8 W.
+
+Install (script, boot unit, and a resume hook in
+[assets/evo-x3/](assets/evo-x3/)):
+
+```sh
+sudo install -Dm755 assets/evo-x3/x3-gpu-clock-cap /usr/local/bin/x3-gpu-clock-cap
+sudo install -Dm644 assets/evo-x3/x3-gpu-clock-cap.service /etc/systemd/system/x3-gpu-clock-cap.service
+sudo install -Dm755 assets/evo-x3/x3-gpu-clock-cap.sleep /usr/lib/systemd/system-sleep/x3-gpu-clock-cap
+sudo systemctl daemon-reload && sudo systemctl enable --now x3-gpu-clock-cap.service
+```
+
+Verify: `cat /sys/class/drm/card*/device/pp_od_clk_voltage` shows `1: 2000Mhz`
+and `power_dpm_force_performance_level` is `manual`. Change the cap for a
+session with `sudo x3-gpu-clock-cap 2200`; undo with
+`sudo systemctl disable --now x3-gpu-clock-cap` (its stop action restores
+2900 MHz and `auto`).
+
 ## Not done
 
 - **gh auth and hypr-tab-drag** need a terminal on the X3 itself:
@@ -135,8 +190,7 @@ Key-only SSH is on; verified with
   `hyprpm update && hyprpm add https://github.com/zoan37/hypr-tab-drag && hyprpm enable tab-drag`.
   hypr-momentum is skipped (no touchpad).
 - **Power and fans.** The power profile is `performance` (stock without a
-  battery). No fan, power-limit or UMA-split tuning yet; for eGPU use over
-  OcuLink see the R9700/B70 notes before changing it.
+  battery). The GPU clock cap above is the only power tuning; no fan curve.
 
 ## Verify
 

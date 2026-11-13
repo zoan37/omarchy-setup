@@ -1,0 +1,12 @@
+[Unit]
+Description=Cap Strix Halo iGPU shader clock (less heat; decode is memory-bound)
+After=systemd-modules-load.service systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/x3-gpu-clock-cap 2000
+ExecStop=/usr/local/bin/x3-gpu-clock-cap off
+
+[Install]
+WantedBy=multi-user.target
