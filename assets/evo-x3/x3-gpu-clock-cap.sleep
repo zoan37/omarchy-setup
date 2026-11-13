@@ -1,0 +1,4 @@
+#!/bin/sh
+# Re-apply the iGPU clock cap after resume (the DPM state can reset across suspend).
+[ "$1" = post ] && systemctl is-active -q x3-gpu-clock-cap.service && /usr/local/bin/x3-gpu-clock-cap 2000 >/dev/null 2>&1
+exit 0

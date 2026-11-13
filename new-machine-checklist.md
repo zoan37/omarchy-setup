@@ -6,6 +6,7 @@ Machine-specific pages: [Dell XPS 16](xps16-notes.md),
 [Beelink SER8 quiet fan setup](ser8-quiet-fan.md),
 [ASUS Zephyrus M16 quiet/power setup](zephyrus-m16-quiet-power.md),
 [GMKtec K8 Plus setup](k8-plus-setup.md),
+[GMKtec EVO X3 setup](evo-x3-setup.md),
 [MacBook Neo setup](macbook-neo-setup.md),
 [MacBook Pro M1 Pro setup](macbook-pro-m1-setup.md). Identify the machine with
 `cat /sys/class/dmi/id/product_name` and its speaker/display variant with
