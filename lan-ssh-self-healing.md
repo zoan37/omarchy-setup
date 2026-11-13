@@ -71,10 +71,10 @@ the mismatched host key as usual.
        User <user>
        AddressFamily inet
 
-   # A machine reached through another one keeps its ProxyJump; the jump host's alias does the finding.
+   # A machine with a cable partner: the script hops through the partner when needed (see the 2026-11-13 update).
    Host spark
-       HostName 10.77.0.1
-       ProxyJump <user>@k8.local
+       HostName spark-xxxx.local
+       ProxyCommand ~/.ssh/lan-connect.sh spark %h %p
        HostKeyAlias spark-xxxx.local
    ```
 
@@ -106,13 +106,55 @@ skywsl      ok   (WSL, port 22, same cache)
 - **Machine off:** fails in ~3 s with
   `lan-connect: k6 not found (tried the cached address, nucbox.local); is it on?`.
 
+## Update 2026-11-13: two Wi-Fi networks, and a hop over the cable
+
+A second router went in at home: one Wi-Fi on `192.168.0.0/24`, the other on `192.168.1.0/24`. They are
+separate networks (two routers, each with its own NAT), so a machine on one can't reach a machine on the
+other, and `.local` names don't cross either. Machines move between the two, and so does the laptop.
+
+Two changes to the script, no extra service on any machine:
+
+1. **Every home subnet, not just one.** The MAC sweep now covers each `192.168.x.0/24` the laptop has an
+   address on (Wi-Fi or Ethernet), and a cached address on a subnet the laptop isn't on is skipped instead
+   of waiting for its port check to time out.
+2. **A hop through the cable partner.** The EVO X3 and the DGX Spark are wired to each other on a private
+   `10.77.0.0/24` (Spark `.1`, X3 `.2`), whatever Wi-Fi each is on. Each gets a partner in the `case` table:
+
+   ```sh
+   spark) mdns=spark-xxxx.local; macs='<spark-wifi-mac>'; via=x3;    cable=10.77.0.1 ;;
+   x3)    mdns=x3.local;         macs='<x3-wifi-mac>';    via=spark; cable=10.77.0.2 ;;
+   ```
+
+   If the target isn't found on the laptop's network, the script runs
+   `ssh -W <cable address>:<port> <partner>`: it reaches the partner (which is found by the same script)
+   and opens the connection to the target from there. `LAN_CONNECT_NO_HOP=1` is set for the partner's own
+   lookup so the two can't hop back and forth.
+
+Authentication is end to end: the laptop's own key logs in to both machines, nothing is forwarded, and
+host keys are still checked against the target's `HostKeyAlias`. The partners need SSH open on the cable
+(on the X3: `sudo ufw allow in on eno1 from 10.77.0.0/24 to any port 22 proto tcp`).
+
+Measured from the laptop on the second Wi-Fi:
+
+| Target | Where it was | Path | Time |
+|---|---|---|---|
+| `ssh x3` | same Wi-Fi as the laptop | direct | 0.2 s |
+| `ssh spark` | the other Wi-Fi | through the X3's cable | 6.7 s (an mDNS timeout and one sweep before the hop) |
+
+**What it doesn't cover:** if both partners are on the network the laptop isn't on, there's nothing to hop
+through. Fixes, simplest first: put the second router in **access point mode** wired to the first, so both
+Wi-Fis are one network; or a self-hosted overlay (Headscale, plain WireGuard), which needs a host with a
+public address because the satellite ISP doesn't allow incoming connections. Tailscale would also work but
+was ruled out for now: its coordination server is third-party (Tailnet Lock and key-only SSH would limit
+what a compromised coordinator could do).
+
 ## Caveats
 
 - **macOS private Wi-Fi address.** Macs use a randomized ("private") MAC per network. It is usually
   stable on a given network, but macOS can rotate it; set the network's *Private Wi-Fi address* to
   **Fixed** in System Settings, or update the MAC in the table when it changes.
-- **Same subnet only.** The MAC scan sweeps the laptop's own `/24`; it can't find a machine on another
-  network (use the jump-host pattern above for those).
+- **Only the laptop's own subnets.** The MAC scan sweeps the `/24`s the laptop is on; a machine on another
+  network is reached only through a cable partner (above) or a jump host.
 - **Don't put a sweep in a restart loop.** A `Restart=always` service whose `ssh` goes through this script
   sweeps the `/24` (254 parallel `ping`s) on every retry while the target is off. Set
   `LAN_CONNECT_NO_SCAN=1` in such units, or stop them; see
