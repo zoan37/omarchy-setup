@@ -115,6 +115,18 @@ server listens on node0 at `127.0.0.1:18080` (OpenAI chat API, model `dsv41`).
 | Prose, 400 tokens | 35.7 tok/s | 37.8 tok/s | 39.3 tok/s |
 | Prompt, 1,818 tokens | 1,113 tok/s | 1,021 tok/s | 1,085 tok/s |
 
+StrixFold's own benchmark (`qual/qual_bench.sh bench ... --reps 5 --prefill 2000,8000`, the two-DGX-Spark prompt set,
+every prompt cold, stock clocks, one cable), median of 5 per category:
+
+| coding | format | math | reasoning | json | prose | summary | narrative | **headline** (mean of the 8) |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 70.4 | 70.2 | 59.8 | 52.9 | 51.0 | 38.6 | 37.6 | 35.3 | **52.0 tok/s** |
+
+StrixFold publishes **52.8 tok/s** for this headline on two Ryzen AI Halo boxes with two cables, so generation is on par.
+Prompt reading at 2,952 tokens: 1,004 tok/s (theirs: 1,414 with two cables). Time to first token 0.45 s on average.
+The 8,000-token prompt case sends ~11,600 tokens and needs `CONTEXT` above the shipped 8192; with 8192 it fails
+("This server's maximum context..."), which is the one `fail` in the run's status.
+
 The [2000 MHz clock cap](evo-x3-setup.md#gpu-clock-cap-less-heat) costs about 11% on code (drafting verifies several
 tokens per step, so decode leans on compute) and 6% on prose.
 
