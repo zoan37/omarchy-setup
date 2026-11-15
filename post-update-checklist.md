@@ -420,6 +420,16 @@ iw phy phy0 info | grep -c TKIP    # 1 = patched, 0 = rebuild it
 
 Rebuild and reinstall: [macbook-neo-wifi-tkip.md](macbook-neo-wifi-tkip.md#after-a-kernel-update).
 
+## 13. Bosgame M5 — EC driver DKMS build
+
+```sh
+dkms status                                   # ec_su_axb35/1.0.f62c2c2 installed for $(uname -r)
+cat /sys/class/ec_su_axb35/apu/power_mode     # quiet | balanced | performance
+```
+
+A missing `/sys/class/ec_su_axb35` means the build failed. That is harmless, because the EC
+keeps running on its own. Details: [bosgame-m5-ec-driver.md](bosgame-m5-ec-driver.md#after-a-kernel-update).
+
 ## VA-API on the XPS 13: closed 2026-10-22
 
 `chrome-flags.conf` enables `VaapiVideoDecoder`, but `intel-media-driver`
