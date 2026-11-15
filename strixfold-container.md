@@ -124,8 +124,10 @@ every prompt cold, stock clocks, one cable), median of 5 per category:
 
 StrixFold publishes **52.8 tok/s** for this headline on two Ryzen AI Halo boxes with two cables, so generation is on par.
 Prompt reading at 2,952 tokens: 1,004 tok/s (theirs: 1,414 with two cables). Time to first token 0.45 s on average.
-The 8,000-token prompt case sends ~11,600 tokens and needs `CONTEXT` above the shipped 8192; with 8192 it fails
-("This server's maximum context..."), which is the one `fail` in the run's status.
+A second full run with `CONTEXT=16384` (and `PEAK_GIB=103`) repeated it: headline **51.99 tok/s**, prompt reading
+1,011 tok/s at 2,952 tokens and **1,074 tok/s at 11,594 tokens** (StrixFold: 1,543 on two cables; their one-cable M5 pair
+about 1,245), status `pass`. With the shipped `CONTEXT=8192` the 11,594-token case is refused ("This server's maximum
+context..."). The pair now serves with the 16K configuration.
 
 The [2000 MHz clock cap](evo-x3-setup.md#gpu-clock-cap-less-heat) costs about 11% on code (drafting verifies several
 tokens per step, so decode leans on compute) and 6% on prose.
