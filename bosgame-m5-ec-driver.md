@@ -7,7 +7,8 @@ The front "performance" button (two crossing arrows) changes the EC's power mode
 ships a Windows tool for it. The community driver
 [cmetz/ec-su_axb35-linux](https://github.com/cmetz/ec-su_axb35-linux) exposes the mode, the
 three fans and the EC CPU temperature in sysfs. It is installed here through DKMS and loads at
-boot. **So far it is used read-only.** Nothing on this page has written an EC register.
+boot. It was installed and checked read-only first. Later the same day the mode was switched from
+quiet to **balanced** through sysfs (see [Switch modes](#switch-modes)). Nothing else has been written.
 
 ## Result
 
@@ -123,7 +124,7 @@ cat $B/temp1/temp $B/temp1/min $B/temp1/max                # °C; min/max since 
 su_axb35_monitor                                           # repo's live monitor script (scripts/)
 ```
 
-## Switch modes (not done yet)
+## Switch modes
 
 The mode file is writable by root:
 
@@ -138,6 +139,10 @@ Each line selects a different mode; run only the one you want. The write sets EC
 was pressed. Not yet checked: how the button cycles through the modes, how it interacts with a
 sysfs write, and whether a written mode survives a power cycle. Re-read `power_mode` after a reboot and after a button
 press, and re-run the all-core CPU load test to see the new plateau.
+
+**2026-11-15: switched quiet → balanced** with the `tee` line above. The same all-core CPU load
+now holds **84–85 W at ~3.6 GHz**, up from ~54 W / 2.7 GHz in quiet, and level with the EVO X3.
+Performance mode has not been tried.
 
 ## After a kernel update
 
