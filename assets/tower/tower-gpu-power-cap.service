@@ -1,10 +1,12 @@
 [Unit]
 Description=Cap the R9700 power limit (minimum, 210 W per card; stock 300 W)
-After=systemd-modules-load.service
+After=systemd-modules-load.service systemd-udev-settle.service
+Wants=systemd-udev-settle.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+TimeoutStartSec=240
 ExecStart=/usr/local/bin/tower-gpu-power-cap min
 ExecStop=/usr/local/bin/tower-gpu-power-cap off
 

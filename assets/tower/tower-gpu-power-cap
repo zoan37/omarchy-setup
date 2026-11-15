@@ -2,6 +2,11 @@
 # Cap every amdgpu card with a power limit (R9700: 210-300 W, default 300 W).
 # Usage: tower-gpu-power-cap [WATTS|min|off]   (default: min). "off" restores each card's default.
 want=${1:-min}
+# At boot the service can start before amdgpu has probed the cards (the driver comes up after the disk is
+# unlocked), so wait up to 3 min for all of them. TOWER_GPUS = cards expected (default 4).
+n_cards() { c=0; for h in /sys/class/drm/card*/device/hwmon/hwmon*/power1_cap; do [ -e "$h" ] && c=$((c + 1)); done; echo $c; }
+i=0; while [ "$(n_cards)" -lt "${TOWER_GPUS:-4}" ] && [ $i -lt 90 ]; do sleep 2; i=$((i + 1)); done
+[ "$(n_cards)" -ge "${TOWER_GPUS:-4}" ] || echo "warning: only $(n_cards) of ${TOWER_GPUS:-4} cards found" >&2
 for dev in /sys/class/drm/card*/device; do
   [ -e "$dev/driver" ] || continue
   case "$(basename "$(readlink -f "$dev/driver")")" in amdgpu) ;; *) continue ;; esac

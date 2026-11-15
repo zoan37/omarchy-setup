@@ -89,6 +89,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now tower-gpu-power-cap
 `sudo tower-gpu-power-cap 250` sets any value from 210 to 300 W for the session; `off` restores
 300 W. The cap survives the cards runtime-suspending and resuming (checked).
 
+**Boot race (fixed 2026-11-15):** on the first real boot the service ran before amdgpu had probed the
+cards (the driver came up only after the disk was unlocked), found nothing, and exited cleanly, so the
+cards stayed at 300 W. The script now waits up to 3 minutes for all four cards (`TOWER_GPUS`, default 4).
+After a reboot, check that `journalctl -u tower-gpu-power-cap -b` lists four `cap 210 W` lines.
+
 ### CPU boost off (4.5 GHz base instead of 5.45 GHz)
 
 ```sh
@@ -113,8 +118,20 @@ ufw open), Avahi kept off `docker0`, and the [clock refresh hook](bar-clock-stal
 SSH was already on, key-only, with ufw rules for both home networks (`192.168.0.0/24` and
 `192.168.1.0/24`). The tower is in `lan-connect.sh` (see [lan-ssh-self-healing.md](lan-ssh-self-healing.md)).
 
-**Passwordless sudo** set by hand did not survive a reboot; Omarchy's own setting
-(`/etc/sudoers.d/99-omarchy-nopasswd-<uid>`) is the one in place now.
+**Passwordless sudo:** `omarchy-sudo-passwordless` is temporary by design (it adds
+`/etc/sudoers.d/99-omarchy-nopasswd-<uid>` plus a transient timer that removes it). For a machine run over
+SSH, add a permanent rule instead, from another machine, typing the password once:
+
+```sh
+ssh -t tower 'echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/zz-nopasswd >/dev/null && sudo chmod 440 /etc/sudoers.d/zz-nopasswd && sudo visudo -c'
+```
+
+It survives reboots (checked). Anyone with the SSH key then has root, so keep SSH key-only and LAN-scoped.
+
+**Not fully headless:** the disk is LUKS-encrypted (Omarchy's default), so every reboot stops at the
+passphrase prompt until someone types it at the tower. Options for later: TPM2 auto-unlock
+(`systemd-cryptenroll`; needs the initramfs to use the systemd hooks), or the BMC's remote console once
+its network port is cabled.
 
 ## Not done
 
