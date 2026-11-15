@@ -1,0 +1,50 @@
+#!/bin/bash
+# Bosgame M5 (AXB35-02, BIOS 3.11) fan assist.
+# The EC ignores the ec_su_axb35 driver's fan mode/level/curve on this BIOS, but obeys its per-fan duty override
+# registers (0x33 fan1, 0x34 fan2: 0x80+percent; 0x00 = firmware control), found by nathanmarlor/strix-halo-fan-control
+# and used by StrixFold docs/BOSGAME-M5.md. Gentle curve: below 65 C the firmware keeps control (as quiet as stock);
+# above it both fans step to 50/70/85/100%, 4 C hysteresis. Unreadable temperature -> 100%.
+# Stopping the service hands both fans back to the firmware. Fan 3 (system fan) stays with the firmware.
+set -u
+[ "$(cat /sys/class/dmi/id/board_name)" = AXB35-02 ] || { echo "not an AXB35-02 board; refusing" >&2; exit 1; }
+modprobe ec_sys write_support=1
+IO=/sys/kernel/debug/ec/ec0/io
+[ "$(cat /sys/module/ec_sys/parameters/write_support)" = Y ] || { echo "ec_sys write_support is off (reload ec_sys)" >&2; exit 1; }
+
+wr() { printf "\\x$(printf %02x "$2")" | dd of="$IO" bs=1 seek=$(( $1 )) count=1 conv=notrunc status=none; }
+handback() { wr 0x33 0; wr 0x34 0; echo "fans handed back to firmware"; exit 0; }
+trap handback TERM INT
+
+temp() {  # hottest of the EC, CPU (k10temp Tctl) and GPU (amdgpu edge) readings, whole C; empty if none readable
+  local t m="" d f=/sys/class/ec_su_axb35/temp1/temp
+  [ -r "$f" ] && m=$(cat "$f")
+  for d in /sys/class/hwmon/hwmon*; do
+    case "$(cat "$d/name")" in
+      k10temp|amdgpu)
+        t=$(( $(cat "$d/temp1_input" 2>/dev/null || echo 0) / 1000 ))
+        if [ -z "$m" ] || [ "$t" -gt "$m" ]; then m=$t; fi ;;
+    esac
+  done
+  echo "$m"
+}
+
+duty=(0 50 70 85 100)
+up=(0 65 72 80 86)
+hyst=4
+level=0
+echo "fan assist started (levels at ${up[1]}/${up[2]}/${up[3]}/${up[4]} C)"
+while :; do
+  t=$(temp)
+  if [ -z "$t" ] || [ "$t" -le 0 ]; then
+    target=4
+  else
+    target=$level
+    while [ "$target" -lt 4 ] && [ "$t" -ge "${up[$((target + 1))]}" ]; do target=$((target + 1)); done
+    while [ "$target" -gt 0 ] && [ "$t" -lt $(( ${up[$target]} - hyst )) ]; do target=$((target - 1)); done
+  fi
+  [ "$target" -ne "$level" ] && echo "temp ${t:-?}C: level $level -> $target (${duty[$target]}%)"
+  level=$target
+  if [ "$level" -eq 0 ]; then wr 0x33 0; wr 0x34 0
+  else v=$((0x80 + ${duty[$level]})); wr 0x33 "$v"; wr 0x34 "$v"; fi
+  sleep 5 & wait $!
+done

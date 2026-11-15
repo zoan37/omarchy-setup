@@ -144,6 +144,50 @@ press, and re-run the all-core CPU load test to see the new plateau.
 now holds **84–85 W at ~3.6 GHz**, up from ~54 W / 2.7 GHz in quiet, and level with the EVO X3.
 Performance mode has not been tried.
 
+## Power mode at boot
+
+The front button cycles the EC's power mode, so pin a known mode at every start:
+[`m5-power-mode.service`](assets/bosgame-m5-ec/m5-power-mode.service) writes `balanced` (change `MODE=`) once the
+driver's sysfs appears.
+
+| Mode | Limit | Measured on this box (all-core CPU load) |
+|---|---|---|
+| quiet | ~54 W | 54 W, 2.7 GHz |
+| **balanced** | ~85 W | **84-85 W, 3.6 GHz** (same as the EVO X3) |
+| performance | ~120 W | not used: StrixFold measured it 9% slower and at 95-100 C with the stock fans |
+
+## Fans: the driver's curve does nothing on BIOS 3.11; the duty override works
+
+On this box (AXB35-02, AMI BIOS 3.11) the EC **ignores** the driver's `fanX/mode`, `level` and curve settings, as
+StrixFold reports (docs/BOSGAME-M5.md, Cooling): `fixed` at level 2 and then 4 left fan 1 at 0 rpm. Factory `auto`
+only reaches full speed at 95-97 C, which is where the Reddit reports of overnight overheat shutdowns come from.
+
+What the EC does obey is its **duty override**, register `0x33` (fan 1) and `0x34` (fan 2): `0x80 + percent` sets
+the fan, `0x00` hands it back to the firmware (registers found by
+[nathanmarlor/strix-halo-fan-control](https://github.com/nathanmarlor/strix-halo-fan-control)). Writing `0xa8`
+(40%) took fan 1 from 0 to 2,200 rpm within 9 s; `0x00` released it.
+
+[`m5-fan-assist`](assets/bosgame-m5-ec/m5-fan-assist) +
+[`m5-fan-assist.service`](assets/bosgame-m5-ec/m5-fan-assist.service) use it gently: below 65 C the firmware keeps
+control (stock quiet), above it both fans step to 50/70/85/100% at 65/72/80/86 C with 4 C hysteresis, from the
+hottest of the EC, CPU and GPU readings, rewritten every 5 s (the firmware can take a fan back). An unreadable
+temperature means 100%; stopping the service hands both fans back. Needs `ec_sys` with `write_support=1`
+(`/etc/modprobe.d/ec_sys-write.conf` + `/etc/modules-load.d/ec_sys.conf`). It checks the board name and refuses to
+run on anything but AXB35-02.
+
+```sh
+sudo install -m 755 assets/bosgame-m5-ec/m5-fan-assist /usr/local/sbin/m5-fan-assist
+sudo install -m 644 assets/bosgame-m5-ec/m5-fan-assist.service assets/bosgame-m5-ec/m5-power-mode.service /etc/systemd/system/
+printf 'options ec_sys write_support=1\n' | sudo tee /etc/modprobe.d/ec_sys-write.conf
+printf 'ec_sys\n' | sudo tee /etc/modules-load.d/ec_sys.conf
+sudo systemctl daemon-reload && sudo systemctl enable --now m5-power-mode m5-fan-assist
+journalctl -u m5-fan-assist -f      # "temp 65C: level 0 -> 1 (50%)" ...
+```
+
+Measured (DeepSeek on the X3 + Bosgame pair, two rounds of 8 filings, 2000 MHz GPU cap, balanced): the hottest
+reading reached 65 C, fans 50% (~3,000 rpm); a 73 C peak gave 70% (~3,700 rpm); the GPU peaked at 65 C; afterwards
+the fans went back to the firmware. Speed unchanged.
+
 ## After a kernel update
 
 ```sh

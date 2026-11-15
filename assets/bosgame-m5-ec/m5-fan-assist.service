@@ -1,0 +1,11 @@
+[Unit]
+Description=Bosgame M5 fan assist (EC duty override above 65 C; firmware control below)
+After=systemd-modules-load.service
+
+[Service]
+ExecStart=/usr/local/sbin/m5-fan-assist
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
