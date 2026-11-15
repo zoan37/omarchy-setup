@@ -1,0 +1,30 @@
+#!/bin/bash
+# Start the long-lived StrixFold container on this box (same $HOME inside, host network for the USB4 link, GPU devices).
+# On node0 it also runs an sshd on <usb4 ip>:2222 so that `ssh node0` from node1 lands inside this container.
+set -eu
+IMG=localhost/strixfold-env:rocm10.0.0-4
+C=$HOME/tfp/container
+podman rm -f strixfold >/dev/null 2>&1 || true
+podman run -d --init --name strixfold --hostname "$(hostname)" --network host --ipc host \
+  --device /dev/kfd --device /dev/dri --group-add keep-groups \
+  --security-opt seccomp=unconfined --security-opt label=disable \
+  --userns keep-id --ulimit host \
+  -v "$HOME:$HOME" -e HOME="$HOME" -e USER="$USER" -w "$HOME" \
+  "$IMG" sleep infinity >/dev/null
+if [ "${1:-}" = node0 ]; then
+  [ -f "$C/ssh_host_ed25519_key" ] || ssh-keygen -q -t ed25519 -N "" -f "$C/ssh_host_ed25519_key"
+  cat > "$C/sshd_config" <<CFG
+Port 2222
+ListenAddress ${SF_SSH_ADDR:-10.40.0.1}
+HostKey $C/ssh_host_ed25519_key
+PidFile $C/sshd.pid
+AuthorizedKeysFile $HOME/.ssh/authorized_keys
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM no
+StrictModes no
+Subsystem sftp /usr/lib/openssh/sftp-server
+CFG
+  podman exec -d strixfold /usr/sbin/sshd -D -f "$C/sshd_config" -E "$C/sshd.log"
+fi
+podman exec strixfold bash -c "echo container up on \$(hostname); /opt/rocm/core-10.0/bin/rocminfo 2>/dev/null | grep -m1 -o gfx1151 || echo rocminfo FAILED"

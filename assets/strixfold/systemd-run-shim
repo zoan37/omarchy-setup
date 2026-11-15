@@ -1,0 +1,25 @@
+#!/bin/bash
+# Container stand-in for `systemd-run --user --scope [...] [--] CMD...`: there is no user manager in the StrixFold
+# container, so run CMD in the foreground. AllowedCPUs=... becomes taskset; other properties are dropped (the
+# container already isolates the job). Only --scope is supported; anything else fails loudly.
+cpus=""; scope=0; args=("$@"); i=0
+while [ $i -lt ${#args[@]} ]; do
+  a=${args[$i]}
+  case "$a" in
+    --) i=$((i+1)); break ;;
+    --scope) scope=1 ;;
+    --user|--quiet|-q|--collect|--wait|--pipe|-P|--same-dir|-G) ;;
+    -p|--property|--unit|-u|--description|--slice|-E|--setenv|--working-directory|--uid|--gid|--nice)
+      v=${args[$((i+1))]}; [ "$a" = -p ] || [ "$a" = --property ] && case "$v" in AllowedCPUs=*) cpus=${v#AllowedCPUs=} ;; esac
+      [ "$a" = -E ] || [ "$a" = --setenv ] && export "$v"; i=$((i+1)) ;;
+    --property=*|--unit=*|--description=*|--slice=*|--setenv=*|--working-directory=*|--nice=*)
+      case "$a" in --property=AllowedCPUs=*) cpus=${a#--property=AllowedCPUs=} ;; --setenv=*) export "${a#--setenv=}" ;; esac ;;
+    -*) echo "systemd-run shim: unsupported option $a" >&2; exit 2 ;;
+    *) break ;;
+  esac
+  i=$((i+1))
+done
+[ $scope = 1 ] || { echo "systemd-run shim: only --scope is supported in the container" >&2; exit 2; }
+cmd=("${args[@]:$i}")
+[ ${#cmd[@]} -gt 0 ] || { echo "systemd-run shim: no command" >&2; exit 2; }
+if [ -n "$cpus" ]; then exec taskset -c "$cpus" "${cmd[@]}"; else exec "${cmd[@]}"; fi

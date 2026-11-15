@@ -1,0 +1,4 @@
+#!/bin/bash
+# Run a command inside this box's StrixFold container: sf <cmd...>   (no args: an interactive shell)
+[ $# -eq 0 ] && exec podman exec -it strixfold bash -l
+exec podman exec strixfold bash -lc "$*"

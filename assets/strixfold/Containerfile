@@ -1,0 +1,17 @@
+# StrixFold environment: Debian 13 + AMD/Collabora "rex" ROCm 10.0.0-4 for gfx1151, as in StrixFold docs/BOSGAME-M5.md
+# steps 3 and 7. Runs on the Omarchy hosts with their own kernel/amdgpu (host GTT 124 GiB); no kernel or firmware here.
+FROM docker.io/library/debian:trixie
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget gpg \
+ && cd /tmp && wget -q https://debs.ryai.dev/pool/main/r/ryai-archive-keyring/ryai-archive-keyring_0.2~0.1+1+ge0afb86bvdebian13.1_all.deb \
+ && echo "0fcf1e841ae13f85fc5d1e0b836db1260e5fa07ebe1c90ff1836139bb7f49e49  ryai-archive-keyring_0.2~0.1+1+ge0afb86bvdebian13.1_all.deb" | sha256sum -c \
+ && apt-get install -y ./ryai-archive-keyring_0.2~0.1+1+ge0afb86bvdebian13.1_all.deb \
+ && gpg --show-keys --with-colons /usr/share/keyrings/ryai-archive-keyring.gpg | grep -q "^fpr:::::::::B83B6BF3716E12EE71BEA0EEDD4539D281C3A637:" \
+ && printf "Types: deb\nURIs: https://debs.ryai.dev/\nSuites: rex\nComponents: main non-free\nSigned-By: /usr/share/keyrings/ryai-archive-keyring.gpg\n" > /etc/apt/sources.list.d/ryai.sources \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends amdrocm-core-sdk10.0-gfx1151=10.0.0-4 amdrocm-core10.0-gfx1151=10.0.0-4 therock-gfx1151=10.0+rex1bvdebian13.1 \
+      git rsync python3 python3-venv python3-dev openssh-server openssh-client xz-utils procps iproute2 numactl curl build-essential pciutils bc \
+ && ldconfig && rm -rf /var/lib/apt/lists/*
+
+# Container stand-in for systemd-run --user --scope (no user manager inside)
+COPY systemd-run-shim /usr/local/bin/systemd-run
