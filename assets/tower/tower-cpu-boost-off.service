@@ -1,0 +1,11 @@
+[Unit]
+Description=CPU boost off on the tower (4.5 GHz base clock)
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/tower-cpu-boost off
+ExecStop=/usr/local/bin/tower-cpu-boost on
+
+[Install]
+WantedBy=multi-user.target

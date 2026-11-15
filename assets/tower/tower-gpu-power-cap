@@ -1,0 +1,18 @@
+#!/bin/sh
+# Cap every amdgpu card with a power limit (R9700: 210-300 W, default 300 W).
+# Usage: tower-gpu-power-cap [WATTS|min|off]   (default: min). "off" restores each card's default.
+want=${1:-min}
+for dev in /sys/class/drm/card*/device; do
+  [ -e "$dev/driver" ] || continue
+  case "$(basename "$(readlink -f "$dev/driver")")" in amdgpu) ;; *) continue ;; esac
+  h=$(ls -d "$dev"/hwmon/hwmon* 2>/dev/null | head -1); [ -w "$h/power1_cap" ] || continue
+  ctl=$(cat "$dev/power/control"); echo on > "$dev/power/control"   # a runtime-suspended card returns EBUSY
+  case "$want" in
+    min) uw=$(cat "$h/power1_cap_min") ;;
+    off) uw=$(cat "$h/power1_cap_default") ;;
+    *)   uw=$((want * 1000000)) ;;
+  esac
+  echo "$uw" > "$h/power1_cap"
+  echo "$(basename "$(readlink -f "$dev")"): cap $(( $(cat "$h/power1_cap") / 1000000 )) W"
+  echo "$ctl" > "$dev/power/control"
+done
