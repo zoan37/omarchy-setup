@@ -149,9 +149,10 @@ Performance mode has not been tried.
 
 The front button cycles the EC's power mode, so pin a known mode at every start:
 [`m5-power-mode.service`](assets/bosgame-m5-ec/m5-power-mode.service) writes the mode in `MODE=` once the driver's
-sysfs appears. This box now uses **quiet**: with balanced, DeepSeek serving on the iGPU plus a process spinning two CPU
+sysfs appears. This box went to **quiet** for a while: with balanced, DeepSeek serving on the iGPU plus a process spinning two CPU
 cores pushed Tctl to 97 C and the fans to 100%; switching to quiet brought the same load to 68 C (iGPU 86 -> 50 W).
-The cost is speed on anything running on the APU (not yet measured on the DeepSeek pair).
+The cost is speed on anything running on the APU, so once the box was serving Halogen as an agent's model it went back
+to **balanced** (the boot default again), with the 2000 MHz iGPU cap and the smoothed quiet fan curve.
 
 | Mode | Limit | Measured on this box (all-core CPU load) |
 |---|---|---|

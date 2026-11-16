@@ -5,7 +5,7 @@ After=systemd-modules-load.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-Environment=MODE=quiet
+Environment=MODE=balanced
 ExecStart=/bin/sh -c 'for i in $(seq 1 30); do [ -w /sys/class/ec_su_axb35/apu/power_mode ] && break; sleep 1; done; echo "$MODE" > /sys/class/ec_su_axb35/apu/power_mode && echo "power mode: $(cat /sys/class/ec_su_axb35/apu/power_mode)"'
 
 [Install]
