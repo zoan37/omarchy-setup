@@ -169,8 +169,9 @@ the fan, `0x00` hands it back to the firmware (registers found by
 (40%) took fan 1 from 0 to 2,200 rpm within 9 s; `0x00` released it.
 
 [`m5-fan-assist`](assets/bosgame-m5-ec/m5-fan-assist) +
-[`m5-fan-assist.service`](assets/bosgame-m5-ec/m5-fan-assist.service) use it gently: below 65 C the firmware keeps
-control (stock quiet), above it both fans step to 50/70/85/100% at 65/72/80/86 C with 4 C hysteresis, from the
+[`m5-fan-assist.service`](assets/bosgame-m5-ec/m5-fan-assist.service) use it gently: below 75 C the firmware keeps
+control (stock quiet), above it both fans step to 50/70/85/100% at 75/82/88/92 C; stepping down needs 5 C of
+hysteresis and 60 s at the current level, from the
 hottest of the EC, CPU and GPU readings, rewritten every 5 s (the firmware can take a fan back). An unreadable
 temperature means 100%; stopping the service hands both fans back. Needs `ec_sys` with `write_support=1`
 (`/etc/modprobe.d/ec_sys-write.conf` + `/etc/modules-load.d/ec_sys.conf`). It checks the board name and refuses to
@@ -185,7 +186,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now m5-power-mode m5-fan
 journalctl -u m5-fan-assist -f      # "temp 65C: level 0 -> 1 (50%)" ...
 ```
 
-Measured (DeepSeek on the X3 + Bosgame pair, two rounds of 8 filings, 2000 MHz GPU cap, balanced): the hottest
+The first version stepped at 65/72 C with no minimum hold; under steady DeepSeek serving the box sat at 64-72 C and
+the fans flipped 50% <-> 70% every 15-30 s, which was louder than the firmware alone. Hence 75 C and the hold.
+
+Measured with the first version (DeepSeek on the X3 + Bosgame pair, two rounds of 8 filings, 2000 MHz GPU cap, balanced): the hottest
 reading reached 65 C, fans 50% (~3,000 rpm); a 73 C peak gave 70% (~3,700 rpm); the GPU peaked at 65 C; afterwards
 the fans went back to the firmware. Speed unchanged.
 

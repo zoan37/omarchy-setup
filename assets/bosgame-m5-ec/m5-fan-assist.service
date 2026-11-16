@@ -1,5 +1,5 @@
 [Unit]
-Description=Bosgame M5 fan assist (EC duty override above 65 C; firmware control below)
+Description=Bosgame M5 fan assist (EC duty override above 75 C; firmware control below)
 After=systemd-modules-load.service
 
 [Service]
