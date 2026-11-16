@@ -1,11 +1,14 @@
 #!/bin/bash
-# Bosgame M5 (AXB35-02, BIOS 3.11) fan assist.
+# Bosgame M5 (AXB35-02, BIOS 3.11) fan control, "X3-like quiet" profile.
 # The EC ignores the ec_su_axb35 driver's fan mode/level/curve on this BIOS, but obeys its per-fan duty override
 # registers (0x33 fan1, 0x34 fan2: 0x80+percent; 0x00 = firmware control), found by nathanmarlor/strix-halo-fan-control
-# and used by StrixFold docs/BOSGAME-M5.md. Quiet curve: below 75 C the firmware keeps control (as quiet as stock);
-# above it both fans step to 50/70/85/100% at 75/82/88/92 C. Stepping down needs 5 C of hysteresis AND 60 s at the
-# current level (no 50%<->70% flapping). Stepping up is immediate. Unreadable temperature -> 100%.
-# Stopping the service hands both fans back to the firmware. Fan 3 (system fan) stays with the firmware.
+# and used by StrixFold docs/BOSGAME-M5.md.
+# Below 55 C the firmware keeps control (silent at idle). From 55 C this script owns both fans with a slower curve than
+# the factory one, letting the APU run warm like the EVO X3 (~80 C under load, well inside its ~95-100 C limit):
+#   55 C 30% | 70 C 40% | 78 C 55% | 84 C 75% | 88 C 100%
+# Stepping up is immediate; stepping down needs 5 C of hysteresis AND 60 s at the current level.
+# Unreadable temperature -> 100%. Stopping the service hands both fans back to the firmware. Fan 3 stays firmware.
+# Temperature = hottest of the EC reading, CPU Tctl and the APU's own GPU (an eGPU on USB4/OcuLink is ignored).
 set -u
 [ "$(cat /sys/class/dmi/id/board_name)" = AXB35-02 ] || { echo "not an AXB35-02 board; refusing" >&2; exit 1; }
 modprobe ec_sys write_support=1
@@ -16,33 +19,39 @@ wr() { printf "\\x$(printf %02x "$2")" | dd of="$IO" bs=1 seek=$(( $1 )) count=1
 handback() { wr 0x33 0; wr 0x34 0; echo "fans handed back to firmware"; exit 0; }
 trap handback TERM INT
 
-temp() {  # hottest of the EC, CPU (k10temp Tctl) and GPU (amdgpu edge) readings, whole C; empty if none readable
-  local t m="" d f=/sys/class/ec_su_axb35/temp1/temp
+temp() {
+  local t m="" d v f=/sys/class/ec_su_axb35/temp1/temp
   [ -r "$f" ] && m=$(cat "$f")
   for d in /sys/class/hwmon/hwmon*; do
     case "$(cat "$d/name")" in
-      k10temp|amdgpu)
-        t=$(( $(cat "$d/temp1_input" 2>/dev/null || echo 0) / 1000 ))
-        if [ -z "$m" ] || [ "$t" -gt "$m" ]; then m=$t; fi ;;
+      k10temp) ;;
+      amdgpu)  # only the APU's iGPU (a small VRAM carve-out); skip discrete cards with tens of GB of VRAM
+        v=$(cat "$d/device/mem_info_vram_total" 2>/dev/null || echo 0)
+        [ "$v" -le $((4 * 1024 * 1024 * 1024)) ] || continue ;;
+      *) continue ;;
     esac
+    t=$(( $(cat "$d/temp1_input" 2>/dev/null || echo 0) / 1000 ))
+    if [ -z "$m" ] || [ "$t" -gt "$m" ]; then m=$t; fi
   done
   echo "$m"
 }
 
-duty=(0 50 70 85 100)
-up=(0 75 82 88 92)
+# level:   0 = firmware, 1..5 = override
+duty=(0 30 40 55 75 100)
+up=(0 55 70 78 84 88)
+top=5
 hyst=5
 hold=60
 level=0
 changed=0
-echo "fan assist started (levels at ${up[1]}/${up[2]}/${up[3]}/${up[4]} C)"
+echo "fan control started: firmware below ${up[1]} C, then ${duty[1]}/${duty[2]}/${duty[3]}/${duty[4]}/${duty[5]}% at ${up[1]}/${up[2]}/${up[3]}/${up[4]}/${up[5]} C"
 while :; do
   t=$(temp)
   if [ -z "$t" ] || [ "$t" -le 0 ]; then
-    target=4
+    target=$top
   else
     target=$level
-    while [ "$target" -lt 4 ] && [ "$t" -ge "${up[$((target + 1))]}" ]; do target=$((target + 1)); done
+    while [ "$target" -lt "$top" ] && [ "$t" -ge "${up[$((target + 1))]}" ]; do target=$((target + 1)); done
     if [ "$target" -eq "$level" ] && [ $(( $(date +%s) - changed )) -ge "$hold" ]; then
       while [ "$target" -gt 0 ] && [ "$t" -lt $(( ${up[$target]} - hyst )) ]; do target=$((target - 1)); done
     fi

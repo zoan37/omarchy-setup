@@ -169,13 +169,31 @@ the fan, `0x00` hands it back to the firmware (registers found by
 (40%) took fan 1 from 0 to 2,200 rpm within 9 s; `0x00` released it.
 
 [`m5-fan-assist`](assets/bosgame-m5-ec/m5-fan-assist) +
-[`m5-fan-assist.service`](assets/bosgame-m5-ec/m5-fan-assist.service) use it gently: below 75 C the firmware keeps
-control (stock quiet), above it both fans step to 50/70/85/100% at 75/82/88/92 C; stepping down needs 5 C of
-hysteresis and 60 s at the current level, from the
-hottest of the EC, CPU and GPU readings, rewritten every 5 s (the firmware can take a fan back). An unreadable
-temperature means 100%; stopping the service hands both fans back. Needs `ec_sys` with `write_support=1`
-(`/etc/modprobe.d/ec_sys-write.conf` + `/etc/modules-load.d/ec_sys.conf`). It checks the board name and refuses to
-run on anything but AXB35-02.
+[`m5-fan-assist.service`](assets/bosgame-m5-ec/m5-fan-assist.service) use it for an **"X3-like" quiet profile**: below
+55 C the firmware keeps control (silent at idle); from 55 C the script owns both fans with a slower curve than the
+factory one, letting the APU run warm the way the EVO X3 does (~80 C under load, inside its ~95-100 C limit):
+
+| APU temp | Fans 1+2 |
+|---|---|
+| < 55 C | firmware |
+| 55 C | 30% |
+| 70 C | 40% |
+| 78 C | 55% |
+| 84 C | 75% |
+| 88 C, or unreadable | 100% |
+
+Stepping up is immediate; stepping down needs 5 C of hysteresis and 60 s at the current level. The temperature is the
+hottest of the EC reading, CPU Tctl and the **APU's own** GPU (an eGPU on the box is ignored: it has its own cooling).
+Stopping the service hands both fans back to the firmware. Needs `ec_sys` with `write_support=1`
+(`/etc/modprobe.d/ec_sys-write.conf` + `/etc/modules-load.d/ec_sys.conf`); it refuses to run on anything but AXB35-02.
+
+History: a first version helped from 65 C (50/70/85/100% at 65/72/80/86 C, no hold); under steady DeepSeek serving the
+box sat at 64-72 C and the fans flipped 50% <-> 70% every 15-30 s, louder than the firmware alone. Paired with the
+iGPU clock cap lowered 2000 -> 1800 MHz (`x3-gpu-clock-cap.service`), the quiet profile ran the same load at 74 C with
+the fans at 40% (~2,600 rpm, down from ~3,000-3,700). The owner's verdict: lower, still audible. Next steps if needed:
+a sustained power limit with RyzenAdj (the Strix Halo wiki's AXB35 power guide: quiet/balanced/performance = 54/85/120 W
+sustained; an EC mode change resets custom limits), PTM7950 instead of the stock paste, or the 3D-printable 80 mm
+"silent case".
 
 ```sh
 sudo install -m 755 assets/bosgame-m5-ec/m5-fan-assist /usr/local/sbin/m5-fan-assist
@@ -183,7 +201,7 @@ sudo install -m 644 assets/bosgame-m5-ec/m5-fan-assist.service assets/bosgame-m5
 printf 'options ec_sys write_support=1\n' | sudo tee /etc/modprobe.d/ec_sys-write.conf
 printf 'ec_sys\n' | sudo tee /etc/modules-load.d/ec_sys.conf
 sudo systemctl daemon-reload && sudo systemctl enable --now m5-power-mode m5-fan-assist
-journalctl -u m5-fan-assist -f      # "temp 65C: level 0 -> 1 (50%)" ...
+journalctl -u m5-fan-assist -f      # "temp 74C: level 0 -> 2 (40%)" ...
 ```
 
 The first version stepped at 65/72 C with no minimum hold; under steady DeepSeek serving the box sat at 64-72 C and
