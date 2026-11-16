@@ -8,7 +8,8 @@ ships a Windows tool for it. The community driver
 [cmetz/ec-su_axb35-linux](https://github.com/cmetz/ec-su_axb35-linux) exposes the mode, the
 three fans and the EC CPU temperature in sysfs. It is installed here through DKMS and loads at
 boot. It was installed and checked read-only first. Later the same day the mode was switched from
-quiet to **balanced** through sysfs (see [Switch modes](#switch-modes)). Nothing else has been written.
+quiet to **balanced** through sysfs (see [Switch modes](#switch-modes)). Since then the mode is pinned at boot, and a
+fan-assist service writes the EC's fan-duty override (see [Fans](#fans-the-drivers-curve-does-nothing-on-bios-311-the-duty-override-works)).
 
 ## Result
 
@@ -56,8 +57,8 @@ The registers the driver uses, as read on this M5 at idle:
 | `0x70` | CPU temperature, °C | `28` (40 °C, matches `Tctl`) |
 
 StrixFold's [M5 cooling notes](https://github.com/Shoestring-dev/StrixFold/blob/main/docs/BOSGAME-M5.md#cooling)
-use `0x33`/`0x34` for fan duty; both read `00` here. PR #40 in the driver repo adds fan duty
-control. It is not used here.
+use `0x33`/`0x34` for fan duty; both read `00` (firmware control) at idle here. PR #40 in the driver repo adds fan
+duty control. That PR isn't used; `m5-fan-assist` writes these registers through `ec_sys` instead (see Fans below).
 
 ## Two write paths to know about, even for read-only use
 
