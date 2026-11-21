@@ -1,0 +1,7 @@
+[Unit]
+Description=Check wpa_supplicant EAPOL socket wmem every 5 min
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+[Install]
+WantedBy=timers.target

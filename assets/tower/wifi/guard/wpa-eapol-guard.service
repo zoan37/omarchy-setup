@@ -1,0 +1,7 @@
+[Unit]
+Description=Restart wpa_supplicant before the EAPOL socket leak wedges it (MT7921U)
+After=wpa_supplicant.service
+[Service]
+Type=oneshot
+TimeoutStartSec=120
+ExecStart=/usr/local/bin/wpa-eapol-guard.sh

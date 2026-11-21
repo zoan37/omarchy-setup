@@ -94,31 +94,74 @@ Verify after the reboot:
 ```sh
 modinfo -F filename mt76 mt76-usb      # .../updates/mt76-usb-txleak-fix/...
 cat /proc/sys/kernel/tainted           # non-zero (out-of-tree, unsigned): expected
-sudo ss -f link -a -p -e -m | grep -A1 wpa_supplicant   # t stays ~0 over a day instead of +960 every ~8 min
+sudo ss -f link -a -p -e -m | grep -A1 wpa_supplicant   # t stays ~0 over a day instead of +960 per keep-alive
 ```
 
 Rollback (then reboot): `./rollback-patched-mt76.sh` removes the `updates/` dir and runs `depmod`.
 
+## Userspace guard (installed 2026-11-21, until the patched driver is running)
+
+The patched modules only take effect at a reboot, and the reboot date isn't known. Until then a timer restarts
+wpa_supplicant before the leak can wedge it. A fresh wpa_supplicant gets a fresh socket, so the count starts over.
+Files are in [assets/tower/wifi/guard/](assets/tower/wifi/guard/):
+
+- `eapol-wmem.sh` prints `<wmem> <sndbuf> <pct>` for wpa_supplicant's l2 socket (the `[34958]`/0x888e line of
+  `ss -f link -a -p -e -m`). It reads `960 212992 0` after one keep-alive on stock modules, and should stay near 0 once fixed.
+- `wpa-eapol-guard.sh` + `.service` + `.timer` run 5 min after boot, then every 5 min.
+  - At **≥ 70 %** of sndbuf (149 KB, ~156 keep-alives, **~21 h** after wpa_supplicant starts) it logs to tag
+    `wpa-eapol-guard`, runs `systemctl restart wpa_supplicant` (SIGKILL fallback), then `nmcli con up`.
+  - The hard wedge is at 100 % (222 keep-alives, ~30 h), so that leaves ~9 h of margin.
+  - Expect one short Wi-Fi blip (**~10 s**, estimated, not yet measured) roughly once a day. Wired is unaffected.
+  - It never touches USB or modules.
+- `wpa-wedged.sh` exits 0 if wpa_supplicant is blocked in `sock_alloc_send_pskb` or its socket is ≥ 95 % full.
+  The watchdog calls it.
+- `install-userspace-guard.sh` installs these plus the watchdog and stats below. It keeps `.bak-<timestamp>` copies
+  and installs by rename, and it needs `/etc/default/tower-wifi` (`CON="<connection name>"`).
+- `remove-userspace-guard.sh` disables and removes the timer, service and `wpa-eapol-guard.sh`.
+
+Check it:
+
+```sh
+systemctl is-active wpa-eapol-guard.timer          # active
+sudo /usr/local/bin/eapol-wmem.sh                   # e.g. "3840 212992 1"
+journalctl -t wpa-eapol-guard                       # one restart line pair per ~21 h on stock modules
+journalctl -t wifi-stats -o cat | tail -1           # ends with eapol_wmem=...
+```
+
 ## When to remove it
 
-Once the tower runs **kernel ≥ 7.3.4** (or 7.4), the fix is in-tree. The out-of-tree modules are built for 7.2.15
-only and won't be used by a new kernel, since their `updates/` dir lives under `/lib/modules/7.2.15-1-omarchy`. Run
-`rollback-patched-mt76.sh` before or after the upgrade to clean up. Also drop the debug logging below, and the
-watchdog if Wi-Fi has stayed stable for a week. Check: `uname -r`, then
-`sudo ss -f link -a -p -e -m | grep -A1 wpa_supplicant` shows `t` near 0 a day after boot.
+**Guard:** once the patched mt76 is running (`modinfo -F filename mt76` → `updates/mt76-usb-txleak-fix/`) or the
+kernel is **≥ 7.3.4**:
+
+1. Confirm the fix: `sudo /usr/local/bin/eapol-wmem.sh` stays near 0 for a day (unpatched it gains 960 B per keep-alive, every ~8 min).
+2. `assets/tower/wifi/guard/remove-userspace-guard.sh` (disable --now the timer, delete the two units and
+   `/usr/local/bin/wpa-eapol-guard.sh`, daemon-reload). Nothing is restarted.
+3. Optional: leave `eapol-wmem.sh`, `wpa-wedged.sh` and the watchdog/stats as they are. With the fix the un-wedge check
+   never fires. Or restore the pre-guard `/usr/local/bin/wifi-{watchdog,stats}.sh.bak-<timestamp>` by `mv`.
+
+**Patched modules:** once the tower runs **kernel ≥ 7.3.4** (or 7.4), the fix is in-tree. The out-of-tree modules
+are built for 7.2.15 only and won't be used by a new kernel, since their `updates/` dir lives under
+`/lib/modules/7.2.15-1-omarchy`. Run `rollback-patched-mt76.sh` before or after the upgrade to clean up.
+
+**Debug logging and watchdog:** drop the debug logging below once the fix is confirmed, and the watchdog once Wi-Fi
+has stayed stable for a week.
 
 ## Watchdog and debug logging (installed on the tower)
 
 [assets/tower/wifi/watchdog/](assets/tower/wifi/watchdog/):
 
-- `wifi-watchdog.sh` + `.service` + `.timer` (every 60 s): ping the gateway twice, 20 s apart. If it's down, save a
-  snapshot, run `nmcli con up`, then restart wpa_supplicant + rescan + `con up`. It **never touches USB.** Without
-  the kernel fix it *should* recover a reason-16 drop in a few minutes through the wpa_supplicant restart (inferred from the Nov 19 manual restart, which exited via its 2 s alarm; not yet seen in practice). The connection
-  name comes from `/etc/default/tower-wifi` (template `tower-wifi.default`). The tower's own copy has it inline.
+- `wifi-watchdog.sh` + `.service` + `.timer` (every 60 s). It **never touches USB.**
+  - First, if `wpa-wedged.sh` says wpa_supplicant is stuck, it SIGKILLs and restarts wpa_supplicant. SIGKILL ends
+    the blocked `sendto()`, which releases the netdev ref.
+  - Then it pings the gateway twice, 20 s apart. If the link is down: snapshot, `nmcli con up`, then wpa_supplicant
+    restart + rescan + `con up`.
+  - The connection name comes from `/etc/default/tower-wifi` (template `tower-wifi.default`). The tower's own copy
+    has it inline.
+  - Installed 2026-11-21 11:29, replacing an earlier version that only did `systemctl restart wpa_supplicant` after `nmcli` failed.
 - `wifi-snapshot.sh`: on a detected drop, writes `/var/log/wifi-drops/<timestamp>.txt` (`iw link`/`station dump`,
   `ip`, mt76 debugfs, last 10 min of kernel, NM and wpa logs). Keeps 30.
 - `wifi-stats.sh` + `.service` + `.timer` (every 30 s): one journal line (tag `wifi-stats`) with link, signal,
-  retries, beacon loss and bitrates.
+  retries, beacon loss, bitrates and `eapol_wmem=<wmem> <sndbuf> <pct>`.
 - `50-mt7921u-no-autosuspend.rules`: USB autosuspend off for the adapter.
 
 [assets/tower/wifi/debug-logging/](assets/tower/wifi/debug-logging/):
