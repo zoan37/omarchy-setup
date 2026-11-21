@@ -1,0 +1,6 @@
+[Unit]
+Description=Tower Wi-Fi link stats
+[Service]
+Type=oneshot
+TimeoutStartSec=30
+ExecStart=/usr/local/bin/wifi-stats.sh

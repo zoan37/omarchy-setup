@@ -1,0 +1,6 @@
+[Unit]
+Description=Tower Wi-Fi watchdog
+After=NetworkManager.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wifi-watchdog.sh

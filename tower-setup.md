@@ -136,6 +136,8 @@ its network port is cabled.
 ## Not done
 
 - `gh auth login` and `hyprpm update` + hypr-tab-drag need a terminal on the tower itself.
+- Wi-Fi dropped every ~30 h and a USB replug hung: an mt76 bug on kernel 7.2.15, see
+  [tower-wifi-mt7921u-wedge.md](tower-wifi-mt7921u-wedge.md) (patched modules installed 2026-11-21; remove at kernel ≥ 7.3.4).
 - The Wi-Fi is weak (−70 dBm, one spatial stream, ~9 MB/s from the package mirror) because the
   router is outside the house. A USB extension cable moves the adapter out of the GPU exhaust
   and toward a window; the 10 GbE port to the switch is the real fix for copies between machines.

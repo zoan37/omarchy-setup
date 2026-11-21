@@ -1,0 +1,7 @@
+[Unit]
+Description=Run Wi-Fi watchdog every minute
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,2 @@
+# NetworkManager connection the watchdog brings back up (the Wi-Fi profile name).
+CON="<wifi-connection-name>"
