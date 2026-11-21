@@ -262,7 +262,7 @@ edits, and everything is documented here:
 |---|---|---|
 | `~/.config/hypr/input.lua` | Alt/Super swap, natural scroll, 3-finger swipe tuning | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |
 | `~/.config/hypr/looknfeel.lua` | resize-on-border trio | same |
-| `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+SHIFT+S screenshot (needs `hl.unbind` first). SUPER+A select-all ships upstream since 4.5 | same |
+| `~/.config/hypr/bindings.lua` | group tab-reorder binds, SUPER+M forwards Alt+M in terminals (Antigravity) / minimizes elsewhere, SUPER+SHIFT+S screenshot (needs `hl.unbind` first). SUPER+A select-all ships upstream since 4.5 | same |
 | `~/.config/hypr/monitors.lua` | monitor scale 1.6 | same |
 | `~/.config/hypr/autostart.lua` | `hyprpm reload -n` | [hyprpm-notes.md](hyprpm-notes.md) |
 | `~/.config/omarchy/shell.json` | clock format, Slack tray pin (`Slack_status_icon_1`) | [hyprland-shell-tweaks.md](hyprland-shell-tweaks.md) |

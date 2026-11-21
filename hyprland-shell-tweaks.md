@@ -114,6 +114,70 @@ SUPER+SHIFT+S line must say Screenshot, not Google Maps.
 Left on the default deliberately; Typora is still installed at `/usr/bin/typora`
 if the bind is ever wanted back.
 
+**SUPER+M = Alt+M in terminals (Antigravity CLI), minimize to dock elsewhere**
+(added 2026-11-20). With `altwin:swap_lalt_lwin` in `input.lua`, pressing the
+physical **Left Alt + M** emits `SUPER + M`, which stock Omarchy binds to
+`omarchy-hyprland-window-minimize` (`default/hypr/bindings/tiling.lua`). On a
+tiled workspace that script silently exits `0` (it only minimizes on floating
+workspaces), so physical Left Alt + M did nothing in Antigravity (`agy`) while
+Right Alt + M and physical Win + M worked. Simply unbinding `SUPER + M` isn't
+enough either, because the terminal would then see `super+m` rather than
+`alt+m`.
+
+Rebinding `SUPER + M` with the same `send_key_state` down/up helper and
+`terminal` tag check from `default/hypr/bindings/clipboard.lua` injects a real
+Wayland `ALT + m` event into any terminal window (letting Ghostty/Kitty encode
+it as legacy `\em` or CSI-u depending on the active TUI) while keeping stock
+minimize-to-dock everywhere else:
+
+```lua
+local function send_shortcut_once(mods, key)
+  return function()
+    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
+
+    hl.timer(function()
+      hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up" }))
+    end, { timeout = 50, type = "oneshot" })
+  end
+end
+
+local function active_window_is_terminal()
+  local window = hl.get_active_window()
+  if not window then
+    return false
+  end
+
+  for _, tag in ipairs(window.tags or {}) do
+    if tag:gsub("%*$", "") == "terminal" then
+      return true
+    end
+  end
+
+  return false
+end
+
+o.rebind("SUPER + M", "Alt+M in terminal / minimize to dock", function()
+  if active_window_is_terminal() then
+    send_shortcut_once("ALT", "m")()
+  else
+    hl.exec_cmd("omarchy-hyprland-window-minimize")
+  end
+end)
+```
+
+Verify:
+
+```sh
+hyprctl reload && hyprctl configerrors
+omarchy menu keybindings --print | grep -E '^SUPER \+ M\b'
+```
+
+Expected: no config errors, and a single `SUPER + M` entry reading
+`Alt+M in terminal / minimize to dock`. In Antigravity (`agy`), physical Left
+Alt + M now toggles queued/immediate send just like Right Alt + M and Win + M.
+To undo, remove the block from `~/.config/hypr/bindings.lua` and run
+`hyprctl reload`.
+
 ## `~/.config/hypr/monitors.lua`
 
 - `omarchy_monitor_scale = 1.6` (stock "auto" picked 2 — too zoomed on the
