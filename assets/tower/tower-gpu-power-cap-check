@@ -1,0 +1,11 @@
+#!/bin/sh
+# Re-apply 210 W minimum cap only if any amdgpu card drifted above power1_cap_min (e.g. after a GPU reset).
+for h in /sys/class/drm/card*/device/hwmon/hwmon*/power1_cap; do
+  [ -r "$h" ] && [ -r "${h}_min" ] || continue
+  cur=$(cat "$h")
+  mn=$(cat "${h}_min")
+  if [ "$cur" -gt "$mn" ]; then
+    exec /usr/local/bin/tower-gpu-power-cap min
+  fi
+done
+exit 0

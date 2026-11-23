@@ -94,6 +94,20 @@ cards (the driver came up only after the disk was unlocked), found nothing, and 
 cards stayed at 300 W. The script now waits up to 3 minutes for all four cards (`TOWER_GPUS`, default 4).
 After a reboot, check that `journalctl -u tower-gpu-power-cap -b` lists four `cap 210 W` lines.
 
+**GPU reset cap drift (fixed 2026-11-23):** when `amdgpu` recovers a card via hardware GPU reset
+(e.g. an RDNA4 MES queue hang on `0000:d3:00.0`, `MES(0) failed to respond to msg=REMOVE_QUEUE`),
+the driver restores that card's `power1_cap` back to its stock 300 W default while the boot-only
+`tower-gpu-power-cap.service` (`RemainAfterExit=yes`) does not re-run. A lightweight 60-second
+watchdog timer checks `power1_cap > power1_cap_min` (zero writes when already at 210 W) and
+re-applies `tower-gpu-power-cap min` if any card drifts:
+
+```sh
+sudo install -Dm755 assets/tower/tower-gpu-power-cap-check /usr/local/bin/tower-gpu-power-cap-check
+sudo install -Dm644 assets/tower/tower-gpu-power-cap-watch.service /etc/systemd/system/tower-gpu-power-cap-watch.service
+sudo install -Dm644 assets/tower/tower-gpu-power-cap-watch.timer /etc/systemd/system/tower-gpu-power-cap-watch.timer
+sudo systemctl daemon-reload && sudo systemctl enable --now tower-gpu-power-cap-watch.timer
+```
+
 ### CPU boost off (4.5 GHz base instead of 5.45 GHz)
 
 ```sh
@@ -148,6 +162,6 @@ its network port is cabled.
 ```sh
 for h in /sys/class/drm/card*/device/hwmon/hwmon*; do cat $h/power1_cap; done   # 210000000 each (wake cards first)
 cat /sys/devices/system/cpu/cpufreq/boost                                         # 0
-systemctl is-enabled tower-gpu-power-cap tower-cpu-boost-off                      # enabled enabled
+systemctl is-enabled tower-gpu-power-cap tower-gpu-power-cap-watch.timer tower-cpu-boost-off  # enabled enabled enabled
 /opt/rocm/bin/rocminfo | grep -c gfx1201                                          # 4
 ```

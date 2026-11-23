@@ -1,0 +1,6 @@
+[Unit]
+Description=Re-apply 210 W GPU power cap if any amdgpu card drifted above min
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/tower-gpu-power-cap-check
